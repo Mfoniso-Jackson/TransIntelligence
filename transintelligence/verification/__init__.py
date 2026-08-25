@@ -1,1 +1,2 @@
-"""Interface placeholder for future replaceable intelligence modules."""
+from .model import EvidenceVerifier, VerificationResult, VerificationStatus
+__all__ = ["EvidenceVerifier", "VerificationResult", "VerificationStatus"]

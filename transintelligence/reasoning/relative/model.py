@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
-from transintelligence.core.observations import Observation
+from transintelligence.core.observations import Observation, ObservationQuery, ObservationStore
 from transintelligence.representation.reference_frames import ReferenceFrame
 
 @dataclass(frozen=True)
@@ -14,13 +14,13 @@ class ReasoningResult:
     explanation: str = ""
 
 class BaselineRelativeReasoner:
-    def __init__(self, observations: list[Observation] | None = None, property_name: str = "score"):
-        self.observations = observations or []
+    def __init__(self, observations: list[Observation] | ObservationStore | None = None, property_name: str = "score"):
+        self.observations = observations if isinstance(observations, ObservationStore) else ObservationStore(observations or [])
         self.property_name = property_name
     def _score(self, x: Any, frame: ReferenceFrame) -> tuple[float, tuple[Observation, ...], float]:
         entity_id = getattr(x, "id", str(x))
         prop = str(frame.metadata.get("property", self.property_name))
-        obs = tuple(o for o in self.observations if o.entity_id == entity_id and o.property_name == prop)
+        obs = tuple(self.observations.query(ObservationQuery(entity_id=entity_id, property_name=prop)))
         if not obs: return (0.0, (), 0.1)
         raw = float(obs[-1].value)
         baseline = frame.baseline if isinstance(frame.baseline, (int, float)) else frame.metadata.get("baseline", 0.0)

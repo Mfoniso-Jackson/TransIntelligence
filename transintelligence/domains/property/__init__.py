@@ -1,1 +1,2 @@
-"""Lightweight domain adapter namespace; core primitives remain domain-agnostic."""
+from .adapter import relative_value
+__all__ = ["relative_value"]
