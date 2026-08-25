@@ -6,7 +6,7 @@ A working core that represents entities, relationships, observations, states, co
 
 ## Next milestone
 
-Add reference-frame validation, richer temporal state trajectories, causal/counterfactual protocol examples, and more expressive domain adapter fixtures.
+Add richer observation querying, reference-frame validation, domain adapter examples for growth and property, and structured verifier outputs.
 
 ## Later milestones
 

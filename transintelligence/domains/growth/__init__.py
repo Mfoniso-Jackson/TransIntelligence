@@ -1,2 +1,1 @@
-from .adapter import rank_prospects
-__all__ = ["rank_prospects"]
+"""Lightweight domain adapter namespace; core primitives remain domain-agnostic."""

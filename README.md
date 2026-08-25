@@ -12,8 +12,7 @@ This repository currently implements the first milestone: typed primitives for e
 - Epistemic models: `Claim`, `Evidence`, `CounterEvidence`, `Hypothesis`, `Confidence`, `Source`.
 - In-memory episodic/semantic/strategic storage namespaces.
 - Minimal `KernelAgent` loop that stores simulated steps.
-- Finance, knowledge, growth, and property examples/adapters showing the same primitives across domains.
-- Observation querying and deterministic evidence verification for traceable reasoning.
+- Finance and knowledge examples showing the same primitives across domains.
 
 ## Planned
 

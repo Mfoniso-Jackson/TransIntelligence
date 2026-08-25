@@ -52,31 +52,3 @@ def test_evidence_memory_agent_loop():
     mem = InMemoryStore(); mem.store(claim, tags=("claim",))
     step = KernelAgent(mem).run_once({"event":"observe"})
     assert claim.is_supported() and mem.retrieve("claim")[0].content == claim and step.outcome["stored"]
-from transintelligence.core.observations import ObservationQuery, ObservationStore
-from transintelligence.verification import EvidenceVerifier, VerificationStatus
-from transintelligence.domains.growth import rank_prospects
-from transintelligence.domains.property import relative_value
-
-def test_observation_store_query_and_latest():
-    ctx = Context(domain="finance")
-    e = Entity("asset", "BTC")
-    low = Observation(e.id, "volatility", 0.50, "unit", 0.5, context=ctx)
-    high = Observation(e.id, "volatility", 0.61, "unit", 0.95, context=ctx)
-    store = ObservationStore([low, high])
-    assert store.query(ObservationQuery(context_domain="finance", min_confidence=0.9)) == [high]
-    assert store.latest(e.id, "volatility") == high
-
-def test_verifier_distinguishes_supported_and_unsupported_claims():
-    verifier = EvidenceVerifier()
-    unsupported = Claim("unsupported assertion")
-    assert verifier.verify(unsupported).status == VerificationStatus.INSUFFICIENT_EVIDENCE
-    ev = Evidence("measurement", Source("unit"), confidence=Confidence(0.8))
-    supported = Claim("backed assertion", evidence=(ev,), confidence=Confidence(0.7))
-    result = verifier.verify(supported)
-    assert result.status == VerificationStatus.SUPPORTED and result.confidence == 0.7
-
-def test_growth_and_property_adapters_use_core_reasoner():
-    ranked = rank_prospects()
-    valued = relative_value()
-    assert [p.name for p in ranked.result] == ["Community A", "Business B"]
-    assert valued.result > 0
