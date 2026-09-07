@@ -12,6 +12,7 @@ from transintelligence import ReferenceFrame
 
 from environments.transworld import FrameSwitchEnv
 from experiments.exp01_frame_conditioning.agents import FlatBaselineAgent, LearnedEmbeddingAgent, RFAwareAgent, TrueOracleAgent
+from experiments.exp01_frame_conditioning.rnn_agent import RNNEmbeddingAgent
 from experiments.exp01_frame_conditioning.run import SeedLog, _windows, brier_score
 from experiments.exp01_frame_conditioning.sweep import run_grid_point
 
@@ -181,3 +182,66 @@ def test_rf_aware_degrades_more_than_flat_on_a_truly_held_out_frame():
         flat_gap = flat_held_out - flat_known
         rf_gap = rf_held_out - rf_known
         assert rf_gap < flat_gap, f"seed={seed}: rf_aware's held-out gap ({rf_gap}) should be more negative than flat's ({flat_gap})"
+
+
+def test_rnn_embedding_produces_valid_bounded_output():
+    """Sanity check for RNNEmbeddingAgent's mechanics: predictions are
+    valid, hidden state stays within tanh's range, weights actually move."""
+    agent = RNNEmbeddingAgent(hidden_dim=4, seed=0)
+    initial_v = list(agent.v)
+    env = FrameSwitchEnv(FRAMES, switch_period=40, jitter=10, noise_sigma=0.05, seed=0)
+    for _ in range(200):
+        info = env.observe()
+        predict = agent.act(info.raw)
+        assert predict in (1, -1)
+        reward = env.feedback(predict)
+        agent.update(reward)
+        assert all(-1.0 <= x <= 1.0 for x in agent.h)
+    assert agent.v != initial_v
+
+
+def test_rnn_embedding_underperforms_flat_small_scale():
+    """Regression guard for the vanishing-gradient finding in RESULTS.md:
+    a genuine tanh-RNN encoder-decoder trained via truncated BPTT
+    underperforms even the flat baseline (0.630 vs 0.700 at full scale,
+    10/10 seeds), not just loses to learned_embedding. This locks in that
+    qualitative result at reduced scale so a future change doesn't
+    silently "fix" it without the fix being noticed and documented."""
+    def run(agent, seed: int, n_steps: int = 600) -> float:
+        env = FrameSwitchEnv(FRAMES, switch_period=40, jitter=10, noise_sigma=0.05, seed=seed)
+        correct = 0
+        for _ in range(n_steps):
+            info = env.observe()
+            reward = env.feedback(agent.act(info.raw))
+            agent.update(reward)
+            correct += reward
+        return correct / n_steps
+
+    for seed in (0, 1, 2):
+        flat_acc = run(FlatBaselineAgent(), seed)
+        rnn_acc = run(RNNEmbeddingAgent(seed=seed), seed)
+        assert rnn_acc < flat_acc, f"seed={seed}: rnn_embedding={rnn_acc} did not underperform flat={flat_acc}"
+
+
+def test_rnn_embedding_bptt_length_has_negligible_effect():
+    """Regression guard for the vanishing-gradient diagnosis itself:
+    increasing bptt_steps beyond a couple of steps should barely change
+    accuracy, because gradient contributions from distant steps vanish
+    (tanh' <= 1 times small recurrent weights, compounding). If a future
+    change to the architecture or init makes bptt_steps matter a lot, that
+    would mean the vanishing-gradient explanation in RESULTS.md needs
+    revisiting, not that this test's tolerance should just be loosened."""
+    def run(bptt_steps: int, seed: int = 0, n_steps: int = 600) -> float:
+        env = FrameSwitchEnv(FRAMES, switch_period=40, jitter=10, noise_sigma=0.05, seed=seed)
+        agent = RNNEmbeddingAgent(bptt_steps=bptt_steps, seed=seed)
+        correct = 0
+        for _ in range(n_steps):
+            info = env.observe()
+            reward = env.feedback(agent.act(info.raw))
+            agent.update(reward)
+            correct += reward
+        return correct / n_steps
+
+    acc_1 = run(bptt_steps=1)
+    acc_20 = run(bptt_steps=20)
+    assert abs(acc_1 - acc_20) < 0.05, f"bptt_steps=1 ({acc_1}) vs bptt_steps=20 ({acc_20}) differ more than expected"

@@ -27,6 +27,7 @@ from experiments.exp01_frame_conditioning.agents import (
     RFAwareAgent,
     TrueOracleAgent,
 )
+from experiments.exp01_frame_conditioning.rnn_agent import RNNEmbeddingAgent
 
 FRAMES = [
     ReferenceFrame("f1", baseline=0.5, metadata={"direction": "higher_is_better"}),
@@ -65,6 +66,8 @@ def run_agent_on_seed(agent_kind: str, seed: int, switch_period: int = SWITCH_PE
         agent = FlatBaselineAgent()
     elif agent_kind == "learned_embedding":
         agent = LearnedEmbeddingAgent(len(FRAMES), seed=seed)
+    elif agent_kind == "rnn_embedding":
+        agent = RNNEmbeddingAgent(seed=seed)
     elif agent_kind == "flat_oracle":
         agent = FlatOracleAgent(len(FRAMES))
     elif agent_kind == "true_oracle":
@@ -151,7 +154,7 @@ def brier_score(log: SeedLog, switch_period: int = SWITCH_PERIOD) -> float:
     return statistics.mean(scores) if scores else float("nan")
 
 
-AGENT_KINDS = ("flat", "learned_embedding", "rf_aware", "flat_oracle", "true_oracle")
+AGENT_KINDS = ("flat", "learned_embedding", "rnn_embedding", "rf_aware", "flat_oracle", "true_oracle")
 
 
 def main() -> None:
@@ -181,6 +184,8 @@ def main() -> None:
         ("learned_embedding", "flat"),
         ("rf_aware", "flat_oracle"),
         ("true_oracle", "rf_aware"),
+        ("rnn_embedding", "flat"),
+        ("learned_embedding", "rnn_embedding"),
     ):
         diffs = [x - y for x, y in zip(per_agent_overall[a], per_agent_overall[b])]
         wins = sum(1 for d in diffs if d > 0)

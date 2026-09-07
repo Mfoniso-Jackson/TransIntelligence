@@ -77,6 +77,26 @@ quality relative to the learned-embedding versions already in the
 literature above, and does it gain anything in calibration/auditability
 that a black-box embedding can't offer even if reward is tied.**
 
+**Follow-up (Experiment 1, `docs/experiments/exp01_frame_conditioning/RESULTS.md`)**:
+building the more literal version of this literature's mechanism — a
+trained recurrent context encoder, not a discrete mixture — hit a second,
+independent layer of established theory. Bengio, Simard, Frasconi,
+*Learning Long-Term Dependencies with Gradient Descent is Difficult*,
+IEEE Transactions on Neural Networks, 1994, identifies exactly the failure
+mode observed (vanishing gradients in a vanilla `tanh` RNN, insensitive to
+truncated-BPTT length); Williams, Peng, *An Efficient Gradient-Based
+Algorithm for On-Line Training of Recurrent Network Trajectories*, Neural
+Computation 2(4), 1990, is the truncated-BPTT training method used;
+Hochreiter, Schmidhuber, *Long Short-Term Memory*, Neural Computation
+9(8), 1997, is the established fix (gating) not implemented here.
+**Classification: established theory for all three — the failure, the
+training method, and the fix are all textbook, not novel findings. What's
+worth reporting is that a plausible opaque-embedding *implementation
+choice* (vanilla RNN vs. discrete mixture) determines success or failure
+independently of the frame-conditioning question itself — treat "learned
+embedding" as a family with very different members, not a single
+baseline.**
+
 ## 3. Causal framing of "evaluate relative to a frame"
 
 - Pearl, *Causality: Models, Reasoning, and Inference*, 2nd ed.,
@@ -257,6 +277,7 @@ methods."**
 | Area | Nearest citation(s) | Classification |
 |---|---|---|
 | Reference frame as conditioning context | Li et al. 2010; Kaelbling et al. 1998; Schaul et al. 2015; arXiv:2102.06177; Duan et al. 2016; Finn et al. 2017 | Established theory — mechanism is old, explicit/legible representation is an engineering choice |
+| RNN encoder-decoder condition-B attempt (vanishing gradients) | Bengio, Simard & Frasconi 1994; Williams & Peng 1990; Hochreiter & Schmidhuber 1997 | Established theory in full — the failure mode, the training method, and the fix (unimplemented) are all textbook |
 | Causal framing of `evaluate(x,R)` | Pearl 2009 | Established theory; not yet implemented here |
 | Frame-dependence detection | Arjovsky et al. 2019; arXiv:2010.05761; Zhou et al. 2023; Wang et al. 2022 | Established theory; current `sensitivity()` is a naive baseline against it |
 | Geometric reasoning over non-physical spaces | Bronstein et al. 2021 | Established theory, directly prior art |

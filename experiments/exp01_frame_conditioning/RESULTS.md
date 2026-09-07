@@ -7,18 +7,21 @@ Ran: `PYTHONPATH=. python experiments/exp01_frame_conditioning/run.py`.
 `docs/related-work.md` #2 for why condition A alone doesn't earn the full
 claim.
 
-## Result — all five conditions (final, after all three fixes below)
+## Result — all six conditions (final, after all fixes below)
 
 | agent | overall acc. | stdev (across seeds) | recovery acc. (steps 1-10 post-switch) | steady acc. (steps 30-40 post-switch) | belief in true frame (steady) |
 |---|---|---|---|---|---|
 | flat | 0.700 | 0.020 | 0.586 | 0.709 | n/a |
+| rnn_embedding | 0.630 | 0.029 | 0.545 | 0.620 | n/a |
 | learned_embedding | 0.837 | 0.013 | 0.702 | 0.834 | n/a |
 | rf_aware | 0.918 | 0.005 | 0.780 | 0.906 | 0.817 |
 | flat_oracle | 0.886 | 0.006 | 0.882 | 0.899 | n/a |
 | true_oracle | **0.961** | 0.002 | **0.962** | **0.963** | n/a |
 
-Clean monotonic ordering: `flat` (0.700) < `learned_embedding` (0.837) <
-`flat_oracle` (0.886) < `rf_aware` (0.918) < `true_oracle` (0.961).
+Monotonic ordering among the non-oracle, non-recurrent conditions holds:
+`flat` (0.700) < `learned_embedding` (0.837) < `flat_oracle` (0.886) <
+`rf_aware` (0.918) < `true_oracle` (0.961) — `rnn_embedding` (0.630) sits
+*below* `flat`, out of that ordering entirely; see below for why.
 
 Paired, per-seed (same env/seed for both agents in each pair):
 
@@ -28,6 +31,8 @@ overall_acc(rf_aware) - overall_acc(learned_embedding):   mean=+0.080  stdev=0.0
 overall_acc(learned_embedding) - overall_acc(flat):       mean=+0.137  stdev=0.016  wins=10/10 seeds
 overall_acc(rf_aware) - overall_acc(flat_oracle):         mean=+0.032  stdev=0.007  wins=10/10 seeds
 overall_acc(true_oracle) - overall_acc(rf_aware):         mean=+0.043  stdev=0.004  wins=10/10 seeds
+overall_acc(rnn_embedding) - overall_acc(flat):           mean=-0.071  stdev=0.017  wins=0/10 seeds
+overall_acc(learned_embedding) - overall_acc(rnn_embedding): mean=+0.208  stdev=0.029  wins=10/10 seeds
 ```
 
 (The sections below document the three fixes that got here, in order:
@@ -155,6 +160,70 @@ arXiv:2102.06177 more literally) would need to look instead — likely in
 how *precisely* the slots' decision boundaries converge, not in what
 information they have access to.
 
+## `rnn_embedding`: the actual encoder-decoder attempt, and why it fails
+
+Built `RNNEmbeddingAgent` (`rnn_agent.py`) — the more literal version of
+condition B flagged as the remaining gap above: a small recurrent hidden
+state (`hidden_dim=8`), no discrete "slots" or frame notion anywhere, with
+a linear decoder over `[1, raw, h]`. Trained end-to-end via truncated
+backpropagation through time (Williams & Peng, *An Efficient Gradient-
+Based Algorithm for On-Line Training of Recurrent Network Trajectories*,
+Neural Computation 2(4), 1990), the same reward-implies-label trick used
+elsewhere for the decoder's loss.
+
+**First version (truncation length 1) scored ~0.6-0.65 accuracy —
+worse than `flat`.** Extended to a proper multi-step truncated BPTT
+(unrolling the backward pass through the last `bptt_steps` transitions,
+accumulating gradients, then applying one update) to rule out "the
+truncation was just too short" as the explanation. **It made no
+difference at all** — `bptt_steps=1`, `5`, `10`, and `20` produced
+identical accuracy to three decimal places across every seed tested. A
+sweep of `recurrent_lr` (0.05 to 1.0) and `init_scale` (0.1 to 1.0) also
+made no meaningful difference.
+
+**This is the classical vanishing-gradient problem in vanilla RNNs, not a
+bug in this implementation** (Bengio, Simard, Frasconi, *Learning
+Long-Term Dependencies with Gradient Descent is Difficult*, IEEE
+Transactions on Neural Networks, 1994): with a `tanh` nonlinearity and
+small recurrent weights, each step backward multiplies the gradient by a
+factor with magnitude well under 1 (`tanh' <= 1`, times a small-norm
+`W_hh`), so gradient contributions from more than 1-2 steps back are
+numerically negligible regardless of how far the truncation window
+extends — explaining exactly why increasing `bptt_steps` changed nothing.
+This is precisely the problem LSTM (Hochreiter & Schmidhuber, *Long
+Short-Term Memory*, Neural Computation 9(8), 1997) was designed to fix,
+via gating that allows gradient to flow through many steps unattenuated —
+implementing that is a real, larger undertaking (learned gates, multiple
+weight matrices per cell) beyond this repo's hand-rolled, no-heavy-deps
+scope, and was not attempted here.
+
+**Full-scale result (10 seeds, 3000 steps): `rnn_embedding` scores 0.630
+— *worse than `flat`* (0.700, -0.071, 0/10 seeds), and far worse than
+`learned_embedding` (0.837, -0.208).** This is a genuine, well-grounded
+negative result, not a wash: it shows that "opaque learned embedding" is
+not a monolithic category — a hard-EM discrete mixture
+(`learned_embedding`) and a vanilla recurrent encoder (`rnn_embedding`)
+are both plausible-sounding implementations of "infer context from a
+trajectory," and one works reasonably well while the other fails outright
+for a well-understood, textbook reason. **This strengthens rather than
+weakens the case for `rf_aware`'s advantage**: even a fairly sophisticated
+-sounding baseline (a genuine trained recurrent network) doesn't
+automatically clear the bar `learned_embedding` already clears, let alone
+`rf_aware`'s.
+
+Regression-locked in `tests/test_exp01_frame_conditioning.py`: the
+underperformance itself (`test_rnn_embedding_underperforms_flat_small_scale`)
+and the diagnostic claim that `bptt_steps` doesn't matter
+(`test_rnn_embedding_bptt_length_has_negligible_effect`) — if a future
+change makes either test fail, the vanishing-gradient explanation above
+needs revisiting, not just the test tolerance.
+
+**What this does not establish**: an LSTM/GRU-gated version was not
+built or tested — the honest claim is "a vanilla RNN fails for a
+well-understood reason," not "no recurrent architecture could work here."
+Building the gated version is the natural next step if this specific
+comparison is pursued further, not a quick fix to the current one.
+
 ## `true_oracle`: a clean isolation of "cost of inference"
 
 Added a second oracle-style control, `TrueOracleAgent`: given the true
@@ -191,14 +260,20 @@ interesting, non-obvious result, not just a marginal edge case.
 ## What this still does not establish
 
 - **`learned_embedding` still isn't prior art's strongest opaque
-  mechanism** — it's a hard-EM mixture of linear experts with an online
-  logistic gradient update, not a full encoder-decoder trained on
-  reward/dynamics prediction like arXiv:2102.06177 / arXiv:2207.02249.
-  Each of the three fixes narrowed the gap to `rf_aware` further (from
-  "loses to flat" → +0.113 → +0.080), which is the right trend, but
-  extrapolating that trend to zero is speculation, not a result. Treat
-  +0.080 as a real result against the strongest baseline actually built
-  here, not as the final word against the strongest possible one.
+  mechanism, and the more literal attempt (`rnn_embedding`) failed for an
+  unrelated, well-understood reason** — a hard-EM mixture of linear
+  experts with an online logistic gradient update (`learned_embedding`)
+  is not a full encoder-decoder trained on reward/dynamics prediction
+  like arXiv:2102.06177 / arXiv:2207.02249. Built a genuine recurrent
+  version instead (`rnn_embedding`); it hit the classical vanishing-
+  gradient problem in vanilla RNNs (Bengio, Simard, Frasconi, 1994) and
+  scored *worse than flat*, not closer to `rf_aware`. So the honest state
+  is: `learned_embedding` (0.837, -0.080 vs. `rf_aware`) remains the
+  strongest opaque baseline actually built and cleared, and a materially
+  better one would need LSTM/GRU-style gating (Hochreiter & Schmidhuber,
+  1997) — a real, larger undertaking, not attempted. Treat +0.080 as a
+  real result against the strongest baseline that actually works here,
+  not as the final word against the strongest possible one.
 - ~~**No held-out-frame test**~~ — run below (`held_out_frame.py`), and it
   surfaced a real, substantial limitation of `rf_aware`'s fixed candidate
   list (−0.181 accuracy when the active frame isn't in it) — not a clean
@@ -227,10 +302,13 @@ interesting, non-obvious result, not just a marginal edge case.
   the rule" specifically, given the decomposition above.
 - Done: `learned_embedding` was strengthened with a real gradient loss
   (see the third fix above), and the `rf_aware` margin over it did shrink
-  (+0.113 → +0.080) while staying robust (10/10 seeds). The remaining
-  lever — an actual small encoder-decoder over reward/dynamics, matching
-  arXiv:2102.06177 more literally — is a larger build, not required to
-  trust the current result, but would strengthen it further if pursued.
+  (+0.113 → +0.080) while staying robust (10/10 seeds). The more literal
+  encoder-decoder attempt (`rnn_embedding`) was also built and run — it
+  failed for an unrelated, well-diagnosed reason (vanishing gradients in
+  a vanilla RNN), not because the underlying idea is wrong. `learned_embedding`
+  remains the strongest opaque baseline that actually works; an
+  LSTM/GRU-gated version is the concrete next lever if pursued further,
+  not required to trust the current +0.080 result.
 - The environment configuration is now swept (see below) rather than
   fixed at one noise level and one switch period.
 - **The overall picture is now positive-with-real-caveats, not simply

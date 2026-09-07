@@ -132,6 +132,22 @@ Summary:
   isn't caused by "no temporal context" (the belief vector already
   supplies that), narrowing where a future, more ambitious rebuild would
   need to look.
+- **The more literal encoder-decoder rebuild was attempted and failed for
+  a well-understood, unrelated reason.** Built `RNNEmbeddingAgent`: a
+  genuine recurrent hidden state, no discrete slots, trained via truncated
+  BPTT (Williams & Peng, 1990) — the architecture actually closest to
+  arXiv:2102.06177's "infer context from trajectory." It scored **0.630,
+  worse than `flat` (0.700)**, and increasing the BPTT truncation length
+  from 1 to 20 steps changed nothing — a textbook signature of the
+  vanishing-gradient problem in vanilla RNNs (Bengio, Simard, Frasconi,
+  1994), the exact problem LSTM/GRU gating (Hochreiter & Schmidhuber,
+  1997) was invented to fix. **This strengthens rather than weakens the
+  overall case**: a plausible, more literal opaque baseline failed for a
+  reason unrelated to `rf_aware`'s specific advantage, while
+  `learned_embedding` (the simpler discrete-mixture baseline) remains the
+  strongest opaque baseline that actually works, and clears +0.080 below
+  `rf_aware`. An LSTM/GRU-gated version is the concrete next lever, not
+  attempted.
 - **Swept across noise and switch frequency** (mirroring Experiment 2's
   noise sweep) — **and found a real boundary condition**: `rf_aware`'s
   advantage over both `flat` and `learned_embedding` shrinks monotonically

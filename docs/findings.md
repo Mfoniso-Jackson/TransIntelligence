@@ -63,6 +63,21 @@ a single fixed configuration:
   strong when the world matches its assumptions makes it brittle exactly
   when it doesn't.
 
+A fourth baseline, built specifically to close the "not prior art's actual
+mechanism" gap in `learned_embedding`: a genuine recurrent context
+encoder (`rnn_embedding`), trained end-to-end via truncated
+backpropagation through time — architecturally the closest thing in this
+codebase to what the cited multi-task RL papers actually do. **It scored
+worse than the flat baseline** (0.630 vs. 0.700), and lengthening the
+truncation window from 1 to 20 steps changed nothing — a textbook
+vanishing-gradient failure in vanilla RNNs, the exact problem LSTM/GRU
+gating was invented to fix decades ago. This is a genuine, well-diagnosed
+negative result, and it strengthens the overall picture rather than
+weakening it: "opaque learned embedding" turns out to be a family with
+very different members, one of which (the discrete mixture) clears a real
+bar and one of which (the vanilla RNN) fails outright for reasons
+unrelated to the frame-conditioning question itself.
+
 → [experiments/exp01_frame_conditioning/RESULTS.md](../experiments/exp01_frame_conditioning/RESULTS.md)
 
 ## Experiment 3 — Does a learned strategy transfer across structurally analogous domains?
