@@ -18,10 +18,19 @@ baseline.
 """
 from __future__ import annotations
 
+import math
 import random
 
 from transintelligence import Entity, Observation, ReferenceFrame
 from transintelligence.reasoning.relative import BaselineRelativeReasoner
+
+
+def _sigmoid(x: float) -> float:
+    if x >= 0:
+        z = math.exp(-x)
+        return 1.0 / (1.0 + z)
+    z = math.exp(x)
+    return z / (1.0 + z)
 
 
 class RFAwareAgent:
@@ -135,7 +144,16 @@ class LearnedEmbeddingAgent:
     that commits fully to whatever it's currently seeing. Belief itself
     (used for the *prediction* vote and for choosing which slot to update)
     stays the same soft Bayesian filter as RFAwareAgent -- only the
-    weight-update assignment is hardened."""
+    weight-update assignment is hardened.
+
+    The winning slot is updated via an online logistic-regression gradient
+    step, not a perceptron mistake-rule: reward + this agent's own last
+    prediction together imply the true label on *every* step (if reward=1
+    the label was the prediction, if reward=0 it was the opposite), so a
+    real supervised gradient step is available every step, not just on
+    mistakes -- a materially closer match to how prior art (arXiv:2102.06177,
+    arXiv:2207.02249, see docs/related-work.md #2) actually trains context
+    representations, rather than a binary correct/incorrect nudge."""
 
     name = "learned_embedding"
 
@@ -181,10 +199,15 @@ class LearnedEmbeddingAgent:
         uniform = 1.0 / self.n_slots
         self.belief = [(1 - self.switch_prob) * p + self.switch_prob * uniform for p in posterior]
 
-        if reward == 0:
-            target = -self._last_prediction
-            w, b = self.experts[self._last_winner]
-            self.experts[self._last_winner] = (w + self.lr * target * self._last_raw, b + self.lr * target)
+        # Reward + our own last prediction imply the true label on every
+        # step (not just mistakes): reward=1 -> label was the prediction,
+        # reward=0 -> label was the opposite. Real logistic-regression
+        # gradient step on the winning slot toward that implied label.
+        implied_target01 = 1.0 if (self._last_prediction if reward == 1 else -self._last_prediction) > 0 else 0.0
+        w, b = self.experts[self._last_winner]
+        p_hat = _sigmoid(w * self._last_raw + b)
+        grad = p_hat - implied_target01
+        self.experts[self._last_winner] = (w - self.lr * grad * self._last_raw, b - self.lr * grad)
 
 
 class FlatOracleAgent:

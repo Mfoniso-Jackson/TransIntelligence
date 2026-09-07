@@ -104,29 +104,41 @@ Summary:
   from having to *learn* each frame's rule instead of being handed it.
   `rf_aware`'s exact-rule-via-`evaluate()` is worth more than
   `flat_oracle`'s "told which frame" — a genuinely interesting result.
-- **Condition B (learned embedding): built, fixed twice, now a fair test.**
-  First implementation had a real bug (zero-initialized slots are
+- **Condition B (learned embedding): built, fixed three times, now a fair
+  test.** First implementation had a real bug (zero-initialized slots are
   provably degenerate — collapse into a scaled copy of a single flat rule).
   Fixed via random initialization, but that alone still underperformed
   flat (0.632 vs. 0.700, losing 9/10 seeds) — soft belief-weighted updates
-  diluted learning across all 4 competing slots. Fixed again via hard
-  (argmax) responsibility assignment for weight updates (belief itself
-  stays soft, only the update target is hardened): `learned_embedding` now
-  decisively beats `flat` (0.805, +0.105, 10/10 seeds) — a legitimate,
-  non-degenerate, capacity-matched opaque baseline. `rf_aware` still beats
-  it, **+0.113, 10/10 seeds** — this is now citable as evidence for the
-  narrowed claim from `related-work.md` §2: explicit structure beats a
-  baseline that itself clearly beats flat, not just "explicit beats
-  nothing." Full ordering: `flat` (0.700) < `learned_embedding` (0.805) <
-  `flat_oracle` (0.886) < `rf_aware` (0.918) < `true_oracle` (0.961) —
-  clean and monotonic.
+  diluted learning across 4 competing slots. Fixed again via hard (argmax)
+  responsibility assignment for weight updates: `learned_embedding` then
+  decisively beat `flat` (0.805, +0.105) but still trailed `rf_aware` by
+  +0.113. A third fix — a real online logistic-regression gradient step
+  (using every step's reward-implied label, not just mistakes) in place of
+  the perceptron rule — pushed `learned_embedding` to 0.837 and narrowed
+  the `rf_aware` margin further to **+0.080, 10/10 seeds**. Full ordering:
+  `flat` (0.700) < `learned_embedding` (0.837) < `flat_oracle` (0.886) <
+  `rf_aware` (0.918) < `true_oracle` (0.961) — clean and monotonic, and the
+  gap narrows in the right direction each time the baseline is
+  strengthened, which is the trend that actually earns trust in the
+  result (rather than a single lucky number).
+- **Swept across noise and switch frequency** (mirroring Experiment 2's
+  noise sweep) — **and found a real boundary condition**: `rf_aware`'s
+  advantage over both `flat` and `learned_embedding` shrinks monotonically
+  as observation noise grows and **effectively vanishes by σ=0.4**
+  (+0.001 over `learned_embedding`, indistinguishable from estimation
+  noise). Report the hypothesis as holding within the tested noise regime
+  (σ ≲ 0.2), not universally. Separately, `rf_aware`'s margin over `flat`
+  is largest under *frequent* switching (+0.245 at period=20 vs. +0.173 at
+  period=80) — faster regime changes punish a single slowly-readapting
+  rule more than an agent already tracking multiple hypotheses.
 
 Read the linked results in full before citing any of this externally —
 several of these numbers only make sense with the decomposition explained
 there, and `learned_embedding` is still not prior art's *strongest*
-possible opaque mechanism (a hard-EM mixture of linear experts, not an
-encoder-decoder), so the +0.113 margin is a real result against the
-baseline actually built, not the final word against the strongest one.
+possible opaque mechanism (a hard-EM mixture of linear experts with a
+logistic update, not a full encoder-decoder), so +0.080 is a real result
+against the strongest baseline actually built, not the final word against
+the strongest possible one.
 
 - **Hypothesis:** In a synthetic environment where the reward-optimal
   action depends on a hidden "active reference frame" that changes at

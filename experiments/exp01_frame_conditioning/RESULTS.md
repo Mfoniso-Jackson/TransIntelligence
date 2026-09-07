@@ -7,33 +7,35 @@ Ran: `PYTHONPATH=. python experiments/exp01_frame_conditioning/run.py`.
 `docs/related-work.md` #2 for why condition A alone doesn't earn the full
 claim.
 
-## Result — all five conditions (final, after both fixes below)
+## Result — all five conditions (final, after all three fixes below)
 
 | agent | overall acc. | stdev (across seeds) | recovery acc. (steps 1-10 post-switch) | steady acc. (steps 30-40 post-switch) | belief in true frame (steady) |
 |---|---|---|---|---|---|
 | flat | 0.700 | 0.020 | 0.586 | 0.709 | n/a |
-| learned_embedding | 0.805 | 0.015 | 0.686 | 0.804 | n/a |
+| learned_embedding | 0.837 | 0.013 | 0.702 | 0.834 | n/a |
 | rf_aware | 0.918 | 0.005 | 0.780 | 0.906 | 0.817 |
 | flat_oracle | 0.886 | 0.006 | 0.882 | 0.899 | n/a |
 | true_oracle | **0.961** | 0.002 | **0.962** | **0.963** | n/a |
 
-Clean monotonic ordering: `flat` (0.700) < `learned_embedding` (0.805) <
+Clean monotonic ordering: `flat` (0.700) < `learned_embedding` (0.837) <
 `flat_oracle` (0.886) < `rf_aware` (0.918) < `true_oracle` (0.961).
 
 Paired, per-seed (same env/seed for both agents in each pair):
 
 ```
 overall_acc(rf_aware) - overall_acc(flat):               mean=+0.218  stdev=0.016  wins=10/10 seeds
-overall_acc(rf_aware) - overall_acc(learned_embedding):   mean=+0.113  stdev=0.012  wins=10/10 seeds
-overall_acc(learned_embedding) - overall_acc(flat):       mean=+0.105  stdev=0.012  wins=10/10 seeds
+overall_acc(rf_aware) - overall_acc(learned_embedding):   mean=+0.080  stdev=0.010  wins=10/10 seeds
+overall_acc(learned_embedding) - overall_acc(flat):       mean=+0.137  stdev=0.016  wins=10/10 seeds
 overall_acc(rf_aware) - overall_acc(flat_oracle):         mean=+0.032  stdev=0.007  wins=10/10 seeds
 overall_acc(true_oracle) - overall_acc(rf_aware):         mean=+0.043  stdev=0.004  wins=10/10 seeds
 ```
 
-(The table below documents the two fixes that got here, in order: first
-random initialization to break a symmetry bug, then hard responsibility
-assignment to fix a real underperformance-vs-flat problem. Both were real
-findings at the time, not detours — see the sections below for why.)
+(The sections below document the three fixes that got here, in order:
+random initialization to break a symmetry bug, hard responsibility
+assignment to fix an underperformance-vs-flat problem, then a proper
+logistic-regression gradient step in place of the perceptron mistake-rule
+to close more of the gap to `rf_aware`. All three were real findings at
+the time, not detours.)
 
 ## A methodological bug worth reporting on its own: naive symmetric multi-hypothesis tracking degenerates to a flat rule
 
@@ -103,6 +105,31 @@ human-legible `ReferenceFrame` structure beats a reasonably strong opaque
 multi-hypothesis baseline that itself clearly beats a flat single rule —
 not just "explicit beats nothing."
 
+## Third fix: a real gradient loss instead of a perceptron mistake-rule
+
+The remaining candidate fix flagged in an earlier draft of this document:
+the winning slot was still only updated on outright mistakes (`reward ==
+0`), by a fixed step in the correcting direction — a perceptron rule, not
+a proper loss gradient. But reward combined with the agent's own last
+prediction implies the true label on *every* step, not just wrong ones (if
+`reward == 1` the label was the prediction; if `reward == 0` it was the
+opposite) — so a real supervised signal is available every step. Replaced
+the perceptron update with an online logistic-regression gradient step
+toward that implied label, applied every step to the winning slot (still
+hard-assigned, as fixed above) — closer to how the multi-task RL baselines
+this is modeled on (arXiv:2102.06177, arXiv:2207.02249) actually train
+their context representations from reward, rather than a coarser
+binary-correct/incorrect nudge.
+
+**Result: `learned_embedding` improves further, to 0.837** (from 0.805 —
++0.137 over `flat`, 10/10 seeds), and **`rf_aware`'s margin over it tightens
+to +0.080** (from +0.113, still 10/10 seeds, stdev 0.010). This is the
+right direction for a meaningful test: strengthening condition B narrows
+the gap rather than leaving it unchanged, and the hypothesis survives the
+tighter comparison. `learned_embedding` (0.837) is now close to
+`flat_oracle` (0.886) despite never being told which frame is active —
+a genuinely capable opaque baseline at this point, not a strawman.
+
 ## `true_oracle`: a clean isolation of "cost of inference"
 
 Added a second oracle-style control, `TrueOracleAgent`: given the true
@@ -139,22 +166,22 @@ interesting, non-obvious result, not just a marginal edge case.
 ## What this still does not establish
 
 - **`learned_embedding` still isn't prior art's strongest opaque
-  mechanism** — it's a hard-EM mixture of linear experts, not an
-  encoder-decoder trained on reward/dynamics prediction like
-  arXiv:2102.06177 / arXiv:2207.02249. It's now a *fair, non-degenerate*
-  baseline (clearly beats flat), which is what makes the `rf_aware`
-  margin over it citable — but a materially stronger opaque baseline could
-  still close more of that gap. Treat +0.113 as a real result against the
-  baseline actually built, not as the final word against the strongest
-  possible one.
+  mechanism** — it's a hard-EM mixture of linear experts with an online
+  logistic gradient update, not a full encoder-decoder trained on
+  reward/dynamics prediction like arXiv:2102.06177 / arXiv:2207.02249.
+  Each of the three fixes narrowed the gap to `rf_aware` further (from
+  "loses to flat" → +0.113 → +0.080), which is the right trend, but
+  extrapolating that trend to zero is speculation, not a result. Treat
+  +0.080 as a real result against the strongest baseline actually built
+  here, not as the final word against the strongest possible one.
 - **No held-out-frame test** — all agents that use `FRAMES` know all four
   from the start; "performance on a frame not seen during training" from
   `research-agenda.md` #5's metrics list is still unmeasured.
 - **No formal calibration metric** — `belief in true frame (steady)` =
   0.817 for `rf_aware` is a proxy (posterior mass on the actually-active
   frame), not a proper Brier/log score.
-- **Single environment configuration** — one noise level, one switch
-  period, 10 seeds; not swept the way Experiment 2 was.
+- ~~**Single environment configuration**~~ — swept below (noise and switch
+  frequency), mirroring Experiment 2's noise sweep.
 
 ## What this changes going forward
 
@@ -172,8 +199,70 @@ interesting, non-obvious result, not just a marginal edge case.
 - `true_oracle` is now the right ceiling to cite for "cost of inference";
   `flat_oracle` is now best understood as isolating "cost of not knowing
   the rule" specifically, given the decomposition above.
-- If this experiment continues, the next lever is a stronger
-  `learned_embedding` (real gradient loss, or an actual small
-  encoder-decoder over reward/dynamics) to see whether the `rf_aware`
-  margin over it shrinks further — not required to trust the current
-  result, but would strengthen it.
+- Done: `learned_embedding` was strengthened with a real gradient loss
+  (see the third fix above), and the `rf_aware` margin over it did shrink
+  (+0.113 → +0.080) while staying robust (10/10 seeds). The remaining
+  lever — an actual small encoder-decoder over reward/dynamics, matching
+  arXiv:2102.06177 more literally — is a larger build, not required to
+  trust the current result, but would strengthen it further if pursued.
+- The environment configuration is now swept (see below) rather than
+  fixed at one noise level and one switch period.
+
+## Sweep: the advantage is not noise-invariant, and shrinks toward zero
+
+Ran: `PYTHONPATH=. python experiments/exp01_frame_conditioning/sweep.py`.
+Two 1-D sweeps (10 seeds, 3000 steps each grid point), reusing the exact
+same `run_agent_on_seed`/`recovery_curve`/`calibration` helpers as `run.py`
+so the sweep and the headline single-configuration numbers above can't
+silently drift apart in definition.
+
+**Noise sweep** (switch period fixed at 40±10; same noise levels as
+Experiment 2, for comparability):
+
+| sigma | flat | learned_embedding | rf_aware | flat_oracle | true_oracle | rf_aware − flat | rf_aware − learned_embedding |
+|---|---|---|---|---|---|---|---|
+| 0.00 | 0.711 | 0.850 | 0.961 | 0.928 | 1.000 | +0.250 | +0.111 |
+| 0.02 | 0.707 | 0.850 | 0.943 | 0.907 | 0.983 | +0.235 | +0.093 |
+| 0.05 | 0.700 | 0.837 | 0.918 | 0.886 | 0.961 | +0.218 | +0.080 |
+| 0.10 | 0.685 | 0.816 | 0.873 | 0.847 | 0.920 | +0.188 | +0.057 |
+| 0.20 | 0.657 | 0.753 | 0.787 | 0.771 | 0.845 | +0.130 | +0.034 |
+| 0.40 | 0.613 | 0.658 | 0.659 | 0.654 | 0.732 | +0.046 | **+0.001** |
+
+**This is an important boundary condition, not just a robustness check:
+`rf_aware`'s advantage over both `flat` and `learned_embedding` shrinks
+monotonically as observation noise grows, and effectively vanishes by
+`sigma=0.4`** (+0.001 over `learned_embedding` — indistinguishable from
+noise in the estimate itself, given stdev on the order of 0.01-0.05 at
+this noise level). At high enough noise, the raw observation carries so
+little signal about the entity's true value that no amount of structural
+knowledge about the candidate frames helps — everything converges toward
+similarly mediocre performance (`flat` 0.613, `learned_embedding` 0.658,
+`rf_aware` 0.659, `flat_oracle` 0.654, all within 0.05 of each other, vs.
+a >0.35 spread at `sigma=0`). Report the hypothesis as holding *within the
+noise regime tested* (σ ≤ ~0.2), not universally — this is exactly the
+kind of scope qualifier `research-agenda.md`'s falsification discipline
+calls for, and it wasn't visible from the single `sigma=0.05` configuration
+alone.
+
+**Switch-period sweep** (noise fixed at 0.05; jitter scaled to period/4):
+
+| period | flat | learned_embedding | rf_aware | flat_oracle | true_oracle | rf_aware − flat | rf_aware − learned_embedding |
+|---|---|---|---|---|---|---|---|
+| 20 | 0.636 | 0.804 | 0.882 | 0.887 | 0.960 | +0.245 | +0.078 |
+| 40 | 0.700 | 0.837 | 0.918 | 0.886 | 0.961 | +0.218 | +0.080 |
+| 80 | 0.762 | 0.870 | 0.935 | 0.886 | 0.960 | +0.173 | +0.065 |
+
+Two things worth stating precisely rather than averaging away:
+
+- **`rf_aware`'s absolute margin over `flat` is largest under frequent
+  switching** (+0.245 at period=20 vs. +0.173 at period=80) — faster
+  regime changes punish a single slowly-readapting rule more than they
+  punish an agent already tracking multiple hypotheses. Everyone's
+  accuracy rises with slower switching (more time to settle before the
+  next change), but `flat`'s rises fastest, closing part of the gap.
+- **`flat_oracle` is essentially insensitive to switch frequency**
+  (0.887 / 0.886 / 0.886) — because it maintains one independent sub-rule
+  per frame id and each sub-rule accumulates training data continuously
+  over the full 3000 steps regardless of how often the environment
+  switches between them. This is a clean, sensible mechanical explanation,
+  not a coincidence.

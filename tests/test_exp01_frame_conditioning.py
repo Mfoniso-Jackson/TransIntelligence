@@ -10,6 +10,8 @@ from transintelligence import ReferenceFrame
 
 from environments.transworld import FrameSwitchEnv
 from experiments.exp01_frame_conditioning.agents import FlatBaselineAgent, LearnedEmbeddingAgent, RFAwareAgent, TrueOracleAgent
+from experiments.exp01_frame_conditioning.run import _windows
+from experiments.exp01_frame_conditioning.sweep import run_grid_point
 
 FRAMES = [
     ReferenceFrame("f1", baseline=0.5, metadata={"direction": "higher_is_better"}),
@@ -96,3 +98,34 @@ def test_true_oracle_matches_or_beats_rf_aware_given_the_true_frame():
             oracle_correct += reward
 
         assert oracle_correct >= rf_correct, f"seed={seed}: oracle={oracle_correct} < rf_aware={rf_correct}"
+
+
+def test_windows_scale_with_switch_period_and_match_original_fixed_values():
+    """At the original switch_period=40, the proportional windows must
+    reduce to exactly the fixed (0,10)/(30,40) windows the first version of
+    this experiment used, or RESULTS.md's numbers stop being reproducible."""
+    recovery, steady = _windows(40)
+    assert recovery == (0, 10)
+    assert steady == (30, 40)
+    # Shorter periods should shrink both windows, not just one.
+    short_recovery, short_steady = _windows(20)
+    assert short_recovery[1] < recovery[1]
+    assert short_steady[1] - short_steady[0] <= steady[1] - steady[0]
+
+
+def test_sweep_grid_point_runs_and_returns_expected_shape():
+    """Smoke test for sweep.py's machinery (not the full 10-seed/3000-step
+    sweep in RESULTS.md, which takes ~50s) -- confirms run_grid_point wires
+    together run_agent_on_seed/AGENT_KINDS correctly at a tiny scale."""
+    import experiments.exp01_frame_conditioning.sweep as sweep_module
+    original_seeds, original_steps = sweep_module.SEEDS, sweep_module.N_STEPS
+    sweep_module.SEEDS, sweep_module.N_STEPS = [0, 1], 200
+    try:
+        results = run_grid_point(switch_period=20, jitter=5, noise_sigma=0.1)
+    finally:
+        sweep_module.SEEDS, sweep_module.N_STEPS = original_seeds, original_steps
+
+    for key in ("flat", "learned_embedding", "rf_aware", "flat_oracle", "true_oracle",
+                "rf_aware-flat", "rf_aware-learned_embedding"):
+        assert key in results
+        assert "overall_acc" in results[key] and "stdev" in results[key]

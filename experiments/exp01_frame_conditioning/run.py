@@ -1,11 +1,14 @@
 """Experiment 1 -- does explicit frame structure beat a flat baseline under
 matched (zero) information about which frame is active, and does that
-advantage survive against a baseline given the true frame id directly?
+advantage survive against a baseline given the true frame id directly, a
+learned-embedding baseline, and a clean inference-cost oracle?
 
 See docs/research-agenda.md #5 for the hypothesis and falsification
 criterion, and docs/related-work.md #2 for why the flat-vs-structured
-question alone isn't enough to claim novelty (a learned-embedding condition
-B is not yet implemented here -- see "Not yet built" in RESULTS.md).
+question alone isn't enough to claim novelty. Full results and the fixes
+that got the numbers here are in RESULTS.md -- this single-configuration
+run is one data point; sweep.py in this directory sweeps noise and switch
+frequency around it, reusing the helpers defined here.
 
 Run: PYTHONPATH=. python experiments/exp01_frame_conditioning/run.py
 """
@@ -36,8 +39,12 @@ SWITCH_PERIOD = 40
 JITTER = 10
 NOISE_SIGMA = 0.05
 SEEDS = list(range(10))
-RECOVERY_WINDOW = 10   # steps immediately after a switch
-STEADY_WINDOW = (30, 40)  # steps [30,40) after a switch, before the next one is likely
+# Windows are defined as fractions of switch_period so recovery_curve() and
+# calibration() stay meaningful when sweep.py varies switch_period: at the
+# default period=40 these reduce to exactly (0,10) and (30,40), matching the
+# original fixed-window design.
+RECOVERY_FRACTION = 0.25          # first quarter of the period
+STEADY_FRACTION = (0.75, 1.0)     # last quarter of the period
 
 
 @dataclass
@@ -47,8 +54,9 @@ class SeedLog:
     belief_in_true: list[float | None] = field(default_factory=list)
 
 
-def run_agent_on_seed(agent_kind: str, seed: int) -> SeedLog:
-    env = FrameSwitchEnv(FRAMES, switch_period=SWITCH_PERIOD, jitter=JITTER, noise_sigma=NOISE_SIGMA, seed=seed)
+def run_agent_on_seed(agent_kind: str, seed: int, switch_period: int = SWITCH_PERIOD,
+                       jitter: int = JITTER, noise_sigma: float = NOISE_SIGMA, n_steps: int = N_STEPS) -> SeedLog:
+    env = FrameSwitchEnv(FRAMES, switch_period=switch_period, jitter=jitter, noise_sigma=noise_sigma, seed=seed)
     if agent_kind == "rf_aware":
         agent = RFAwareAgent(FRAMES)
     elif agent_kind == "flat":
@@ -64,7 +72,7 @@ def run_agent_on_seed(agent_kind: str, seed: int) -> SeedLog:
 
     needs_frame_id = agent_kind in ("flat_oracle", "true_oracle")
     log = SeedLog()
-    for _ in range(N_STEPS):
+    for _ in range(n_steps):
         info = env.observe()
         if needs_frame_id:
             predict = agent.act(info.raw, info.active_frame_index)
@@ -79,14 +87,24 @@ def run_agent_on_seed(agent_kind: str, seed: int) -> SeedLog:
     return log
 
 
-def recovery_curve(log: SeedLog) -> tuple[float, float]:
-    """Mean accuracy in the RECOVERY_WINDOW right after a switch vs. the
-    STEADY_WINDOW later, averaged across all switches in this seed's run."""
+def _windows(switch_period: int) -> tuple[tuple[int, int], tuple[int, int]]:
+    """Recovery and steady windows as step-offsets after a switch, scaled to
+    switch_period (see RECOVERY_FRACTION/STEADY_FRACTION) so these stay
+    meaningful when sweep.py varies the switch frequency."""
+    recovery = (0, max(1, round(switch_period * RECOVERY_FRACTION)))
+    steady = (round(switch_period * STEADY_FRACTION[0]), max(round(switch_period * STEADY_FRACTION[0]) + 1, round(switch_period * STEADY_FRACTION[1])))
+    return recovery, steady
+
+
+def recovery_curve(log: SeedLog, switch_period: int = SWITCH_PERIOD) -> tuple[float, float]:
+    """Mean accuracy in the recovery window right after a switch vs. the
+    steady window later, averaged across all switches in this seed's run."""
+    (rec_start, rec_end), (steady_start, steady_end) = _windows(switch_period)
     switch_indices = [i for i, s in enumerate(log.switched) if s]
     recovery_accs, steady_accs = [], []
     for idx in switch_indices:
-        rec = log.rewards[idx: idx + RECOVERY_WINDOW]
-        steady = log.rewards[idx + STEADY_WINDOW[0]: idx + STEADY_WINDOW[1]]
+        rec = log.rewards[idx + rec_start: idx + rec_end]
+        steady = log.rewards[idx + steady_start: idx + steady_end]
         if rec:
             recovery_accs.append(sum(rec) / len(rec))
         if steady:
@@ -97,12 +115,13 @@ def recovery_curve(log: SeedLog) -> tuple[float, float]:
     )
 
 
-def calibration(log: SeedLog) -> float:
+def calibration(log: SeedLog, switch_period: int = SWITCH_PERIOD) -> float:
     """Mean belief mass placed on the true active frame during steady windows (RF-aware only)."""
+    _, (steady_start, steady_end) = _windows(switch_period)
     switch_indices = [i for i, s in enumerate(log.switched) if s]
     vals = []
     for idx in switch_indices:
-        window = log.belief_in_true[idx + STEADY_WINDOW[0]: idx + STEADY_WINDOW[1]]
+        window = log.belief_in_true[idx + steady_start: idx + steady_end]
         vals.extend(v for v in window if v is not None)
     return statistics.mean(vals) if vals else float("nan")
 
