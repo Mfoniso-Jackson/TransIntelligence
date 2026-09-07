@@ -1,8 +1,8 @@
 # Findings
 
-A standalone summary of what the first four experiments in
+A standalone summary of what the first five experiments in
 [research-agenda.md](research-agenda.md) actually established, for anyone
-who wants the result without reading four `RESULTS.md` files and the
+who wants the result without reading five `RESULTS.md` files and the
 incremental updates to the agenda itself. Each section below is a compressed
 version of a much more detailed writeup — follow the links for the numbers,
 the code, and the caveats a one-paragraph summary can't carry.
@@ -12,8 +12,9 @@ the code, and the caveats a one-paragraph summary can't carry.
 Reference-frame conditioning works, but only within a bounded regime; every
 positive result that looked clean on first pass got smaller once the
 control built to potentially kill it actually ran — except one, where the
-control confirmed the effect instead, and that asymmetry is itself worth
-noticing.
+control confirmed the effect instead, and a fifth experiment on an
+unrelated kernel capability then independently validated the specific fix
+that would have helped the one result that didn't hold up cleanly.
 
 ## Experiment 2 — Does `sensitivity()` detect frame-dependent conclusions?
 
@@ -157,7 +158,7 @@ same session, sharpened exactly how much harder:
 
 ## The meta-finding
 
-Across the four experiments, the same discipline applied every time: build
+Across the five experiments, the same discipline applied every time: build
 the control that could kill the result, then run it, and don't stop at the
 first configuration that looks clean. Every single result got a real
 qualifier once that happened. Three times the headline *number* shrank —
@@ -169,7 +170,7 @@ follow-up stress tests (a noise sweep, a two-simultaneously-missing-
 regimes test) still found real, structural boundaries: a specificity
 collapse outside the calibrated noise level, and a dependence on
 behavioral rather than parametric distinctness. No experiment that was
-actually pushed on came back unqualified. None of the four hypotheses were
+actually pushed on came back unqualified. None of the five hypotheses were
 fully falsified, but none survived untouched either — that's the intended
 outcome of the experimental discipline in
 [research-agenda.md](research-agenda.md) §21, not a failure of it. A
@@ -179,15 +180,71 @@ control confirmed rather than shrank the effect is still the one worth
 the most trust — its remaining caveats are about scope, not about whether
 the central claim is real.
 
+Experiment 5 adds a second kind of validation to this pattern: not a
+control on its own result, but independent confirmation of a fix proposed
+for an *earlier* experiment's failure. Experiment 4's noise sweep found
+that a fixed detection threshold collapses sharply outside the noise
+level it was calibrated for, and named the fix (recalibrate from local
+data) without building it. Experiment 5, built for an unrelated kernel
+capability, happened to use exactly that kind of self-calibrating
+threshold — and it degraded gracefully under the identical stress test.
+That's not a coincidence to wave away; it's the kind of cross-experiment
+consistency that makes the whole research log more credible than any one
+result in isolation.
+
+## Experiment 5 — Can the kernel detect when a regime changed, not just which one is active?
+
+**Positive, and the first result from this program that's a reusable
+kernel capability rather than an RL research script.** Experiments 1-4
+all live under `experiments/` as standalone research code.
+`transintelligence/reasoning/temporal/` was, before this, a single-line
+docstring stub — no change detection, no regime segmentation, nothing
+beyond the point-in-time `state_at`/`trajectory` lookups Phase 1 already
+had. `CUSUMTemporalReasoner` fills it in with a self-calibrating CUSUM
+change detector (Page, 1954) operating directly on `StateHistory`.
+
+A real calibration finding came first, the same way it did in earlier
+experiments: the "textbook" statistical-process-control starting point
+produced a **47% false-positive rate on genuinely stationary data**
+(measured directly), because a short, self-calibrated burn-in window
+gives an unreliable noise estimate and the test runs at every step, not
+once. Recalibrated the defaults (`burn_in=30`, `h_sigma=8.0`, ~6%
+false-positive rate) and documented the finding in the class itself, not
+just here.
+
+With that fixed, two sweeps: **noise degrades the detector gracefully**
+(recall/precision ~0.97-0.99 up to σ=0.10, only crossing into serious
+degradation past ~6x that noise level) — a materially different pattern
+from experiment 4's sharp specificity collapse, and direct, independent
+evidence that experiment 4's own suggested fix (a threshold that adapts
+to locally observed noise instead of one fixed at design time) actually
+works when built. **Regime length has a sharp, mechanistically correct
+threshold at the detector's `burn_in` parameter** — recall is exactly
+zero for regimes a third as long as `burn_in`, and jumps to ~1.0 the
+moment regimes reach or exceed it. Not a bug: a regime shorter than the
+calibration window can never be calibrated on before the next change
+happens, and the clean transition right at the parameter boundary
+confirms the mechanism does exactly what it's designed to do.
+
+→ [experiments/exp05_regime_change_detection/RESULTS.md](../experiments/exp05_regime_change_detection/RESULTS.md)
+
 ## What isn't tested yet
 
 - A learned-embedding baseline that matches prior art's actual mechanism
-  (an encoder-decoder trained on reward/dynamics prediction) rather than
-  the hard-EM mixture of linear experts built here.
+  more closely than either the hard-EM mixture or the vanilla RNN built
+  here — both were tried; an LSTM/GRU-gated version is the concrete next
+  lever, not attempted (the vanilla RNN failed on vanishing gradients, a
+  well-understood and unrelated problem).
 - Discovery beyond a single missing regime from a known two-parameter
   family — two or more simultaneously missing regimes, a continuously
   drifting regime, or a richer frame structure than `(baseline,
   direction)` would all break the current grid-search fit.
-- Any of the master context's later phases (temporal, causal,
-  counterfactual reasoning; world models; agency; meta-intelligence) — all
-  still pre-formalization, per `research-agenda.md`'s own sequencing.
+- `regime_segments()`'s per-segment accuracy under noise (only
+  `change_points()` was benchmarked directly), temporal comparison of
+  whole trajectories rather than point-to-point state diffs (dynamic time
+  warping is the established method, not implemented), and non-Gaussian
+  or gradual-drift regime transitions, which CUSUM isn't designed to
+  detect cleanly.
+- The master context's remaining later phases (causal, counterfactual
+  reasoning; world models; agency; meta-intelligence) — all still
+  pre-formalization, per `research-agenda.md`'s own sequencing.

@@ -463,6 +463,72 @@ relaxed at all, in the narrowest possible way.
   once a richer frame family (more than one `(baseline, direction)` pair
   missing at once, or a continuous drift) is tested.
 
+## 7b. Experiment 5 — Regime-change detection as a core kernel capability (Phase 4)
+
+**Status: run.** The first work on the master context's Phase 4
+("Temporal Intelligence": state histories, trajectories, change
+detection, regime detection, temporal comparison). Unlike experiments 1-4
+(RL research scripts under `experiments/`), this phase's deliverable is a
+genuine, reusable **kernel** primitive:
+`transintelligence/reasoning/temporal/` was, before this, a single-line
+docstring stub (`transintelligence/reasoning/temporal/__init__.py`) — the
+`TemporalReasoner` protocol in `reasoning/interfaces.py` declared no
+methods at all. `State`/`StateHistory` (Phase 1) already provided
+`state_at`/`trajectory` (point-in-time lookup, range query) but nothing
+*derived* — no way to ask "when did this change" or "what regimes did
+this go through."
+
+- **Hypothesis:** a self-calibrating CUSUM change detector (Page 1954,
+  see `docs/related-work.md` §9a), operating on a `StateHistory`'s numeric
+  `values[key]` stream, can recover known regime-change points from a
+  synthetic ground-truth generative process (Hamilton-style discrete
+  regime shifts, Hamilton 1989) with useful recall/precision, and degrade
+  in an understood, ideally graceful way outside its calibrated
+  conditions — mirroring the noise-sweep discipline from experiments 1/4
+  rather than reporting one fixed configuration.
+- **Design:** `CUSUMTemporalReasoner` (`transintelligence/reasoning/temporal/model.py`)
+  implements `change_points`, `regime_segments`, `compare` against the
+  now-filled-in `TemporalReasoner` protocol. Benchmarked in
+  `experiments/exp05_regime_change_detection/` against synthetic
+  `StateHistory` sequences with known regime boundaries, across a noise
+  sweep and a regime-length sweep, with hyperparameters held fixed across
+  each sweep (not recalibrated per condition) — the same discipline
+  experiments 1 and 4 used.
+- **A real calibration finding, caught before the main result, not
+  after:** the "conventional" statistical-process-control starting point
+  (small burn-in, `h_sigma=5`) produced a **47% false-positive rate on
+  genuinely stationary data** (measured directly, 200 trials) — because a
+  short self-calibrated burn-in window gives an unreliable σ estimate,
+  and CUSUM is tested at every subsequent step, not once. Recalibrated to
+  `burn_in=30`, `h_sigma=8.0` (measured false-positive rate ~6%) as the
+  new class defaults, documented in the class docstring itself so the
+  calibration travels with the code, not just this document.
+- **Result — noise sweep: degrades gracefully, unlike experiment 4's
+  trigger.** Recall/precision stay at ~0.97-0.99 from σ=0.01 to σ=0.10,
+  only dropping to 0.887 at σ=0.20 and below 0.5 past σ≈0.4 — a smooth
+  decline, not experiment 4's sharp specificity collapse. **This is
+  direct evidence for the fix experiment 4's own results named but didn't
+  build**: a threshold that recalibrates from locally observed noise,
+  rather than one fixed at design time, degrades far more gracefully.
+- **Result — regime-length sweep: a sharp, structural, and correctly
+  mechanistic threshold at `burn_in`.** Recall is exactly 0.000 at
+  `regime_length=10` (a third of `burn_in=30`), 0.312 at 20, then jumps to
+  a clean 1.000 the moment regimes reach or exceed 30. This is not a bug
+  — a regime shorter than the calibration window can never be calibrated
+  on before the next change happens, and the sharp transition exactly at
+  the parameter boundary confirms the mechanism behaves exactly as
+  designed. States a real, structural precondition plainly: this detector
+  is only meaningful for regimes expected to persist for at least
+  `burn_in` observations.
+- **Falsification:** would have been "no useful recall/precision at any
+  noise level" or "no coherent relationship between regime length and
+  detection" — neither happened; both sweeps produced clean, mechanistically
+  explicable results. Full numbers, the calibration sweep, and what
+  isn't yet tested (only `change_points()` benchmarked directly, not
+  `regime_segments()`'s per-segment accuracy; no non-Gaussian/gradual-drift
+  transitions, which CUSUM isn't designed to detect cleanly) in
+  [experiments/exp05_regime_change_detection/RESULTS.md](../experiments/exp05_regime_change_detection/RESULTS.md).
+
 ## 8. Sequencing
 
 1. ~~Experiment 2 first~~ — **done**, see §6. Result: `sensitivity()` failed
@@ -501,6 +567,15 @@ relaxed at all, in the narrowest possible way.
    control in the same commit as the treatment, per the lesson from
    experiment 3. Full results in
    [experiments/exp04_frame_discovery/](../experiments/exp04_frame_discovery/RESULTS.md).
+6. ~~Experiment 5~~ — **done**, see §7b. First Phase 4 work, and the first
+   genuinely reusable kernel primitive from this research program
+   (`transintelligence/reasoning/temporal/`, previously an empty stub).
+   CUSUM change detection degrades gracefully under noise — direct,
+   independent evidence for the self-calibrating-threshold fix experiment
+   4's results named but never built — and has a real, mechanistically
+   clean structural limit (regimes must persist at least `burn_in`
+   steps). Full results in
+   [experiments/exp05_regime_change_detection/](../experiments/exp05_regime_change_detection/RESULTS.md).
 
 ## 9. What would make this publishable, and what would make a reviewer skeptical
 
@@ -536,14 +611,23 @@ relaxed at all, in the narrowest possible way.
   borrows from (§8a of `related-work.md`) solves a much harder version of
   this problem than what was actually tested here, and both follow-ups
   show exactly where that gap matters.
-- **All four experiments are now done** (§5-7a). If this program is
+- **All five experiments are now done** (§5-7b). If this program is
   written up externally, the honest headline is: reference-frame
   conditioning helps within a bounded noise/coverage regime (experiment 1),
   a naive frame-dependence detector can fail in exactly the common case and
   the fix is provable not just empirical (experiment 2), cross-domain
   transfer shows a real but small effect once a necessary confound control
-  is applied (experiment 3), and a genuinely novel regime outside the known
+  is applied (experiment 3), a genuinely novel regime outside the known
   candidate set — the specific failure mode experiment 1 found — can be
   detected and largely recovered from by a deliberately crude heuristic
-  (experiment 4). That's a coherent, modest, defensible set of claims —
-  resist the temptation to round any of them up, experiment 4 included.
+  (experiment 4), and a properly self-calibrated detector (built for an
+  unrelated Phase 4 kernel capability) degrades far more gracefully than
+  experiment 4's fixed-threshold trigger did, retroactively validating the
+  fix experiment 4 named but didn't build (experiment 5). That's a
+  coherent, modest, defensible set of claims — resist the temptation to
+  round any of them up, experiment 4 and 5 included.
+- **Experiment 5 is also the first result from this program that is a
+  reusable kernel capability, not an RL research script** — worth leading
+  with in any framing aimed at the "is any of this actually usable"
+  question, separate from the reference-frame-conditioning experiments'
+  own framing.

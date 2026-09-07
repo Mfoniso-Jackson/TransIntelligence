@@ -1,5 +1,7 @@
 from __future__ import annotations
+from datetime import datetime
 from typing import Any, Protocol
+from transintelligence.core.states import State, StateHistory
 from transintelligence.representation.reference_frames import ReferenceFrame
 
 class GeometricReasoner(Protocol):
@@ -11,7 +13,10 @@ class RelativeReasoner(Protocol):
     def compare(self, x: Any, y: Any, reference_frame: ReferenceFrame): ...
     def rank(self, items: list[Any], reference_frame: ReferenceFrame): ...
     def sensitivity(self, x: Any, r1: ReferenceFrame, r2: ReferenceFrame): ...
-class TemporalReasoner(Protocol): pass
+class TemporalReasoner(Protocol):
+    def change_points(self, history: StateHistory, key: str) -> list[datetime]: ...
+    def regime_segments(self, history: StateHistory, key: str) -> list[Any]: ...
+    def compare(self, a: State, b: State) -> dict[str, tuple[Any, Any]]: ...
 class CausalReasoner(Protocol): pass
 class CounterfactualReasoner(Protocol): pass
 class Predictor(Protocol): pass
