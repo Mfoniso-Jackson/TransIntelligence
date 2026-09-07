@@ -7,25 +7,33 @@ Ran: `PYTHONPATH=. python experiments/exp01_frame_conditioning/run.py`.
 `docs/related-work.md` #2 for why condition A alone doesn't earn the full
 claim.
 
-## Result — all five conditions
+## Result — all five conditions (final, after both fixes below)
 
 | agent | overall acc. | stdev (across seeds) | recovery acc. (steps 1-10 post-switch) | steady acc. (steps 30-40 post-switch) | belief in true frame (steady) |
 |---|---|---|---|---|---|
 | flat | 0.700 | 0.020 | 0.586 | 0.709 | n/a |
-| learned_embedding | 0.632 | 0.050 | 0.576 | 0.625 | n/a |
-| rf_aware | **0.918** | 0.005 | 0.780 | 0.906 | 0.817 |
+| learned_embedding | 0.805 | 0.015 | 0.686 | 0.804 | n/a |
+| rf_aware | 0.918 | 0.005 | 0.780 | 0.906 | 0.817 |
 | flat_oracle | 0.886 | 0.006 | 0.882 | 0.899 | n/a |
 | true_oracle | **0.961** | 0.002 | **0.962** | **0.963** | n/a |
+
+Clean monotonic ordering: `flat` (0.700) < `learned_embedding` (0.805) <
+`flat_oracle` (0.886) < `rf_aware` (0.918) < `true_oracle` (0.961).
 
 Paired, per-seed (same env/seed for both agents in each pair):
 
 ```
 overall_acc(rf_aware) - overall_acc(flat):               mean=+0.218  stdev=0.016  wins=10/10 seeds
-overall_acc(rf_aware) - overall_acc(learned_embedding):   mean=+0.286  stdev=0.051  wins=10/10 seeds
-overall_acc(learned_embedding) - overall_acc(flat):       mean=-0.068  stdev=0.052  wins=1/10 seeds
+overall_acc(rf_aware) - overall_acc(learned_embedding):   mean=+0.113  stdev=0.012  wins=10/10 seeds
+overall_acc(learned_embedding) - overall_acc(flat):       mean=+0.105  stdev=0.012  wins=10/10 seeds
 overall_acc(rf_aware) - overall_acc(flat_oracle):         mean=+0.032  stdev=0.007  wins=10/10 seeds
 overall_acc(true_oracle) - overall_acc(rf_aware):         mean=+0.043  stdev=0.004  wins=10/10 seeds
 ```
+
+(The table below documents the two fixes that got here, in order: first
+random initialization to break a symmetry bug, then hard responsibility
+assignment to fix a real underperformance-vs-flat problem. Both were real
+findings at the time, not detours — see the sections below for why.)
 
 ## A methodological bug worth reporting on its own: naive symmetric multi-hypothesis tracking degenerates to a flat rule
 
@@ -58,39 +66,42 @@ initialization + a symmetric update rule never breaks symmetry on its
 own) — worth remembering before building any other multi-hypothesis
 tracker in this codebase.
 
-## Finding, post-fix: condition B does not yet establish a fair test — it underperforms flat
+## First fix wasn't enough on its own: soft-weighted updates underperformed flat
 
-After the fix, `learned_embedding` (0.632) is **worse** than `flat`
-(0.700), losing in 9 of 10 seeds, with over twice the variance (0.050 vs.
-0.020). This is a real, honestly-reported negative result, not something
-to quietly drop:
+After the random-init fix alone, `learned_embedding` (0.632) was **worse**
+than `flat` (0.700), losing in 9 of 10 seeds, with over twice the variance
+(0.050 vs. 0.020). This did not contradict the multi-task RL literature
+cited in `related-work.md` §2 (arXiv:2102.06177, arXiv:2207.02249) — those
+use encoder-decoder architectures trained on reward/dynamics prediction, a
+materially stronger mechanism than a soft-EM mixture of 4 linear experts.
+The likely cause: with ~40 steps between switches and 4 slots competing
+for a small, noisy reward signal, the *soft* (belief-weighted) update
+spread learning across all 4 slots every step instead of letting one
+commit — slower to specialize than a single rule that commits fully to
+whatever it's currently seeing.
 
-- It does **not** contradict the multi-task RL literature cited in
-  `related-work.md` §2 (arXiv:2102.06177, arXiv:2207.02249) — those use
-  encoder-decoder architectures trained on reward/dynamics prediction, a
-  materially stronger mechanism than a soft-EM mixture of 4 linear experts
-  updated by a crude perceptron rule. This implementation is a first,
-  deliberately simple attempt, not a replication of that literature.
-- The likely cause: with only ~40 steps between switches and 4
-  near-randomly-initialized slots competing for a small, noisy reward
-  signal, there isn't enough signal for slots to cleanly specialize before
-  the environment moves on — the soft (belief-weighted) update spreads
-  learning across all 4 slots at once rather than letting one slot commit,
-  which is slower to converge than a single rule that commits fully to
-  whatever it's currently seeing.
-- **This means the `rf_aware` vs. `learned_embedding` comparison
-  (+0.286, 10/10 seeds) is not yet a clean test of "explicit beats
-  opaque-but-equally-capable."** It's currently closer to "explicit beats
-  a weak/undertuned opaque baseline," which is a much less interesting
-  claim. Do not cite this margin as evidence for the narrowed hypothesis
-  from `related-work.md` §2 until `learned_embedding` at least reliably
-  beats `flat` — right now it doesn't, so it isn't a strong enough
-  baseline to lose to meaningfully.
-- Candidate fixes, not yet tried: hard (argmax) responsibility assignment
-  instead of soft/belief-weighted updates so one slot fully commits per
-  step; a proper gradient loss instead of a perceptron mistake-rule; more
-  steps between switches to give slots time to specialize; or fewer slots
-  than known frames to reduce the competition-for-signal problem.
+## Second fix: hard (argmax) responsibility assignment for weight updates
+
+Changed the weight-update rule only (the *belief* used for prediction and
+for choosing which slot to update stayed the same soft Bayesian filter as
+`RFAwareAgent`): each step, only the single currently-highest-belief slot
+receives the full-learning-rate update, rather than all `n_slots` slots
+receiving a belief-weighted fraction of it. This is the standard hard-EM
+fix for exactly this failure mode (soft/fractional assignment dilutes
+specialization when slots are competing for a scarce, noisy signal).
+
+**Result: `learned_embedding` now decisively beats `flat`** (0.805 vs.
+0.700, +0.105, 10/10 seeds, stdev 0.012 — both the margin and its
+consistency improved over the diluted first attempt). This is now a
+legitimate, non-degenerate, capacity-matched opaque baseline — the fair
+test `related-work.md` §2 asked for.
+
+**`rf_aware` still beats it** (+0.113, 10/10 seeds, stdev 0.012) — smaller
+than the margin over plain `flat` (+0.218) but real and consistent. This
+*is* now citable as evidence for the narrowed hypothesis: explicit,
+human-legible `ReferenceFrame` structure beats a reasonably strong opaque
+multi-hypothesis baseline that itself clearly beats a flat single rule —
+not just "explicit beats nothing."
 
 ## `true_oracle`: a clean isolation of "cost of inference"
 
@@ -127,9 +138,15 @@ interesting, non-obvious result, not just a marginal edge case.
 
 ## What this still does not establish
 
-- **A fair test of condition B** — see above; `learned_embedding` needs to
-  reliably beat `flat` before the `rf_aware` vs. `learned_embedding`
-  margin means anything.
+- **`learned_embedding` still isn't prior art's strongest opaque
+  mechanism** — it's a hard-EM mixture of linear experts, not an
+  encoder-decoder trained on reward/dynamics prediction like
+  arXiv:2102.06177 / arXiv:2207.02249. It's now a *fair, non-degenerate*
+  baseline (clearly beats flat), which is what makes the `rf_aware`
+  margin over it citable — but a materially stronger opaque baseline could
+  still close more of that gap. Treat +0.113 as a real result against the
+  baseline actually built, not as the final word against the strongest
+  possible one.
 - **No held-out-frame test** — all agents that use `FRAMES` know all four
   from the start; "performance on a frame not seen during training" from
   `research-agenda.md` #5's metrics list is still unmeasured.
@@ -142,14 +159,21 @@ interesting, non-obvious result, not just a marginal edge case.
 ## What this changes going forward
 
 - The core "structure beats flat/no-structure, under matched information"
-  claim survives every test run so far, including against two different
-  oracle controls (`flat_oracle`, `true_oracle`) — genuinely encouraging,
-  not just "not yet falsified."
-- Before improving `learned_embedding`, decide whether it's worth the
-  engineering time: the point of condition B was to test against prior
-  art's *strongest* opaque baseline, and a stronger implementation (hard
-  responsibility assignment, real gradient loss) is a real but nontrivial
-  build, not a quick fix.
+  claim survives every test run so far, including against a fair condition
+  B and two different oracle controls (`flat_oracle`, `true_oracle`) —
+  genuinely encouraging, not just "not yet falsified."
+- The clean ordering `flat` < `learned_embedding` < `flat_oracle` <
+  `rf_aware` < `true_oracle` is itself a useful result: more capacity
+  (single rule → multi-hypothesis opaque → multi-hypothesis + told which
+  → multi-hypothesis + exact rule) monotonically helps, and knowing the
+  *rule* (`rf_aware`'s `evaluate()`) matters more than knowing *which*
+  frame is active (`flat_oracle`'s revealed id) — worth stating precisely
+  in any future write-up rather than collapsing to "structure wins."
 - `true_oracle` is now the right ceiling to cite for "cost of inference";
   `flat_oracle` is now best understood as isolating "cost of not knowing
   the rule" specifically, given the decomposition above.
+- If this experiment continues, the next lever is a stronger
+  `learned_embedding` (real gradient loss, or an actual small
+  encoder-decoder over reward/dynamics) to see whether the `rf_aware`
+  margin over it shrinks further — not required to trust the current
+  result, but would strengthen it.

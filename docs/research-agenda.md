@@ -104,20 +104,29 @@ Summary:
   from having to *learn* each frame's rule instead of being handed it.
   `rf_aware`'s exact-rule-via-`evaluate()` is worth more than
   `flat_oracle`'s "told which frame" — a genuinely interesting result.
-- **Condition B (learned embedding): built, but not yet a fair test.**
+- **Condition B (learned embedding): built, fixed twice, now a fair test.**
   First implementation had a real bug (zero-initialized slots are
-  provably degenerate — collapse into a scaled copy of a single flat rule,
-  see RESULTS.md), now fixed via random initialization. Post-fix,
-  `learned_embedding` **underperforms flat** (0.632 vs. 0.700, losing 9/10
-  seeds) — so the `rf_aware` vs. `learned_embedding` margin (+0.286) is
-  not yet evidence for the narrowed claim from `related-work.md` §2; it's
-  evidence against a weak baseline, not against prior art's actual
-  learned-embedding mechanism. Do not cite it as the condition-B result
-  until `learned_embedding` at least reliably beats flat.
+  provably degenerate — collapse into a scaled copy of a single flat rule).
+  Fixed via random initialization, but that alone still underperformed
+  flat (0.632 vs. 0.700, losing 9/10 seeds) — soft belief-weighted updates
+  diluted learning across all 4 competing slots. Fixed again via hard
+  (argmax) responsibility assignment for weight updates (belief itself
+  stays soft, only the update target is hardened): `learned_embedding` now
+  decisively beats `flat` (0.805, +0.105, 10/10 seeds) — a legitimate,
+  non-degenerate, capacity-matched opaque baseline. `rf_aware` still beats
+  it, **+0.113, 10/10 seeds** — this is now citable as evidence for the
+  narrowed claim from `related-work.md` §2: explicit structure beats a
+  baseline that itself clearly beats flat, not just "explicit beats
+  nothing." Full ordering: `flat` (0.700) < `learned_embedding` (0.805) <
+  `flat_oracle` (0.886) < `rf_aware` (0.918) < `true_oracle` (0.961) —
+  clean and monotonic.
 
 Read the linked results in full before citing any of this externally —
 several of these numbers only make sense with the decomposition explained
-there.
+there, and `learned_embedding` is still not prior art's *strongest*
+possible opaque mechanism (a hard-EM mixture of linear experts, not an
+encoder-decoder), so the +0.113 margin is a real result against the
+baseline actually built, not the final word against the strongest one.
 
 - **Hypothesis:** In a synthetic environment where the reward-optimal
   action depends on a hidden "active reference frame" that changes at

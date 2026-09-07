@@ -120,12 +120,22 @@ class TrueOracleAgent:
 class LearnedEmbeddingAgent:
     """Condition B: same multi-hypothesis Bayesian belief-tracking mechanism
     as RFAwareAgent (n_slots slots, identical belief-update math), but each
-    slot is an opaque linear rule (w, b) learned online via a soft-EM-style
-    update weighted by the slot's current belief, rather than a known
+    slot is an opaque linear rule (w, b) learned online, rather than a known
     ReferenceFrame. No ReferenceFrame object, no evaluate() call -- the
     slots must discover which raw-value thresholds matter from reward
     feedback alone, same as FlatBaselineAgent, but with n_slots independent
-    hypotheses tracked instead of one."""
+    hypotheses tracked instead of one.
+
+    Weight updates use hard (argmax) responsibility assignment: only the
+    single currently-most-likely slot is updated per step, at full learning
+    rate, rather than spreading a belief-weighted fraction of the update
+    across all slots. An earlier soft-weighted version underperformed the
+    flat baseline (see RESULTS.md) -- diluting the update across all
+    n_slots slots every step is slower to specialize than a single rule
+    that commits fully to whatever it's currently seeing. Belief itself
+    (used for the *prediction* vote and for choosing which slot to update)
+    stays the same soft Bayesian filter as RFAwareAgent -- only the
+    weight-update assignment is hardened."""
 
     name = "learned_embedding"
 
@@ -148,10 +158,12 @@ class LearnedEmbeddingAgent:
         self._last_raw = 0.0
         self._last_slot_predictions: list[int] = []
         self._last_prediction = 1
+        self._last_winner = 0
 
     def act(self, raw: float) -> int:
         self._last_raw = raw
         self._last_slot_predictions = [1 if (w * raw + b) >= 0 else -1 for w, b in self.experts]
+        self._last_winner = max(range(self.n_slots), key=lambda i: self.belief[i])
         vote = sum(b_i * p for b_i, p in zip(self.belief, self._last_slot_predictions))
         self._last_prediction = 1 if vote >= 0 else -1
         return self._last_prediction
@@ -171,9 +183,8 @@ class LearnedEmbeddingAgent:
 
         if reward == 0:
             target = -self._last_prediction
-            for i, (w, b) in enumerate(self.experts):
-                step = self.lr * self.belief[i]
-                self.experts[i] = (w + step * target * self._last_raw, b + step * target)
+            w, b = self.experts[self._last_winner]
+            self.experts[self._last_winner] = (w + self.lr * target * self._last_raw, b + self.lr * target)
 
 
 class FlatOracleAgent:
