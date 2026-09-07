@@ -87,6 +87,19 @@ synthetic domains and is the least mature — sequence it last, and only if
 component" in §8 of the master context does not have a technical
 contribution yet, whatever the vision document says.**
 
+**Status: partially run.** Environment and conditions A / A-oracle built
+and run — [environments/transworld/](../environments/transworld/) and
+[experiments/exp01_frame_conditioning/](../experiments/exp01_frame_conditioning/RESULTS.md).
+Condition B (learned embedding) below is **not yet built**. Summary:
+condition A comparison is decisive (RF-aware beats flat by +0.218
+accuracy, 10/10 seeds); the oracle-control comparison survives but by a
+much smaller, nuanced margin (+0.032, split between "oracle recovers
+faster" and "RF-aware reaches a better steady state") — read the linked
+results for why that margin isn't yet clean evidence for *structure*
+specifically. Do not treat this as the completed experiment; condition B
+is the part that would actually test the narrowed claim from
+`related-work.md` §2.
+
 - **Hypothesis:** In a synthetic environment where the reward-optimal
   action depends on a hidden "active reference frame" that changes at
   unannounced change-points, an agent using explicit `evaluate(x, R)` over
