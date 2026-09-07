@@ -269,23 +269,44 @@ read the linked results for the algebra and the full noise-sweep tables.
   structurally isomorphic but superficially different domain (e.g.
   knowledge-shaped: ideas/novelty/citation-regime) with better sample
   efficiency than a domain-specific baseline trained from scratch.
-- **Status: sequence last, treat as the least mature.** It depends on
-  experiment 1's infrastructure existing and working, and on being able to
-  construct two domains that are genuinely structurally isomorphic (same
-  frame-switch dynamics, same reward structure) and not just superficially
-  relabeled — if they're relabeled, "transfer" is trivial and proves
-  nothing. Use Gentner's structure-mapping criterion (1983, see
-  [related-work.md §6](related-work.md#6-analogical--structural-cross-domain-transfer-experiment-3-and-the-trans-claim-generally))
-  as the actual test: the two domains must share a system of
-  interconnected *relations* (same frame-switch dynamics, same reward
-  structure) while deliberately differing in surface *attributes*
-  (asset/volatility vs. idea/novelty). If they instead share attributes
-  and differ only in label strings, that's similarity or relabeling, not
-  analogy, and doesn't satisfy the experiment.
+- **Design, as run:** used `LearnedEmbeddingAgent` (docs/research-agenda.md
+  #5), not `RFAwareAgent` — `RFAwareAgent`'s "knowledge" is just its
+  `ReferenceFrame` list, trivial to hand over verbatim, nothing learned to
+  test transfer of. Trained `LearnedEmbeddingAgent`'s `(w, b)` slots on a
+  finance-shaped domain, warm-started a fresh agent on a knowledge-shaped
+  domain with those values, and compared against training from scratch —
+  see [experiments/exp03_cross_domain_transfer/](../experiments/exp03_cross_domain_transfer/RESULTS.md)
+  for the domain definitions (built to satisfy Gentner's structure-mapping
+  criterion, 1983: same relational structure, i.e. same `(baseline,
+  direction)` numeric rules, different surface attributes) and the
+  non-isomorphic control (same labels, deliberately different numeric
+  structure).
+- **Status: run, with a critical third control added beyond the original
+  design.** The naive transfer-vs-scratch comparison looked clean
+  (+0.218 accuracy in an early sample-efficiency window, 10/10 trials,
+  isomorphic target) — but a `random_differentiated` control (slots
+  initialized at the same magnitude as trained ones, but never trained on
+  anything) revealed that **most of that gap is a confound**: any
+  non-near-zero starting point beats `scratch`'s clustered-near-zero init
+  by +0.088 regardless of domain match, because `scratch`'s slots start
+  predicting almost identically and the belief filter has nothing to
+  differentiate on. Subtracting the confound leaves a real,
+  structure-specific effect that *is* larger for the isomorphic target
+  than the non-isomorphic control (+0.131 vs. +0.071 early-window, 10/10
+  vs. 8/10 trial wins) but does not fully vanish on the control, and
+  washes out to small margins (+0.016 / +0.010) by the end of a full run.
+  **Verdict: weak, partial support — a real sample-efficiency effect that
+  is substantially smaller than a naive comparison would suggest, not a
+  clean "transfer works" result.** Full decomposition and the reasoning
+  behind the confound in the linked RESULTS.md.
 - **Falsification:** no sample-efficiency advantage over from-scratch
   training, or the advantage disappears once the domains are made
   non-isomorphic (a critical control condition — run this control, not
-  just the positive case).
+  just the positive case). **Not strictly met** — a structure-specific
+  advantage survives the non-isomorphic control, smaller and less
+  consistent (roughly halved, win rate down from 10/10 to 8/10) but
+  nonzero — so report this as partial support with a large, quantified
+  confound, not as confirmation or as falsification.
 
 ## 8. Sequencing
 
@@ -301,11 +322,22 @@ read the linked results for the algebra and the full noise-sweep tables.
    smoothly to chance by `sigma=0.4` in both regimes. Full numbers in
    [experiments/exp02_frame_dependence/RESULTS.md](../experiments/exp02_frame_dependence/RESULTS.md).
    Regression-locked in `tests/test_exp02_frame_dependence.py`.
-3. Experiment 1 next — requires building `environments/transworld/` and a
-   real agent with belief-update, the actual infrastructure investment.
-   `evaluate`/`compare`/`sensitivity` are now safe to build on for both
-   same- and opposite-direction frame pairs.
-4. Experiment 3 only if 1 and 2 hold up, plus the isomorphism control.
+3. ~~Experiment 1~~ — **done**, see §5. Result: `rf_aware` beats flat,
+   a fair (thrice-strengthened) learned-embedding baseline, and two oracle
+   controls — but the advantage vanishes under high observation noise
+   (σ≳0.2) and collapses when the active frame isn't in `rf_aware`'s known
+   candidate list (−0.181 accuracy). Positive-with-real-caveats, not
+   simply positive. Formal calibration (Brier=0.191) and the held-out-frame
+   test both run. Full results and five rounds of fixes/strengthening in
+   [experiments/exp01_frame_conditioning/](../experiments/exp01_frame_conditioning/RESULTS.md).
+4. ~~Experiment 3~~ — **done**, see §7, with the isomorphism control plus
+   an additional confound control (`random_differentiated`) the original
+   design didn't call for but turned out to be necessary. Result: weak,
+   partial support for cross-domain transfer — a real but small
+   structure-specific effect, substantially smaller than a naive
+   transfer-vs-scratch comparison suggests once the "any non-random start
+   helps" confound is subtracted out. Full decomposition in
+   [experiments/exp03_cross_domain_transfer/](../experiments/exp03_cross_domain_transfer/RESULTS.md).
 
 ## 9. What would make this publishable, and what would make a reviewer skeptical
 
@@ -320,4 +352,15 @@ read the linked results for the algebra and the full noise-sweep tables.
   asks it.
 - **Do not** lead with cross-domain transfer or strange loops in any
   external write-up until experiments 1-2 produce evidence; the master
-  context's own §21 and §33 already say this.
+  context's own §21 and §33 already say this. Now that experiment 3 has
+  run: still don't lead with it — the result is weak/partial and
+  substantially confound-corrected, the weakest of the three findings, not
+  a capstone result.
+- **All three experiments are now done** (§5-7). If this program is
+  written up externally, the honest headline is: reference-frame
+  conditioning helps within a bounded noise/coverage regime (experiment 1),
+  a naive frame-dependence detector can fail in exactly the common case and
+  the fix is provable not just empirical (experiment 2), and cross-domain
+  transfer shows a real but small effect once a necessary confound control
+  is applied (experiment 3). That's a coherent, modest, defensible set of
+  claims — resist the temptation to round any of them up.

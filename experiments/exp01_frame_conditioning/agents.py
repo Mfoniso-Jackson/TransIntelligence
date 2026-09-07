@@ -167,7 +167,7 @@ class LearnedEmbeddingAgent:
     name = "learned_embedding"
 
     def __init__(self, n_slots: int, lr: float = 0.2, switch_prob: float = 1 / 40, error_rate: float = 0.05,
-                 init_scale: float = 0.05, seed: int = 0):
+                 init_scale: float = 0.05, seed: int = 0, initial_experts: list[tuple[float, float]] | None = None):
         # Symmetry-breaking is load-bearing here: slots initialized at
         # exactly (0,0) receive identical proportionally-scaled updates
         # forever (sign(c*x) == sign(x) for any c>0), so belief never
@@ -175,9 +175,20 @@ class LearnedEmbeddingAgent:
         # copy of a single flat rule -- confirmed by an earlier run that
         # produced numerically identical results to FlatBaselineAgent (see
         # RESULTS.md). Small random initialization breaks that degeneracy.
+        #
+        # initial_experts (docs/research-agenda.md #7, experiment 3): warm-
+        # start the slots from another agent's already-trained (w, b) values
+        # instead of random init -- the mechanism experiment 3 uses to test
+        # whether a learned strategy transfers across structurally
+        # isomorphic domains. Symmetry is already broken if the source
+        # agent's slots differentiated during its own training.
         rng = random.Random(seed)
         self.n_slots = n_slots
-        self.experts: list[tuple[float, float]] = [(rng.gauss(0, init_scale), rng.gauss(0, init_scale)) for _ in range(n_slots)]
+        if initial_experts is not None:
+            assert len(initial_experts) == n_slots
+            self.experts: list[tuple[float, float]] = list(initial_experts)
+        else:
+            self.experts = [(rng.gauss(0, init_scale), rng.gauss(0, init_scale)) for _ in range(n_slots)]
         self.belief = [1.0 / n_slots] * n_slots
         self.lr = lr
         self.switch_prob = switch_prob
