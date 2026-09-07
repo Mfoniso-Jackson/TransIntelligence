@@ -42,5 +42,25 @@ class BaselineRelativeReasoner:
         cmp = self.compare(x, y, reference_frame)
         return ReasoningResult(abs(cmp.result), reference_frame, cmp.assumptions, cmp.confidence, cmp.supporting_observations)
     def sensitivity(self, x: Any, r1: ReferenceFrame, r2: ReferenceFrame) -> ReasoningResult:
+        """Whether x's conclusion (sign of evaluate()) differs between r1 and r2.
+
+        Previously this returned abs(evaluate(x,r1) - evaluate(x,r2)), which
+        reduces algebraically to abs(r2.baseline - r1.baseline) whenever r1
+        and r2 share a `direction` -- x's raw value cancels out of the
+        subtraction, so the result carried zero per-entity signal (see
+        experiments/exp02_frame_dependence/RESULTS.md). This version compares
+        the *signs* of the two evaluate() results, which each individually
+        depend on x's raw value regardless of direction.
+
+        Result is negative iff the conclusion flips between r1 and r2 (x is
+        "positive" under one frame and "negative" under the other) -- i.e.
+        frame-dependent. Result is positive when both frames agree -- i.e.
+        frame-invariant. Magnitude is the margin to the nearer decision
+        boundary, usable as a confidence/ranking score (e.g. for ROC-AUC)
+        in either case.
+        """
         e1, e2 = self.evaluate(x, r1), self.evaluate(x, r2)
-        return ReasoningResult(abs(e1.result - e2.result), r2, (*r1.assumptions, *r2.assumptions), min(e1.confidence, e2.confidence), e1.supporting_observations + e2.supporting_observations, f"frame differences: {r1.differences(r2)}")
+        agrees = (e1.result > 0) == (e2.result > 0)
+        margin = min(abs(e1.result), abs(e2.result))
+        result = margin if agrees else -margin
+        return ReasoningResult(result, r2, (*r1.assumptions, *r2.assumptions), min(e1.confidence, e2.confidence), e1.supporting_observations + e2.supporting_observations, f"conclusions {'agree' if agrees else 'disagree'} (margin={margin:.4g}); frame differences: {r1.differences(r2)}")
