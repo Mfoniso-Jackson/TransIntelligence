@@ -4,6 +4,8 @@ real experiment (fewer steps/seeds, for test-suite speed).
 """
 import pytest
 
+from transintelligence import ReferenceFrame
+
 from environments.transworld import FrameSwitchEnv
 from experiments.exp01_frame_conditioning.held_out_frame import ALL_FRAMES, HELD_OUT_INDEX, TRAIN_FRAMES
 from experiments.exp04_frame_discovery.agents import DiscoveringRFAgent, RandomDiscoveryAgent, _binom_cdf, _fit_frame
@@ -105,3 +107,56 @@ def test_no_false_discoveries_when_no_novel_regime_is_present():
         reward = env.feedback(agent.act(info.raw))
         agent.update(reward, true_is_held_out=False)
     assert len(agent.trigger_log) == 0
+
+
+def test_sweep_noise_run_seed_returns_expected_shape_small_scale():
+    """Smoke test for sweep_noise.py's machinery, not the full 10-seed
+    sweep across 6 noise levels in RESULTS.md (~40s) -- confirms run_seed
+    wires together correctly at reduced scale."""
+    import experiments.exp04_frame_discovery.sweep_noise as sweep_noise
+
+    original_n_steps = sweep_noise.N_STEPS
+    sweep_noise.N_STEPS = 500
+    try:
+        result = sweep_noise.run_seed(DiscoveringRFAgent, seed=0, noise_sigma=0.05)
+    finally:
+        sweep_noise.N_STEPS = original_n_steps
+
+    for key in ("discovered", "acc_before", "acc_after", "n_triggers", "n_false_triggers"):
+        assert key in result
+
+
+def test_two_missing_regimes_matches_helper():
+    """_matches() is the post-hoc classifier deciding whether a discovered
+    frame corresponds to a specific held-out regime -- lock in its
+    tolerance behavior directly rather than only through a full run."""
+    from experiments.exp04_frame_discovery.two_missing_regimes import MATCH_TOLERANCE, _matches
+
+    true_frame = ReferenceFrame("f4", baseline=0.7, metadata={"direction": "lower_is_better"})
+    close = ReferenceFrame("discovered", baseline=0.7 + MATCH_TOLERANCE / 2, metadata={"direction": "lower_is_better"})
+    far = ReferenceFrame("discovered", baseline=0.7 + MATCH_TOLERANCE * 2, metadata={"direction": "lower_is_better"})
+    wrong_direction = ReferenceFrame("discovered", baseline=0.7, metadata={"direction": "higher_is_better"})
+
+    assert _matches(close, true_frame)
+    assert not _matches(far, true_frame)
+    assert not _matches(wrong_direction, true_frame)
+
+
+def test_two_missing_regimes_run_seed_returns_expected_shape_small_scale():
+    """Smoke test for two_missing_regimes.py's machinery, not the full
+    10-seed/4500-step run in RESULTS.md -- confirms the per-held-out-frame
+    bookkeeping wires together correctly at reduced scale."""
+    import experiments.exp04_frame_discovery.two_missing_regimes as two_missing
+
+    original_n_steps = two_missing.N_STEPS
+    two_missing.N_STEPS = 500
+    try:
+        result = two_missing.run_seed(seed=0)
+    finally:
+        two_missing.N_STEPS = original_n_steps
+
+    for idx in two_missing.HELD_OUT_INDICES:
+        assert idx in result
+        for key in ("discovered", "acc_before", "acc_after"):
+            assert key in result[idx]
+    assert "final_frame_count" in result and "n_triggers" in result

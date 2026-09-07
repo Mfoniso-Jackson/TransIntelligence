@@ -117,16 +117,19 @@ class _DiscoveringWrapperBase:
 
         held_out_fraction = sum(self._window_true_frame_indices) / len(self._window_true_frame_indices)
         acted = len(self.inner.frames) < self.max_frames
-        self.trigger_log.append({
+        log_entry = {
             "step": self._step_count,
             "p_value": p_value,
             "held_out_fraction": held_out_fraction,
             "acted": acted,
-        })
+            "frame": None,
+        }
+        self.trigger_log.append(log_entry)
         if not acted:
             return
 
         new_frame = self._propose_frame(list(self._window_raws), list(self._window_labels))
+        log_entry["frame"] = new_frame
         self.inner.frames = self.inner.frames + [new_frame]
         n = len(self.inner.frames)
         self.inner.belief = [1.0 / n] * n

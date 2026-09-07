@@ -112,29 +112,57 @@ probabilities) before anything was run, and the observed false-positive
 rate (zero, across ~750 window-checks) matched the ~4.6e-5/window
 prediction.
 
-Scope: this is a narrow, two-parameter fit for a single missing regime,
-not a general solution to open-world frame discovery — the established
-theory it borrows a crude heuristic from (Bayesian online changepoint
-detection, Dirichlet process mixtures, open-set recognition) solves a much
-harder version of this problem than what was actually tested here.
+Scope: this is a narrow, two-parameter fit, not a general solution to
+open-world frame discovery — the established theory it borrows a crude
+heuristic from (Bayesian online changepoint detection, Dirichlet process
+mixtures, open-set recognition) solves a much harder version of this
+problem than what was actually tested here. Two follow-ups, run in the
+same session, sharpened exactly how much harder:
+
+- **A noise sweep found the fixed trigger threshold doesn't degrade
+  gracefully.** Within the noise level it was calibrated for (and below),
+  the result holds and false-discovery rate stays at 0.000. Above it, the
+  dominant failure isn't reduced detection (the original prediction) but a
+  **specificity collapse** — false triggers rise sharply with noise, and
+  by σ≈0.2 the mechanism has stopped helping at all because the candidate
+  list fills with noise-driven junk before a useful frame can be fit. This
+  tracks the same noise boundary experiment 1 found for the underlying
+  structural claim.
+- **A two-simultaneously-missing-regimes test found detection depends on
+  *behavior*, not parameters.** One held-out frame was discovered in 9/10
+  seeds; a second, chosen to be just as parametrically distinct from the
+  known ones, was discovered in only 2/10 — because its true rule happened
+  to agree with the known (wrong) frames' predictions ~90% of the time by
+  structural coincidence (checked directly), versus 40% for the reliably
+  discovered one. The mechanism detects regimes that are *behaviorally*
+  distinguishable under the available reward, not regimes that merely have
+  different numbers.
 
 → [experiments/exp04_frame_discovery/RESULTS.md](../experiments/exp04_frame_discovery/RESULTS.md)
 
 ## The meta-finding
 
 Across the four experiments, the same discipline applied every time: build
-the control that could kill the result, then run it. Three times the
-headline number shrank — noise sweeps and the held-out-frame test both
-punctured otherwise-clean numbers in experiment 1, and a confound control
-cut experiment 3's result roughly in half. Once, in experiment 4, the
-control confirmed the effect instead. None of the four hypotheses were
-fully falsified, and none of the three positive-shrinking ones survived
-untouched — that's the intended outcome of the experimental discipline in
+the control that could kill the result, then run it, and don't stop at the
+first configuration that looks clean. Every single result got a real
+qualifier once that happened. Three times the headline *number* shrank —
+noise sweeps and the held-out-frame test both punctured otherwise-clean
+numbers in experiment 1, and a confound control cut experiment 3's result
+roughly in half. Experiment 4's core confound control (fitted vs. random
+discovery) went the other way and *confirmed* the effect — but its own
+follow-up stress tests (a noise sweep, a two-simultaneously-missing-
+regimes test) still found real, structural boundaries: a specificity
+collapse outside the calibrated noise level, and a dependence on
+behavioral rather than parametric distinctness. No experiment that was
+actually pushed on came back unqualified. None of the four hypotheses were
+fully falsified, but none survived untouched either — that's the intended
+outcome of the experimental discipline in
 [research-agenda.md](research-agenda.md) §21, not a failure of it. A
-result that survives its own strongest control is worth more than one
-that was never tested against one, and the one experiment where the
-control didn't shrink the number is the one worth the most trust, not the
-one with the biggest headline effect.
+result that survives its own strongest test is worth more than one that
+was never tested against one, and the one experiment where the *core*
+control confirmed rather than shrank the effect is still the one worth
+the most trust — its remaining caveats are about scope, not about whether
+the central claim is real.
 
 ## What isn't tested yet
 

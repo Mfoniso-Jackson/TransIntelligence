@@ -328,13 +328,40 @@ margin below experiment 1's observed steady-state, not the internal
 `error_rate` naively — `alpha=0.01`) were derived analytically via exact
 binomial tail probabilities before running anything, predicting ~4.6e-5
 false-positive rate/window and ~21% per-window detection power; the
-observed result matches that prediction closely. Full numbers, the actual
-fitted baselines, and what this doesn't establish (a narrow single-family
-fit, only one held-out regime, no noise/period sweep) in
+observed result matches that prediction closely. Full numbers and the
+actual fitted baselines in
 [experiments/exp04_frame_discovery/RESULTS.md](../experiments/exp04_frame_discovery/RESULTS.md).
 **This means the held-out-frame limitation found in experiment 1 is not
 fundamental — a crude, hand-designed discovery mechanism recovers most of
-the lost accuracy.**
+the lost accuracy** — but two follow-up tests, run in the same session,
+sharpened the honest scope of that claim considerably:
+
+- **Noise sweep**: the fixed `min_accuracy=0.85` threshold does not
+  degrade gracefully outside the noise level it was calibrated for. Below
+  and at σ=0.05 the result holds (false-discovery rate 0.000 throughout).
+  Above it, the dominant failure mode is not reduced detection power (the
+  original prediction) but a **specificity collapse**: false-discovery
+  rate rises to 0.25 at σ=0.10, 0.645 at σ=0.20, 0.763 at σ=0.40, and by
+  σ=0.20 the mechanism has stopped helping at all (post-discovery accuracy
+  ≈ pre-discovery accuracy) because the candidate list fills with
+  noise-driven junk before a useful frame can be fit. This tracks
+  experiment 1's own noise boundary (σ≲0.1-0.2) closely.
+- **Two simultaneously-missing regimes**: revealed a more precise
+  characterization of the mechanism than "detects novel regimes." One
+  held-out frame was discovered in 9/10 seeds (replicating the original
+  result); a second, chosen to be just as parametrically distinct, was
+  discovered in only 2/10 — because its true rule happened to agree with
+  the known (wrong) frames' predictions ~90% of the time by structural
+  coincidence (checked directly), versus 40% for the reliably-discovered
+  one. **The mechanism detects regimes that are behaviorally
+  distinguishable under the available reward signal, not regimes that are
+  merely parametrically different** — a real, structural limitation shared
+  with the established changepoint-detection and open-set-recognition
+  literature this borrows from (`docs/related-work.md` §8a), not a defect
+  specific to this implementation.
+
+Both follow-ups run in
+[experiments/exp04_frame_discovery/RESULTS.md](../experiments/exp04_frame_discovery/RESULTS.md).
 
 Original motivation, unchanged: experiment 1's held-out-frame test
 ([RESULTS.md](../experiments/exp01_frame_conditioning/RESULTS.md)) showed
@@ -481,11 +508,18 @@ relaxed at all, in the narrowest possible way.
   control confirmed the effect rather than mostly explaining it away, and
   the hyperparameters were derived analytically before running rather than
   tuned after seeing a result. Still frame it precisely: it recovers from
-  a *narrow, hand-designed* failure mode (a two-parameter frame family,
-  one missing regime), not as a general solution to open-world frame
-  discovery — the established theory it borrows from (§8a of
-  `related-work.md`) solves a much harder version of this problem than
-  what was actually tested here.
+  a *narrow, hand-designed* failure mode (a two-parameter frame family)
+  and **only within the same bounded noise regime experiment 1's
+  structural claim holds** (the follow-up noise sweep found a specificity
+  collapse, not a graceful decline, above σ≈0.1), **and only for regimes
+  that are behaviorally distinguishable from current belief** (the
+  two-missing-regimes follow-up found one of two equally-distinct-in-
+  parameters regimes went undetected 8/10 seeds because it happened to
+  agree with existing predictions ~90% of the time). Not a general
+  solution to open-world frame discovery — the established theory it
+  borrows from (§8a of `related-work.md`) solves a much harder version of
+  this problem than what was actually tested here, and both follow-ups
+  show exactly where that gap matters.
 - **All four experiments are now done** (§5-7a). If this program is
   written up externally, the honest headline is: reference-frame
   conditioning helps within a bounded noise/coverage regime (experiment 1),
