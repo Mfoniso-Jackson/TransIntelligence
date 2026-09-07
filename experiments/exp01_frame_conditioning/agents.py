@@ -153,7 +153,16 @@ class LearnedEmbeddingAgent:
     real supervised gradient step is available every step, not just on
     mistakes -- a materially closer match to how prior art (arXiv:2102.06177,
     arXiv:2207.02249, see docs/related-work.md #2) actually trains context
-    representations, rather than a binary correct/incorrect nudge."""
+    representations, rather than a binary correct/incorrect nudge.
+
+    A fourth version tried adding a shared exponential moving average of
+    recent reward as a second input feature per slot, to give the agent
+    some *temporal* context beyond the current raw value (closer to how
+    the cited papers infer context from a reward trajectory). It made no
+    measurable difference (RESULTS.md) -- the belief vector here already
+    carries the relevant temporal signal, so a redundant per-slot feature
+    added parameters without benefit. Reverted; noted for anyone tempted
+    to retry the same idea."""
 
     name = "learned_embedding"
 

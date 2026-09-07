@@ -52,6 +52,8 @@ class SeedLog:
     rewards: list[int] = field(default_factory=list)
     switched: list[bool] = field(default_factory=list)
     belief_in_true: list[float | None] = field(default_factory=list)
+    belief_vector: list[tuple[float, ...] | None] = field(default_factory=list)
+    active_frame_index: list[int] = field(default_factory=list)
 
 
 def run_agent_on_seed(agent_kind: str, seed: int, switch_period: int = SWITCH_PERIOD,
@@ -83,7 +85,9 @@ def run_agent_on_seed(agent_kind: str, seed: int, switch_period: int = SWITCH_PE
 
         log.rewards.append(reward)
         log.switched.append(info.switched)
+        log.active_frame_index.append(info.active_frame_index)
         log.belief_in_true.append(agent.belief_in(info.active_frame_index) if agent_kind == "rf_aware" else None)
+        log.belief_vector.append(tuple(agent.belief) if agent_kind == "rf_aware" else None)
     return log
 
 
@@ -126,14 +130,35 @@ def calibration(log: SeedLog, switch_period: int = SWITCH_PERIOD) -> float:
     return statistics.mean(vals) if vals else float("nan")
 
 
+def brier_score(log: SeedLog, switch_period: int = SWITCH_PERIOD) -> float:
+    """Proper multi-class Brier score of the full belief distribution against
+    the one-hot true active frame, during steady windows (RF-aware only):
+    mean over steps of sum_i (belief_i - 1{i == true})^2. 0 = perfectly
+    calibrated point mass on the truth, 2 = maximally wrong point mass on a
+    different frame. This replaces the "belief in true frame" scalar proxy
+    (still reported alongside it) with a real proper scoring rule over the
+    whole distribution, not just its mass on the correct index."""
+    _, (steady_start, steady_end) = _windows(switch_period)
+    switch_indices = [i for i, s in enumerate(log.switched) if s]
+    scores = []
+    for idx in switch_indices:
+        belief_window = log.belief_vector[idx + steady_start: idx + steady_end]
+        true_window = log.active_frame_index[idx + steady_start: idx + steady_end]
+        for belief, true_idx in zip(belief_window, true_window):
+            if belief is None:
+                continue
+            scores.append(sum((b - (1.0 if i == true_idx else 0.0)) ** 2 for i, b in enumerate(belief)))
+    return statistics.mean(scores) if scores else float("nan")
+
+
 AGENT_KINDS = ("flat", "learned_embedding", "rf_aware", "flat_oracle", "true_oracle")
 
 
 def main() -> None:
-    print(f"{'agent':<18} {'overall_acc':>12} {'(stdev)':>9} {'recovery_acc':>13} {'steady_acc':>11} {'belief_in_true':>15}")
+    print(f"{'agent':<18} {'overall_acc':>12} {'(stdev)':>9} {'recovery_acc':>13} {'steady_acc':>11} {'belief_in_true':>15} {'brier':>8}")
     per_agent_overall: dict[str, list[float]] = {}
     for agent_kind in AGENT_KINDS:
-        overall, recovery, steady, calib = [], [], [], []
+        overall, recovery, steady, calib, brier = [], [], [], [], []
         for seed in SEEDS:
             log = run_agent_on_seed(agent_kind, seed)
             overall.append(sum(log.rewards) / len(log.rewards))
@@ -142,10 +167,12 @@ def main() -> None:
             steady.append(s)
             if agent_kind == "rf_aware":
                 calib.append(calibration(log))
+                brier.append(brier_score(log))
         per_agent_overall[agent_kind] = overall
         calib_str = f"{statistics.mean(calib):.3f}" if calib else "n/a"
+        brier_str = f"{statistics.mean(brier):.3f}" if brier else "n/a"
         print(f"{agent_kind:<18} {statistics.mean(overall):>12.3f} {statistics.pstdev(overall):>9.3f} "
-              f"{statistics.mean(recovery):>13.3f} {statistics.mean(steady):>11.3f} {calib_str:>15}")
+              f"{statistics.mean(recovery):>13.3f} {statistics.mean(steady):>11.3f} {calib_str:>15} {brier_str:>8}")
 
     print()
     for a, b in (

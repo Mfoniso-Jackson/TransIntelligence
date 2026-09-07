@@ -121,6 +121,12 @@ Summary:
   gap narrows in the right direction each time the baseline is
   strengthened, which is the trend that actually earns trust in the
   result (rather than a single lucky number).
+  A fourth attempt (a shared reward-EMA temporal feature per slot) made no
+  measurable difference and was reverted rather than kept as unjustified
+  complexity — a genuine negative result, and evidence the remaining gap
+  isn't caused by "no temporal context" (the belief vector already
+  supplies that), narrowing where a future, more ambitious rebuild would
+  need to look.
 - **Swept across noise and switch frequency** (mirroring Experiment 2's
   noise sweep) — **and found a real boundary condition**: `rf_aware`'s
   advantage over both `flat` and `learned_embedding` shrinks monotonically
@@ -131,6 +137,22 @@ Summary:
   is largest under *frequent* switching (+0.245 at period=20 vs. +0.173 at
   period=80) — faster regime changes punish a single slowly-readapting
   rule more than an agent already tracking multiple hypotheses.
+- **Formal calibration added**: `brier_score()` (proper scoring rule over
+  the full belief distribution, not just mass on the true frame) gives
+  0.191 for `rf_aware` — well below the 0.75 a uniform guess over 4 frames
+  would score.
+- **Held-out-frame test run — and it surfaced a real, substantial
+  limitation, not a clean pass.** `rf_aware`, constructed knowing only 3
+  of the environment's 4 frames, degrades sharply when the 4th (genuinely
+  distinct, not a near-duplicate) frame is active: **−0.181 accuracy**,
+  vs. essentially no gap for `flat` (−0.015) or `learned_embedding`
+  (+0.003), neither of which was ever conditioned on a fixed candidate
+  set. **The same design property that makes `rf_aware` strong when the
+  world matches its known frame set makes it brittle exactly when it
+  doesn't** — a real caveat for any external framing of this experiment,
+  not a footnote. Points toward frame *discovery*, not just frame
+  *selection* among a fixed list, as necessary if this approach is
+  extended toward less controlled environments.
 
 Read the linked results in full before citing any of this externally —
 several of these numbers only make sense with the decomposition explained
@@ -138,7 +160,9 @@ there, and `learned_embedding` is still not prior art's *strongest*
 possible opaque mechanism (a hard-EM mixture of linear experts with a
 logistic update, not a full encoder-decoder), so +0.080 is a real result
 against the strongest baseline actually built, not the final word against
-the strongest possible one.
+the strongest possible one. **The overall picture is positive-with-real-
+caveats, not simply positive** — lead with the noise and held-out-frame
+limits in any future pitch, don't bury them.
 
 - **Hypothesis:** In a synthetic environment where the reward-optimal
   action depends on a hidden "active reference frame" that changes at

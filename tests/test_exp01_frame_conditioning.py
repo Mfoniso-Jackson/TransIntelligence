@@ -6,11 +6,13 @@ neither knows which frame is active. This is not a substitute for the full
 run in RESULTS.md (10 seeds x 3000 steps) -- it's a fast regression guard
 against a future change accidentally breaking the mechanism.
 """
+import pytest
+
 from transintelligence import ReferenceFrame
 
 from environments.transworld import FrameSwitchEnv
 from experiments.exp01_frame_conditioning.agents import FlatBaselineAgent, LearnedEmbeddingAgent, RFAwareAgent, TrueOracleAgent
-from experiments.exp01_frame_conditioning.run import _windows
+from experiments.exp01_frame_conditioning.run import SeedLog, _windows, brier_score
 from experiments.exp01_frame_conditioning.sweep import run_grid_point
 
 FRAMES = [
@@ -129,3 +131,53 @@ def test_sweep_grid_point_runs_and_returns_expected_shape():
                 "rf_aware-flat", "rf_aware-learned_embedding"):
         assert key in results
         assert "overall_acc" in results[key] and "stdev" in results[key]
+
+
+def test_brier_score_hand_computed_cases():
+    """A perfectly calibrated point mass on the truth scores 0; a uniform
+    guess over 4 classes scores 3*(0.25)^2 + (0.75)^2 = 0.75; a confident
+    point mass on the WRONG class scores 2 (worst case)."""
+    log = SeedLog(
+        switched=[True] + [False] * 9,
+        active_frame_index=[0] * 10,
+        belief_vector=[(1.0, 0.0, 0.0, 0.0)] * 10,
+    )
+    assert brier_score(log, switch_period=10) == pytest.approx(0.0)
+
+    log.belief_vector = [(0.25, 0.25, 0.25, 0.25)] * 10
+    assert brier_score(log, switch_period=10) == pytest.approx(0.75)
+
+    log.belief_vector = [(0.0, 1.0, 0.0, 0.0)] * 10
+    assert brier_score(log, switch_period=10) == pytest.approx(2.0)
+
+
+def test_rf_aware_degrades_more_than_flat_on_a_truly_held_out_frame():
+    """Regression guard for the held-out-frame finding in RESULTS.md:
+    RFAwareAgent's fixed candidate list makes it fall further when the
+    active frame isn't in it than FlatBaselineAgent, which never assumed a
+    known frame set. Small-scale version of held_out_frame.py's real run."""
+    train_frames = FRAMES[:3]
+    held_out_frame = FRAMES[3]
+    all_frames = FRAMES
+
+    def run(agent, seed: int, n_steps: int = 600) -> tuple[float, float]:
+        env = FrameSwitchEnv(all_frames, switch_period=40, jitter=10, noise_sigma=0.05, seed=seed)
+        known_correct = known_total = held_out_correct = held_out_total = 0
+        for _ in range(n_steps):
+            info = env.observe()
+            reward = env.feedback(agent.act(info.raw))
+            agent.update(reward)
+            if all_frames[info.active_frame_index] is held_out_frame:
+                held_out_correct += reward
+                held_out_total += 1
+            else:
+                known_correct += reward
+                known_total += 1
+        return known_correct / max(1, known_total), held_out_correct / max(1, held_out_total)
+
+    for seed in (0, 1, 2):
+        flat_known, flat_held_out = run(FlatBaselineAgent(), seed)
+        rf_known, rf_held_out = run(RFAwareAgent(train_frames), seed)
+        flat_gap = flat_held_out - flat_known
+        rf_gap = rf_held_out - rf_known
+        assert rf_gap < flat_gap, f"seed={seed}: rf_aware's held-out gap ({rf_gap}) should be more negative than flat's ({flat_gap})"

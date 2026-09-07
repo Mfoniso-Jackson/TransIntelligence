@@ -130,6 +130,31 @@ tighter comparison. `learned_embedding` (0.837) is now close to
 `flat_oracle` (0.886) despite never being told which frame is active —
 a genuinely capable opaque baseline at this point, not a strawman.
 
+## Fourth attempt (reverted): a temporal feature made no measurable difference
+
+Tried adding a shared exponential moving average of recent reward as a
+second input feature to each slot (alongside the raw value), reasoning
+that this would give the agent genuine *temporal* context from the
+reward trajectory — closer to how the cited multi-task RL papers actually
+infer context, and addressing the residual "not prior art's strongest
+mechanism" gap. Result: **no measurable effect** — `learned_embedding`
+stayed at 0.837 (recovery 0.712 vs. 0.702, steady 0.836 vs. 0.834, both
+within seed noise) and `rf_aware`'s margin over it was unchanged (+0.081
+vs. +0.080). Reverted rather than kept as unjustified complexity.
+
+The likely reason: the belief vector already *is* this agent's trajectory
+summary — it's updated from the same reward sequence every step, via the
+same Bayesian filter `RFAwareAgent` uses. A redundant per-slot copy of a
+coarser reward signal (a scalar EMA) adds parameters without adding
+information the belief mechanism didn't already have. This is a genuine
+negative result, not a failed attempt to hide: it says the remaining gap
+to `rf_aware` (+0.080) isn't caused by "no temporal context" specifically,
+narrowing where a future, more ambitious rebuild (e.g. an actual
+encoder-decoder trained on reward/dynamics prediction, matching
+arXiv:2102.06177 more literally) would need to look instead — likely in
+how *precisely* the slots' decision boundaries converge, not in what
+information they have access to.
+
 ## `true_oracle`: a clean isolation of "cost of inference"
 
 Added a second oracle-style control, `TrueOracleAgent`: given the true
@@ -174,12 +199,13 @@ interesting, non-obvious result, not just a marginal edge case.
   extrapolating that trend to zero is speculation, not a result. Treat
   +0.080 as a real result against the strongest baseline actually built
   here, not as the final word against the strongest possible one.
-- **No held-out-frame test** — all agents that use `FRAMES` know all four
-  from the start; "performance on a frame not seen during training" from
-  `research-agenda.md` #5's metrics list is still unmeasured.
-- **No formal calibration metric** — `belief in true frame (steady)` =
-  0.817 for `rf_aware` is a proxy (posterior mass on the actually-active
-  frame), not a proper Brier/log score.
+- ~~**No held-out-frame test**~~ — run below (`held_out_frame.py`), and it
+  surfaced a real, substantial limitation of `rf_aware`'s fixed candidate
+  list (−0.181 accuracy when the active frame isn't in it) — not a clean
+  pass, an honest finding.
+- ~~**No formal calibration metric**~~ — `brier_score()` added below
+  (0.191, vs. 0.75 for a uniform guess), a proper scoring rule rather than
+  the `belief_in_true` proxy alone.
 - ~~**Single environment configuration**~~ — swept below (noise and switch
   frequency), mirroring Experiment 2's noise sweep.
 
@@ -207,6 +233,14 @@ interesting, non-obvious result, not just a marginal edge case.
   trust the current result, but would strengthen it further if pursued.
 - The environment configuration is now swept (see below) rather than
   fixed at one noise level and one switch period.
+- **The overall picture is now positive-with-real-caveats, not simply
+  positive.** Two boundary conditions found by finishing this experiment
+  properly (the noise sweep and the held-out-frame test) both cut against
+  `rf_aware`: the advantage vanishes under high noise, and collapses under
+  a genuinely novel regime outside its known candidate set. Any future
+  pitch for this architecture should lead with these limits, not bury
+  them — they're exactly the kind of finding `research-agenda.md` §21's
+  experimental discipline exists to surface before a reviewer does.
 
 ## Sweep: the advantage is not noise-invariant, and shrinks toward zero
 
@@ -266,3 +300,62 @@ Two things worth stating precisely rather than averaging away:
   over the full 3000 steps regardless of how often the environment
   switches between them. This is a clean, sensible mechanical explanation,
   not a coincidence.
+
+## Formal calibration: a real Brier score, not just a proxy
+
+`belief_in_true` (mean posterior mass on the actually-active frame during
+steady windows) was always a proxy — informative, but not a proper scoring
+rule over the whole belief distribution. Added `brier_score()`: mean over
+steady-window steps of `sum_i (belief_i - 1{i == true})^2` (0 = perfect
+point mass on the truth, 0.75 = uniform guess over the 4 known frames,
+2.0 = confident point mass on the wrong frame). Result for `rf_aware` at
+the default configuration: **Brier = 0.191** — well below the 0.75
+uniform-guess baseline, consistent with `belief_in_true` = 0.817 but now a
+proper score rather than a single summary statistic. Regression-tested
+against hand-computed cases (perfect / uniform / confidently-wrong) in
+`tests/test_exp01_frame_conditioning.py::test_brier_score_hand_computed_cases`.
+
+## Held-out-frame test: a real, honest limitation of the explicit-frame-list design
+
+Ran: `PYTHONPATH=. python experiments/exp01_frame_conditioning/held_out_frame.py`.
+`RFAwareAgent` was constructed knowing only 3 of the 4 `ALL_FRAMES` (`f4`,
+baseline=0.7/lower_is_better, held out — distinct baseline and opposite
+direction from all three known frames, not a near-duplicate). The
+environment still switches among all 4. `FlatBaselineAgent` and
+`LearnedEmbeddingAgent` never had a notion of a "known frame set" to begin
+with, so nothing about their construction changes.
+
+| agent | acc. while a known frame is active | acc. while the held-out frame is active | gap |
+|---|---|---|---|
+| flat | 0.702 | 0.687 | −0.015 |
+| learned_embedding | 0.838 | 0.841 | +0.003 |
+| rf_aware | 0.923 | **0.742** | **−0.181** |
+
+**This is the asymmetry the experiment was built to check for, and it's
+real and large.** `flat` and `learned_embedding` show no meaningful gap
+between known and held-out frames (±0.015) — a genuinely novel threshold
+rule is just as learnable to them as any "known" one, because their
+mechanism was never conditioned on an enumerated candidate set in the
+first place. `rf_aware` degrades sharply (−0.181) when the active frame
+isn't in its candidate list: its belief-weighted vote is, by construction,
+a mixture of hypotheses that are *all wrong* whenever the true regime
+isn't among them, and it has no mechanism to fall back to raw-feature
+learning the way the other two do.
+
+**This is a real limitation of the explicit-finite-candidate-frame
+formulation, not a footnote to explain away.** The same design property
+that makes `rf_aware` strong when the world matches its known frame set
+(exact rules via `evaluate()`, fast Bayesian inference among them) makes
+it brittle exactly when the world doesn't. Note the asymmetry is not
+total collapse — `rf_aware`'s held-out accuracy (0.742) is still
+comparable to `flat`'s *overall* accuracy (0.700) even in this failure
+mode, likely because votes from the 3 known frames still correlate with
+the correct answer more often than chance for a raw value near the
+held-out frame's actual boundary. But the honest headline is: **explicit
+structure's advantage is conditional on the candidate set being
+right, or at least large enough to contain the truth** — a caveat that
+belongs in any external framing of this experiment's results, and a
+concrete argument for why `docs/research-agenda.md`'s later phases
+(temporal/causal reasoning, richer memory) would eventually need some
+form of *frame discovery*, not just frame *selection* among a fixed list,
+if this approach is extended toward less controlled environments.
