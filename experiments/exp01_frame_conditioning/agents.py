@@ -1,13 +1,24 @@
 """Agent conditions for Experiment 1 (docs/research-agenda.md #5).
 
-All three agents face the same partially-observable problem: predict
+Most of these agents face the same partially-observable problem: predict
 sign(evaluate(raw, active_frame)) for a raw value, without being told which
 of the known candidate frames is currently active, then learn from a
-binary (correct/incorrect) reward. `FlatOracleAgent` is the exception --
-it is deliberately given the true active frame index, as the control the
-falsification criterion calls for.
+binary (correct/incorrect) reward. `FlatOracleAgent` and `TrueOracleAgent`
+are the exceptions -- both are given the true active frame index directly,
+as controls.
+
+`LearnedEmbeddingAgent` is condition B (docs/related-work.md #2): the same
+multi-hypothesis Bayesian belief-tracking *architecture* as `RFAwareAgent`
+(same number of slots, same belief-update mechanic), but each slot is an
+opaque linear rule learned online from reward feedback rather than a known
+`ReferenceFrame` with human-legible baseline/direction fields. This is the
+comparison that actually tests explicit/legible structure against a
+capacity-matched implicit one, rather than against a flat single-rule
+baseline.
 """
 from __future__ import annotations
+
+import random
 
 from transintelligence import Entity, Observation, ReferenceFrame
 from transintelligence.reasoning.relative import BaselineRelativeReasoner
@@ -81,6 +92,88 @@ class FlatBaselineAgent:
             target = -self._last_prediction
             self.w += self.lr * target * self._last_raw
             self.b += self.lr * target
+
+
+class TrueOracleAgent:
+    """Ceiling control: given the true active frame index directly *and*
+    allowed to call the real evaluate() on the correct known ReferenceFrame
+    -- no inference and no learning needed, the rule is exactly known.
+    Unlike FlatOracleAgent (which knows *which* frame is active but still
+    has to learn *what its rule is*), this isolates "cost of inference"
+    as the entire gap between it and RFAwareAgent -- see RESULTS.md for why
+    FlatOracleAgent alone conflates the two."""
+
+    name = "true_oracle"
+
+    def __init__(self, frames: list[ReferenceFrame]):
+        self.frames = frames
+        self._entity = Entity("synthetic", "x")
+
+    def act(self, raw: float, frame_index: int) -> int:
+        reasoner = BaselineRelativeReasoner([Observation(self._entity.id, "score", raw, "agent")])
+        return 1 if reasoner.evaluate(self._entity, self.frames[frame_index]).result > 0 else -1
+
+    def update(self, reward: int) -> None:
+        pass  # nothing to learn -- the rule is already exactly known
+
+
+class LearnedEmbeddingAgent:
+    """Condition B: same multi-hypothesis Bayesian belief-tracking mechanism
+    as RFAwareAgent (n_slots slots, identical belief-update math), but each
+    slot is an opaque linear rule (w, b) learned online via a soft-EM-style
+    update weighted by the slot's current belief, rather than a known
+    ReferenceFrame. No ReferenceFrame object, no evaluate() call -- the
+    slots must discover which raw-value thresholds matter from reward
+    feedback alone, same as FlatBaselineAgent, but with n_slots independent
+    hypotheses tracked instead of one."""
+
+    name = "learned_embedding"
+
+    def __init__(self, n_slots: int, lr: float = 0.2, switch_prob: float = 1 / 40, error_rate: float = 0.05,
+                 init_scale: float = 0.05, seed: int = 0):
+        # Symmetry-breaking is load-bearing here: slots initialized at
+        # exactly (0,0) receive identical proportionally-scaled updates
+        # forever (sign(c*x) == sign(x) for any c>0), so belief never
+        # differentiates and the whole ensemble degenerates to a slowed-down
+        # copy of a single flat rule -- confirmed by an earlier run that
+        # produced numerically identical results to FlatBaselineAgent (see
+        # RESULTS.md). Small random initialization breaks that degeneracy.
+        rng = random.Random(seed)
+        self.n_slots = n_slots
+        self.experts: list[tuple[float, float]] = [(rng.gauss(0, init_scale), rng.gauss(0, init_scale)) for _ in range(n_slots)]
+        self.belief = [1.0 / n_slots] * n_slots
+        self.lr = lr
+        self.switch_prob = switch_prob
+        self.error_rate = error_rate
+        self._last_raw = 0.0
+        self._last_slot_predictions: list[int] = []
+        self._last_prediction = 1
+
+    def act(self, raw: float) -> int:
+        self._last_raw = raw
+        self._last_slot_predictions = [1 if (w * raw + b) >= 0 else -1 for w, b in self.experts]
+        vote = sum(b_i * p for b_i, p in zip(self.belief, self._last_slot_predictions))
+        self._last_prediction = 1 if vote >= 0 else -1
+        return self._last_prediction
+
+    def update(self, reward: int) -> None:
+        eps = self.error_rate
+        likelihoods = []
+        for p in self._last_slot_predictions:
+            matches = p == self._last_prediction
+            p_reward_1 = (1 - eps) if matches else eps
+            likelihoods.append(p_reward_1 if reward == 1 else (1 - p_reward_1))
+        posterior = [b * l for b, l in zip(self.belief, likelihoods)]
+        total = sum(posterior) or 1.0
+        posterior = [p / total for p in posterior]
+        uniform = 1.0 / self.n_slots
+        self.belief = [(1 - self.switch_prob) * p + self.switch_prob * uniform for p in posterior]
+
+        if reward == 0:
+            target = -self._last_prediction
+            for i, (w, b) in enumerate(self.experts):
+                step = self.lr * self.belief[i]
+                self.experts[i] = (w + step * target * self._last_raw, b + step * target)
 
 
 class FlatOracleAgent:

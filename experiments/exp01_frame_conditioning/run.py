@@ -17,7 +17,13 @@ from dataclasses import dataclass, field
 from transintelligence import ReferenceFrame
 
 from environments.transworld import FrameSwitchEnv
-from experiments.exp01_frame_conditioning.agents import FlatBaselineAgent, FlatOracleAgent, RFAwareAgent
+from experiments.exp01_frame_conditioning.agents import (
+    FlatBaselineAgent,
+    FlatOracleAgent,
+    LearnedEmbeddingAgent,
+    RFAwareAgent,
+    TrueOracleAgent,
+)
 
 FRAMES = [
     ReferenceFrame("f1", baseline=0.5, metadata={"direction": "higher_is_better"}),
@@ -47,15 +53,20 @@ def run_agent_on_seed(agent_kind: str, seed: int) -> SeedLog:
         agent = RFAwareAgent(FRAMES)
     elif agent_kind == "flat":
         agent = FlatBaselineAgent()
+    elif agent_kind == "learned_embedding":
+        agent = LearnedEmbeddingAgent(len(FRAMES), seed=seed)
     elif agent_kind == "flat_oracle":
         agent = FlatOracleAgent(len(FRAMES))
+    elif agent_kind == "true_oracle":
+        agent = TrueOracleAgent(FRAMES)
     else:
         raise ValueError(agent_kind)
 
+    needs_frame_id = agent_kind in ("flat_oracle", "true_oracle")
     log = SeedLog()
     for _ in range(N_STEPS):
         info = env.observe()
-        if agent_kind == "flat_oracle":
+        if needs_frame_id:
             predict = agent.act(info.raw, info.active_frame_index)
         else:
             predict = agent.act(info.raw)
@@ -96,10 +107,13 @@ def calibration(log: SeedLog) -> float:
     return statistics.mean(vals) if vals else float("nan")
 
 
+AGENT_KINDS = ("flat", "learned_embedding", "rf_aware", "flat_oracle", "true_oracle")
+
+
 def main() -> None:
-    print(f"{'agent':<12} {'overall_acc':>12} {'(stdev)':>9} {'recovery_acc':>13} {'steady_acc':>11} {'belief_in_true':>15}")
+    print(f"{'agent':<18} {'overall_acc':>12} {'(stdev)':>9} {'recovery_acc':>13} {'steady_acc':>11} {'belief_in_true':>15}")
     per_agent_overall: dict[str, list[float]] = {}
-    for agent_kind in ("flat", "rf_aware", "flat_oracle"):
+    for agent_kind in AGENT_KINDS:
         overall, recovery, steady, calib = [], [], [], []
         for seed in SEEDS:
             log = run_agent_on_seed(agent_kind, seed)
@@ -111,11 +125,17 @@ def main() -> None:
                 calib.append(calibration(log))
         per_agent_overall[agent_kind] = overall
         calib_str = f"{statistics.mean(calib):.3f}" if calib else "n/a"
-        print(f"{agent_kind:<12} {statistics.mean(overall):>12.3f} {statistics.pstdev(overall):>9.3f} "
+        print(f"{agent_kind:<18} {statistics.mean(overall):>12.3f} {statistics.pstdev(overall):>9.3f} "
               f"{statistics.mean(recovery):>13.3f} {statistics.mean(steady):>11.3f} {calib_str:>15}")
 
     print()
-    for a, b in (("rf_aware", "flat"), ("rf_aware", "flat_oracle")):
+    for a, b in (
+        ("rf_aware", "flat"),
+        ("rf_aware", "learned_embedding"),
+        ("learned_embedding", "flat"),
+        ("rf_aware", "flat_oracle"),
+        ("true_oracle", "rf_aware"),
+    ):
         diffs = [x - y for x, y in zip(per_agent_overall[a], per_agent_overall[b])]
         wins = sum(1 for d in diffs if d > 0)
         print(f"paired overall_acc({a}) - overall_acc({b}): mean={statistics.mean(diffs):+.3f} "

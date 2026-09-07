@@ -87,18 +87,37 @@ synthetic domains and is the least mature — sequence it last, and only if
 component" in §8 of the master context does not have a technical
 contribution yet, whatever the vision document says.**
 
-**Status: partially run.** Environment and conditions A / A-oracle built
-and run — [environments/transworld/](../environments/transworld/) and
+**Status: run, all five conditions.** Environment, condition A, condition
+A-oracle, condition B, and a second cleaner oracle all built and run —
+[environments/transworld/](../environments/transworld/) and
 [experiments/exp01_frame_conditioning/](../experiments/exp01_frame_conditioning/RESULTS.md).
-Condition B (learned embedding) below is **not yet built**. Summary:
-condition A comparison is decisive (RF-aware beats flat by +0.218
-accuracy, 10/10 seeds); the oracle-control comparison survives but by a
-much smaller, nuanced margin (+0.032, split between "oracle recovers
-faster" and "RF-aware reaches a better steady state") — read the linked
-results for why that margin isn't yet clean evidence for *structure*
-specifically. Do not treat this as the completed experiment; condition B
-is the part that would actually test the narrowed claim from
-`related-work.md` §2.
+Summary:
+
+- **Condition A (flat, matched zero-information): decisive.** RF-aware
+  beats flat by +0.218 accuracy, 10/10 seeds, low variance.
+- **`flat_oracle` control: survives, small margin (+0.032, 10/10 seeds).**
+  Now cleanly decomposed by a second oracle (`true_oracle`, given the true
+  frame id *and* allowed to call the real `evaluate()`, isolating "cost of
+  inference" alone): `true_oracle` beats `rf_aware` by +0.043 (10/10 seeds,
+  very low variance) — a real, modest cost for having to infer rather than
+  be told. `flat_oracle` falls short of that same ceiling by 0.075, purely
+  from having to *learn* each frame's rule instead of being handed it.
+  `rf_aware`'s exact-rule-via-`evaluate()` is worth more than
+  `flat_oracle`'s "told which frame" — a genuinely interesting result.
+- **Condition B (learned embedding): built, but not yet a fair test.**
+  First implementation had a real bug (zero-initialized slots are
+  provably degenerate — collapse into a scaled copy of a single flat rule,
+  see RESULTS.md), now fixed via random initialization. Post-fix,
+  `learned_embedding` **underperforms flat** (0.632 vs. 0.700, losing 9/10
+  seeds) — so the `rf_aware` vs. `learned_embedding` margin (+0.286) is
+  not yet evidence for the narrowed claim from `related-work.md` §2; it's
+  evidence against a weak baseline, not against prior art's actual
+  learned-embedding mechanism. Do not cite it as the condition-B result
+  until `learned_embedding` at least reliably beats flat.
+
+Read the linked results in full before citing any of this externally —
+several of these numbers only make sense with the decomposition explained
+there.
 
 - **Hypothesis:** In a synthetic environment where the reward-optimal
   action depends on a hidden "active reference frame" that changes at
