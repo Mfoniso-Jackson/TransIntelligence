@@ -315,8 +315,28 @@ read the linked results for the algebra and the full noise-sweep tables.
 
 ## 7a. Experiment 4 — Frame discovery, not just frame selection
 
-**Status: scoped, not yet built.** Motivated directly by an empirical
-finding, not speculation: experiment 1's held-out-frame test
+**Status: run — the cleanest positive result of the four experiments.**
+`discovering_rf` recovers held-out accuracy from 0.701 (before discovery)
+to **0.914** (after), beating the `random_discovery` confound control
+(0.786) by +0.128 with zero false discoveries across both agents (10 and
+22 total triggers respectively). Unlike experiments 1 and 3, the control
+here *confirmed* a real, structure-specific effect rather than mostly
+explaining it away — spot-checking the actually-fitted frames confirmed
+they land close to the true held-out `(baseline=0.7, direction=
+lower_is_better)`. Hyperparameters (window=40, `min_accuracy=0.85` — a
+margin below experiment 1's observed steady-state, not the internal
+`error_rate` naively — `alpha=0.01`) were derived analytically via exact
+binomial tail probabilities before running anything, predicting ~4.6e-5
+false-positive rate/window and ~21% per-window detection power; the
+observed result matches that prediction closely. Full numbers, the actual
+fitted baselines, and what this doesn't establish (a narrow single-family
+fit, only one held-out regime, no noise/period sweep) in
+[experiments/exp04_frame_discovery/RESULTS.md](../experiments/exp04_frame_discovery/RESULTS.md).
+**This means the held-out-frame limitation found in experiment 1 is not
+fundamental — a crude, hand-designed discovery mechanism recovers most of
+the lost accuracy.**
+
+Original motivation, unchanged: experiment 1's held-out-frame test
 ([RESULTS.md](../experiments/exp01_frame_conditioning/RESULTS.md)) showed
 `rf_aware` loses 0.181 accuracy the instant the active regime isn't in its
 fixed candidate list, while baselines with no such list barely notice.
@@ -392,7 +412,13 @@ relaxed at all, in the narrowest possible way.
   meaningfully larger than the random-discovery control's — either result
   means this narrow heuristic doesn't do what it claims, and the next
   step would be the Adams & MacKay-style or Dirichlet-process-style
-  upgrade instead of tuning this version further.
+  upgrade instead of tuning this version further. **Neither happened —
+  fitted discovery beat the random control by +0.128 (0.914 vs. 0.786),
+  and both beat the pre-discovery baseline (0.701).** This narrow
+  heuristic does what it claims within the tested regime; the upgrade
+  path is not currently needed, though it remains the honest next step
+  once a richer frame family (more than one `(baseline, direction)` pair
+  missing at once, or a continuous drift) is tested.
 
 ## 8. Sequencing
 
@@ -424,12 +450,14 @@ relaxed at all, in the narrowest possible way.
    transfer-vs-scratch comparison suggests once the "any non-random start
    helps" confound is subtracted out. Full decomposition in
    [experiments/exp03_cross_domain_transfer/](../experiments/exp03_cross_domain_transfer/RESULTS.md).
-5. Experiment 4 next — **scoped in §7a, not yet built.** Directly motivated
-   by experiment 1's held-out-frame finding rather than the original plan
-   (which stopped at experiment 3). Build the `RandomDiscoveryAgent`
-   control in the same commit as `DiscoveringRFAgent`, not after — that
-   ordering is itself a lesson from experiment 3, where the confound
-   control was added only after the naive result already looked clean.
+5. ~~Experiment 4~~ — **done**, see §7a. Result: the cleanest positive
+   result of the four experiments — fitted discovery recovers held-out
+   accuracy to 0.914 (from 0.701 pre-discovery), beating the
+   `RandomDiscoveryAgent` confound control (0.786) by +0.128, with the
+   fitted frames confirmed close to the true held-out regime. Built the
+   control in the same commit as the treatment, per the lesson from
+   experiment 3. Full results in
+   [experiments/exp04_frame_discovery/](../experiments/exp04_frame_discovery/RESULTS.md).
 
 ## 9. What would make this publishable, and what would make a reviewer skeptical
 
@@ -446,13 +474,26 @@ relaxed at all, in the narrowest possible way.
   external write-up until experiments 1-2 produce evidence; the master
   context's own §21 and §33 already say this. Now that experiment 3 has
   run: still don't lead with it — the result is weak/partial and
-  substantially confound-corrected, the weakest of the three findings, not
+  substantially confound-corrected, the weakest of the four findings, not
   a capstone result.
-- **All three experiments are now done** (§5-7). If this program is
+- **Experiment 4 is the strongest result, and the safest to lead with if
+  one must be chosen** — the only one of the four where the confound
+  control confirmed the effect rather than mostly explaining it away, and
+  the hyperparameters were derived analytically before running rather than
+  tuned after seeing a result. Still frame it precisely: it recovers from
+  a *narrow, hand-designed* failure mode (a two-parameter frame family,
+  one missing regime), not as a general solution to open-world frame
+  discovery — the established theory it borrows from (§8a of
+  `related-work.md`) solves a much harder version of this problem than
+  what was actually tested here.
+- **All four experiments are now done** (§5-7a). If this program is
   written up externally, the honest headline is: reference-frame
   conditioning helps within a bounded noise/coverage regime (experiment 1),
   a naive frame-dependence detector can fail in exactly the common case and
-  the fix is provable not just empirical (experiment 2), and cross-domain
+  the fix is provable not just empirical (experiment 2), cross-domain
   transfer shows a real but small effect once a necessary confound control
-  is applied (experiment 3). That's a coherent, modest, defensible set of
-  claims — resist the temptation to round any of them up.
+  is applied (experiment 3), and a genuinely novel regime outside the known
+  candidate set — the specific failure mode experiment 1 found — can be
+  detected and largely recovered from by a deliberately crude heuristic
+  (experiment 4). That's a coherent, modest, defensible set of claims —
+  resist the temptation to round any of them up, experiment 4 included.

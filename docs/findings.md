@@ -1,19 +1,19 @@
 # Findings
 
-A standalone summary of what the first three experiments in
+A standalone summary of what the first four experiments in
 [research-agenda.md](research-agenda.md) actually established, for anyone
-who wants the result without reading three `RESULTS.md` files and the
+who wants the result without reading four `RESULTS.md` files and the
 incremental updates to the agenda itself. Each section below is a compressed
 version of a much more detailed writeup — follow the links for the numbers,
 the code, and the caveats a one-paragraph summary can't carry.
 
 ## The one-sentence version
 
-Reference-frame conditioning works, but only within a bounded regime, and
-every time a positive result looked clean on first pass, adding the
-control that could have killed it made the result smaller and more
-conditional — never fully reversed it, but never as clean as the first
-number suggested either.
+Reference-frame conditioning works, but only within a bounded regime; every
+positive result that looked clean on first pass got smaller once the
+control built to potentially kill it actually ran — except one, where the
+control confirmed the effect instead, and that asymmetry is itself worth
+noticing.
 
 ## Experiment 2 — Does `sensitivity()` detect frame-dependent conclusions?
 
@@ -87,26 +87,64 @@ persisting.
 
 → [experiments/exp03_cross_domain_transfer/RESULTS.md](../experiments/exp03_cross_domain_transfer/RESULTS.md)
 
+## Experiment 4 — Can an agent discover a frame it wasn't told about?
+
+**Positive, and the cleanest result of the four — the control confirmed
+the effect instead of shrinking it.** Directly motivated by experiment 1's
+held-out-frame failure: an agent that monitors its own reward rate,
+statistically detects when its known frames stop fitting, and fits a new
+`(baseline, direction)` candidate from recent data recovers accuracy on
+the held-out regime from 0.701 (before discovery) to 0.914 (after) —
+close to, though still short of, the ceiling for an agent that knew the
+frame from the start.
+
+The confound control here (`RandomDiscoveryAgent`, same trigger, but
+appends a random frame instead of a fitted one) is what makes this
+trustworthy rather than a coincidence: it also improves on the
+pre-discovery baseline (0.701 → 0.786, confirming "any extra candidate
+helps a little," the same kind of confound experiment 3 found) but falls
+far short of the fitted version (0.786 vs. 0.914) — so most of the
+recovery is specifically attributable to fitting the *right* frame, not
+just having more of them. Spot-checking the fitted frames directly
+confirmed they land close to the true held-out one. The trigger's
+hyperparameters were derived analytically (exact binomial tail
+probabilities) before anything was run, and the observed false-positive
+rate (zero, across ~750 window-checks) matched the ~4.6e-5/window
+prediction.
+
+Scope: this is a narrow, two-parameter fit for a single missing regime,
+not a general solution to open-world frame discovery — the established
+theory it borrows a crude heuristic from (Bayesian online changepoint
+detection, Dirichlet process mixtures, open-set recognition) solves a much
+harder version of this problem than what was actually tested here.
+
+→ [experiments/exp04_frame_discovery/RESULTS.md](../experiments/exp04_frame_discovery/RESULTS.md)
+
 ## The meta-finding
 
-Across all three experiments, the pattern repeats: build the control that
-could kill the result, run it, and the headline number shrinks — noise
-sweeps and a held-out-frame test both punctured otherwise-clean numbers in
-experiment 1; a confound control cut experiment 3's result roughly in
-half. None of the three hypotheses were fully falsified, but none survived
-untouched either. That's the intended outcome of the experimental
-discipline in [research-agenda.md](research-agenda.md) §21, not a failure
-of it — a result that survives its own strongest control is worth more
-than one that was never tested against one.
+Across the four experiments, the same discipline applied every time: build
+the control that could kill the result, then run it. Three times the
+headline number shrank — noise sweeps and the held-out-frame test both
+punctured otherwise-clean numbers in experiment 1, and a confound control
+cut experiment 3's result roughly in half. Once, in experiment 4, the
+control confirmed the effect instead. None of the four hypotheses were
+fully falsified, and none of the three positive-shrinking ones survived
+untouched — that's the intended outcome of the experimental discipline in
+[research-agenda.md](research-agenda.md) §21, not a failure of it. A
+result that survives its own strongest control is worth more than one
+that was never tested against one, and the one experiment where the
+control didn't shrink the number is the one worth the most trust, not the
+one with the biggest headline effect.
 
 ## What isn't tested yet
 
 - A learned-embedding baseline that matches prior art's actual mechanism
   (an encoder-decoder trained on reward/dynamics prediction) rather than
   the hard-EM mixture of linear experts built here.
-- Frame *discovery* rather than frame *selection* — experiment 1's
-  held-out-frame failure suggests this is the more important next step
-  for the architecture, not a bigger version of experiment 1.
+- Discovery beyond a single missing regime from a known two-parameter
+  family — two or more simultaneously missing regimes, a continuously
+  drifting regime, or a richer frame structure than `(baseline,
+  direction)` would all break the current grid-search fit.
 - Any of the master context's later phases (temporal, causal,
   counterfactual reasoning; world models; agency; meta-intelligence) — all
   still pre-formalization, per `research-agenda.md`'s own sequencing.
