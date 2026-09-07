@@ -547,9 +547,43 @@ this go through."
   to represent a pure shift at that exact point, so the trajectory
   genuinely changes shape there) — stated precisely rather than left
   implying a real DTW limitation.
-- Full numbers, the calibration sweep, and what still isn't tested (more
-  than one tracked `key` simultaneously; non-Gaussian/gradual-drift
-  transitions, which CUSUM isn't designed to detect cleanly) in
+- **Follow-up 3 — multi-key tracking** (Crosier, *Multivariate
+  Generalizations of Cumulative Sum Quality-Control Schemes*, Technometrics
+  30(3), 1988): `joint_change_points()` combines per-key z-scored
+  deviations into a single scalar (Crosier's "reduce to scalar first"
+  variant) before running CUSUM on it. Calibration held up unchanged
+  across 1-5 keys (5.5-8% false-positive rate, no retuning needed). With
+  the union-of-independent-detectors control experiments 3/4 taught this
+  program to always build: joint detection **genuinely beats the union
+  control** in a moderate-signal band (paired wins 9:2, 6:1, 3:0 at
+  shift/noise 0.6-1.0) — a real gain from combining evidence, not the
+  "more chances helps" confound — but the advantage **disappears at the
+  weakest signal tested** (2:3, a wash). State the claim at its actual
+  width, not universally.
+- **Follow-up 4 — non-Gaussian noise:** a standard contaminated-Gaussian
+  mixture (5% wide-variance outliers) more than **quadruples the
+  false-positive rate** (0.08 → 0.34) while barely touching recall
+  (1.00 → 0.967) — the same specificity-over-power fragility pattern
+  found in experiment 4's trigger, now confirmed in a second, unrelated
+  mechanism. No single citation adopted for "CUSUM's non-normal
+  robustness" (unlike every other claim in this document) — the SPC
+  literature here is a family of results, not one seminal paper; tested
+  empirically instead of asserted from authority.
+- **Follow-up 5 — gradual drift, a hypothesis tested and corrected, not
+  confirmed:** the working hypothesis going in was that a slow enough
+  drift might never be detected, since calibration is fixed once per
+  detection cycle rather than continuously updated. **That hypothesis was
+  wrong** — recall stayed at 1.00 across every ramp length tested,
+  including a 1000-step ramp that never completes within an 1100-step
+  series, because a fixed calibration reference guarantees any persistent
+  drift eventually crosses threshold. Detection delay grows sub-linearly
+  with ramp length (a real, expected cost, not a breakdown). Report this
+  as "the hypothesis was wrong" plainly, not as "confirmed robust from the
+  start."
+- Full numbers, the calibration checks, and what still isn't tested
+  (non-i.i.d. noise beyond the contaminated-Gaussian case tested;
+  more than 5 keys; correlated cross-key covariance in the joint
+  statistic, which the current independence assumption ignores) in
   [experiments/exp05_regime_change_detection/RESULTS.md](../experiments/exp05_regime_change_detection/RESULTS.md).
 
 ## 8. Sequencing
@@ -590,14 +624,20 @@ this go through."
    control in the same commit as the treatment, per the lesson from
    experiment 3. Full results in
    [experiments/exp04_frame_discovery/](../experiments/exp04_frame_discovery/RESULTS.md).
-6. ~~Experiment 5~~ — **done**, see §7b. First Phase 4 work, and the first
-   genuinely reusable kernel primitive from this research program
-   (`transintelligence/reasoning/temporal/`, previously an empty stub).
-   CUSUM change detection degrades gracefully under noise — direct,
-   independent evidence for the self-calibrating-threshold fix experiment
-   4's results named but never built — and has a real, mechanistically
-   clean structural limit (regimes must persist at least `burn_in`
-   steps). Full results in
+6. ~~Experiment 5~~ — **done, five follow-ups deep**, see §7b. First
+   Phase 4 work, and the first genuinely reusable kernel primitive from
+   this research program (`transintelligence/reasoning/temporal/`,
+   previously an empty stub). CUSUM change detection degrades gracefully
+   under noise — direct, independent evidence for the self-calibrating-
+   threshold fix experiment 4's results named but never built — has a
+   real, mechanistically clean structural limit (regimes must persist at
+   least `burn_in` steps), segments its output about ~2-2.6x worse than a
+   ground-truth oracle regardless of noise level, correctly implements DTW
+   for trajectory comparison, gets a genuine bounded win from multi-key
+   evidence combination, is meaningfully more fragile to non-Gaussian
+   noise (specificity, not power), and turned out to handle gradual drift
+   fine despite a specific, reasoned hypothesis that it wouldn't. Full
+   results in
    [experiments/exp05_regime_change_detection/](../experiments/exp05_regime_change_detection/RESULTS.md).
 
 ## 9. What would make this publishable, and what would make a reviewer skeptical

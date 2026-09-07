@@ -23,6 +23,11 @@ sensitivity under one Phase-1 baseline rather than one class per method:
   recalibrates after each detected change to find multiple regime changes
   across a long series, a practical adaptation of Page's original
   single-changepoint formulation, not part of the original method.
+  `joint_change_points()` extends this to multiple simultaneously-tracked
+  keys (Crosier, *Multivariate Generalizations of Cumulative Sum
+  Quality-Control Schemes*, Technometrics 30(3), 1988 -- his simpler
+  "reduce to a scalar, then CUSUM" variant, assuming independence across
+  keys rather than modeling cross-covariance).
 - Temporal comparison: Dynamic Time Warping (Sakoe, Chiba, *Dynamic
   Programming Algorithm Optimization for Spoken Word Recognition*, IEEE
   Trans. Acoustics, Speech, Signal Processing 26(1), 1978) -- the basic
@@ -133,6 +138,59 @@ class CUSUMTemporalReasoner:
                 break
             change_index = idx + self.burn_in + changed_at_offset
             changes.append(series[change_index][0])
+            idx = change_index
+        return changes
+
+    def _numeric_series_multi(self, history: StateHistory, keys: list[str]) -> list[tuple[datetime, list[float]]]:
+        """States where ALL of `keys` are present and numeric -- states
+        missing even one tracked key are dropped entirely, not partially
+        included. A real requirement of this method, not an edge case."""
+        aligned = []
+        for s in history.states:
+            if all(k in s.values and isinstance(s.values[k], (int, float)) and not isinstance(s.values[k], bool)
+                   for k in keys):
+                aligned.append((s.timestamp, [float(s.values[k]) for k in keys]))
+        return aligned
+
+    def joint_change_points(self, history: StateHistory, keys: list[str]) -> list[datetime]:
+        """Multi-key regime-change detection: reduces each multivariate
+        observation to a scalar by summing per-key standardized (z-scored)
+        deviations from their own burn-in means, then runs the same
+        two-sided CUSUM on that combined scalar (Crosier, *Multivariate
+        Generalizations of Cumulative Sum Quality-Control Schemes*,
+        Technometrics 30(3), 1988 -- his "reduce to scalar first" variant,
+        not his alternative direct-vector-CUSUM procedure).
+
+        Assumes independence across keys (no cross-covariance term) --
+        a real simplification relative to a full multivariate treatment,
+        and the reason this sums per-key z-scores rather than using a
+        Mahalanobis-style statistic. `h_sigma`/`k_sigma` are reused
+        unchanged from the single-key calibration; see
+        experiments/exp05_regime_change_detection/RESULTS.md for why that
+        held up (or didn't) empirically rather than being assumed."""
+        aligned = self._numeric_series_multi(history, keys)
+        n_keys = len(keys)
+        changes: list[datetime] = []
+        idx = 0
+        while idx + self.burn_in <= len(aligned):
+            window = aligned[idx: idx + self.burn_in]
+            mus = [statistics.mean(w[1][i] for w in window) for i in range(n_keys)]
+            sigmas = [max(statistics.pstdev([w[1][i] for w in window]), self.min_sigma) for i in range(n_keys)]
+
+            s_pos = s_neg = 0.0
+            changed_at_offset = None
+            for offset, (_, vals) in enumerate(aligned[idx + self.burn_in:]):
+                combined = sum((vals[i] - mus[i]) / sigmas[i] for i in range(n_keys)) / (n_keys ** 0.5)
+                s_pos = max(0.0, s_pos + combined - self.k_sigma)
+                s_neg = max(0.0, s_neg - combined - self.k_sigma)
+                if s_pos > self.h_sigma or s_neg > self.h_sigma:
+                    changed_at_offset = offset
+                    break
+
+            if changed_at_offset is None:
+                break
+            change_index = idx + self.burn_in + changed_at_offset
+            changes.append(aligned[change_index][0])
             idx = change_index
         return changes
 

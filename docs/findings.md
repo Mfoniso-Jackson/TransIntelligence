@@ -239,6 +239,26 @@ ranks these backwards starting at just a 2-step shift; DTW ranks them
 correctly throughout an 8-step window where naive is wrong, recognizing
 the shifted trajectory as a perfect match regardless of delay.
 
+Three more follow-ups pushed on the module's remaining stated gaps.
+**Multi-key tracking** (Crosier, 1988): combining two keys' evidence into
+one statistic genuinely beats a union-of-independent-detectors control in
+a moderate signal-strength band (paired wins 9:2, 6:1, 3:0) — a real gain
+from combining evidence, not the "more chances helps" confound this
+program has learned to check for — but the advantage vanishes at the
+weakest signal tested, a real boundary stated plainly rather than
+smoothed over. **Non-Gaussian noise**: a standard heavy-tailed
+contamination more than quadruples the false-positive rate (0.08 → 0.34)
+while barely touching detection power (1.00 → 0.967) — the same
+specificity-over-power fragility pattern found in experiment 4's trigger,
+now confirmed a second time in a completely different mechanism.
+**Gradual drift**: the working hypothesis going in was that a slow enough
+drift might evade detection entirely. It was wrong — recall stayed
+perfect even for a drift that never completes within the observed
+series, because the detector's calibration is fixed once per cycle rather
+than continuously re-chased, so any persistent drift mathematically
+crosses threshold eventually. Worth stating as "the hypothesis was wrong"
+rather than quietly filing it as confirmed.
+
 → [experiments/exp05_regime_change_detection/RESULTS.md](../experiments/exp05_regime_change_detection/RESULTS.md)
 
 ## What isn't tested yet
@@ -252,9 +272,10 @@ the shifted trajectory as a perfect match regardless of delay.
   family — two or more simultaneously missing regimes, a continuously
   drifting regime, or a richer frame structure than `(baseline,
   direction)` would all break the current grid-search fit.
-- Tracking more than one `key` simultaneously, and non-Gaussian or
-  gradual-drift regime transitions, which CUSUM isn't designed to detect
-  cleanly.
+- Correlated cross-key covariance in the joint-detection statistic (the
+  current combination assumes independence across keys); non-i.i.d. noise
+  beyond the single contaminated-Gaussian case tested; more than 5 keys
+  tracked at once.
 - The master context's remaining later phases (causal, counterfactual
   reasoning; world models; agency; meta-intelligence) — all still
   pre-formalization, per `research-agenda.md`'s own sequencing.

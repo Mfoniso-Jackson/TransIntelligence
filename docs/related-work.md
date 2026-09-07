@@ -285,7 +285,7 @@ methods."**
 | Frame discovery (Experiment 4) | Adams & MacKay 2007; Ferguson 1973; Neal 2000; arXiv:2312.08785; arXiv:2110.14051 | Established theory in full form; the planned mechanism is a deliberately crude heuristic version, not an implementation of any of these |
 | Strange loops / recursive self-model | Hofstadter 1979/2007; Friston 2010; Rabinowitz et al. 2018 | Motivation only, not yet a hypothesis — needs operationalization |
 | "Reference frame" terminology | Fillmore 1982 | Naming inspiration, not a mechanism |
-| Regime-change detection (Experiment 5, Phase 4) | Page 1954; Hamilton 1989; Rabiner 1989; Sakoe & Chiba 1978 | Established theory in full — CUSUM is textbook, chosen for simplicity over HMM/regime-switching alternatives, not because they don't apply |
+| Regime-change detection (Experiment 5, Phase 4) | Page 1954; Hamilton 1989; Rabiner 1989; Sakoe & Chiba 1978; Crosier 1988 | Established theory in full — CUSUM (and its multivariate/DTW extensions) is textbook, chosen for simplicity over HMM/regime-switching alternatives, not because they don't apply |
 
 ## 9a. Temporal reasoning: change/regime detection, temporal comparison (Phase 4)
 
@@ -333,24 +333,37 @@ single-line docstring stub (`transintelligence/reasoning/temporal/__init__.py`)
   different lengths: Sakoe, Chiba, *Dynamic Programming Algorithm
   Optimization for Spoken Word Recognition*, IEEE Transactions on
   Acoustics, Speech, and Signal Processing 26(1), 1978 (Dynamic Time
-  Warping). Not implemented — `CUSUMTemporalReasoner.compare()` is a
-  simple pointwise field-diff between two `State`s (mirroring
-  `ReferenceFrame.differences()`), not a sequence-alignment method. DTW is
-  the established next step if trajectory-to-trajectory comparison
-  (rather than point-to-point) is ever needed.
+  Warping). Implemented as `dynamic_time_warp()` and
+  `CUSUMTemporalReasoner.trajectory_distance()` — the basic symmetric
+  form, no slope constraint (the paper's own refinement, not built here).
+  `compare()` remains a separate, simpler pointwise field-diff between two
+  `State`s (mirroring `ReferenceFrame.differences()`) for the case where
+  DTW's sequence alignment isn't needed.
+- Multivariate extension, for tracking more than one key at once: Crosier,
+  *Multivariate Generalizations of Cumulative Sum Quality-Control
+  Schemes*, Technometrics 30(3), 1988. Implemented as
+  `joint_change_points()`, using Crosier's simpler "reduce each
+  multivariate observation to a scalar, then run a standard CUSUM on it"
+  variant — summing per-key z-scored deviations, normalized by
+  `sqrt(n_keys)` — rather than his alternative direct-vector-CUSUM
+  procedure. This assumes independence across keys (no cross-covariance
+  term), a real simplification relative to a full multivariate treatment.
 
-**Classification: established theory in full for all four citations —
-CUSUM, regime-switching HMMs, general HMM theory, and DTW are all
-textbook. The specific choice made here (CUSUM, self-calibrated from a
-short rolling window, restarting after each detected change to find
-multiple regimes in one pass) is an engineering simplification of that
-theory, not a novel method — and its calibration turned out to be
-non-trivial in practice (see the false-positive-rate finding in
-`experiments/exp05_regime_change_detection/RESULTS.md` and the
-`CUSUMTemporalReasoner` docstring), which is itself evidence for why the
-richer alternatives (Hamilton's full regime-switching MLE, or a proper
-Bayesian changepoint posterior) exist in the literature rather than
-everyone using CUSUM everywhere.**
+**Classification: established theory in full for all five citations —
+CUSUM, regime-switching HMMs, general HMM theory, DTW, and multivariate
+CUSUM are all textbook. The specific choices made here (CUSUM
+self-calibrated from a short rolling window and restarting after each
+detected change; the simpler scalar-reduction multivariate variant rather
+than a full covariance-aware one; DTW without the slope-constraint
+refinement) are engineering simplifications of that theory, not novel
+methods — and the calibration turned out to be non-trivial in practice at
+every step (see the false-positive-rate findings for both the single-key
+and multi-key cases, and the non-Gaussian-noise finding, in
+`experiments/exp05_regime_change_detection/RESULTS.md`), which is itself
+evidence for why the richer alternatives (Hamilton's full regime-switching
+MLE, a proper Bayesian changepoint posterior, covariance-aware
+multivariate CUSUM, robust/nonparametric CUSUM variants) exist in the
+literature rather than everyone using the simplest version everywhere.**
 
 ## 10. What this changes in `research-agenda.md`
 

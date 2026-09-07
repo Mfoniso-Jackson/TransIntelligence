@@ -89,9 +89,9 @@ limitation for any application with fast-changing regimes.
   6x its well-behaved noise level. Neither invalidates the mechanism —
   they define where it's actually applicable.
 - ~~Not yet tested: `regime_segments()`'s per-segment mean accuracy under
-  noise~~ — run below. Still not tested: more than one tracked `key`
-  simultaneously; non-Gaussian regime transitions (gradual drift rather
-  than a step change, which CUSUM is not designed to detect cleanly).
+  noise~~ — run below. ~~Still not tested: more than one tracked `key`
+  simultaneously; non-Gaussian regime transitions~~ — also run below, in
+  the multi-key, non-Gaussian noise, and gradual drift sections.
 
 ## Per-segment accuracy: a different question than detection recall/precision
 
@@ -177,12 +177,130 @@ difference; it isn't failing to handle a large shift, the fixed-length
 test harness stopped being able to represent a pure shift beyond that
 point.
 
+## Multi-key tracking: joint detection beats a union-of-detectors control, with real boundaries on both ends
+
+Implemented `joint_change_points()` (Crosier 1988's "reduce to a scalar,
+then CUSUM" variant: sum per-key z-scored deviations from their own
+burn-in means, normalize by `sqrt(n_keys)`, run the same two-sided CUSUM
+on the combined scalar — assumes independence across keys, no
+cross-covariance term). **Calibration check first, as always**: false-positive
+rate stayed at 5.5-8% across 1 to 5 tracked keys (200 trials each) — the
+`sqrt(n_keys)` normalization keeps the single-key calibration valid
+without retuning.
+
+Ran: `PYTHONPATH=. python experiments/exp05_regime_change_detection/multi_key.py`.
+Two keys share the same true change point and shift direction/magnitude
+with independent noise, chosen so each key alone is a **weak** detector
+(shift=0.04 gives ~44% single-key recall) — the regime where combining
+evidence should matter most. The critical control, built alongside the
+treatment (the lesson from experiments 3/4): a "union" baseline that
+takes either key's *independent* detection, to separate "combining
+evidence helps" from "two independent chances to detect helps."
+
+| shift | shift/noise | recall A | recall B | recall union | recall joint | paired (joint wins / union wins / ties, n=50) |
+|---|---|---|---|---|---|---|
+| 0.02 | 0.40 | 0.16 | 0.14 | 0.26 | 0.24 | 2 / 3 / 45 |
+| 0.03 | 0.60 | 0.24 | 0.28 | 0.44 | 0.58 | 9 / 2 / 39 |
+| 0.04 | 0.80 | 0.44 | 0.42 | 0.68 | 0.78 | 6 / 1 / 43 |
+| 0.05 | 1.00 | 0.64 | 0.68 | 0.84 | 0.90 | 3 / 0 / 47 |
+| 0.06 | 1.20 | 0.84 | 0.86 | 0.96 | 0.98 | 1 / 0 / 49 |
+
+**A genuine, bounded positive result — the control confirmed a real
+advantage over the union baseline, not just "more capacity helps"
+(the confound found in experiments 3/4), but only across a specific
+signal range.** In the weak-to-moderate regime (shift 0.03-0.05, i.e.
+shift/noise 0.6-1.0), joint detection wins the paired comparison by wide
+margins (9:2, 6:1, 3:0) — combining evidence *before* thresholding
+genuinely outperforms taking either detector's independent hits.
+**At the weakest signal tested (shift=0.02), the advantage disappears**
+(2 joint wins vs. 3 union wins — a wash, if anything a slight edge to
+union) — apparently too little signal in either key for the combined
+statistic to reliably clear a `sqrt(n_keys)`-scaled threshold either.
+At the strongest signal tested (shift=0.06), both methods saturate near
+1.0 and there's little room left to differ. **State the claim at its
+actual width: joint detection helps in a real, moderate signal-strength
+band, not universally** — a genuine gain, not the "more chances = more
+detections" confound this codebase has learned to check for.
+
+## Non-Gaussian noise: a real specificity failure, mirroring experiment 4's pattern
+
+Ran: `PYTHONPATH=. python experiments/exp05_regime_change_detection/non_gaussian_noise.py`.
+CUSUM's calibration (burn-in mean/σ, threshold as a σ multiple) implicitly
+assumes light-tailed noise. Tested against a standard contaminated-Gaussian
+mixture (5% of observations drawn from a 5x-wider Gaussian, "outliers";
+95% from the calibration-matched one) — no single canonical citation
+adopted for "CUSUM's non-normal robustness" (the SPC literature here is a
+family of results and robust/nonparametric variants, not one seminal paper
+the way Page 1954 is for CUSUM itself); tested empirically instead.
+
+| condition | false-positive rate (200 trials) | recall on a real shift (30 trials) |
+|---|---|---|
+| Gaussian | 0.080 | 1.000 |
+| heavy-tailed | **0.340** | 0.967 |
+
+**Heavy tails more than quadruple the false-positive rate (0.08 → 0.34)
+while barely touching recall (1.00 → 0.967).** This is the same
+qualitative pattern found for experiment 4's fixed-threshold trigger and
+for the joint-detection weak-signal boundary above: **specificity is
+consistently the more fragile property under assumption violations across
+every detection mechanism built in this codebase so far; detection power
+holds up comparatively well.** Mechanistically straightforward: a single
+large outlier lands directly in either the burn-in window (inflating the
+σ estimate, distorting `k`/`h`) or the monitoring phase (injecting a large
+deviation straight into the CUSUM accumulator) — either way it looks like
+exactly the kind of surprising deviation CUSUM is built to flag, whether
+or not anything about the underlying regime actually changed.
+
+## Gradual drift: an initial hypothesis, tested and corrected
+
+Ran: `PYTHONPATH=. python experiments/exp05_regime_change_detection/gradual_drift.py`.
+CUSUM is designed for abrupt shifts (Page 1954). Going in, the working
+hypothesis was that a sufficiently slow drift might never be detected:
+`change_points()` recalibrates `mu0`/`σ` from a burn-in window once per
+detection cycle, then holds them fixed while monitoring — plausible that
+a slow enough drift stays within noise relative to a *stale* reference
+indefinitely, going undetected.
+
+| ramp length | total series length | recall | mean detection delay (steps) |
+|---|---|---|---|
+| 1 (abrupt) | 150 | 1.00 | 1.0 |
+| 5 | 150 | 1.00 | 2.9 |
+| 10 | 150 | 1.00 | 4.0 |
+| 20 | 150 | 1.00 | 5.9 |
+| 40 | 150 | 1.00 | 8.7 |
+| 80 | 150 | 1.00 | 12.9 |
+| 150 (ramp fills the whole remaining series) | 150 | 1.00 | 18.2 |
+| 300 | 400 | 1.00 | 28.0 |
+| 600 | 700 | 1.00 | 44.5 |
+| 1000 (ramp never completes within the series) | 1100 | 1.00 | 67.8 |
+
+**The hypothesis was wrong, and it's worth saying so plainly rather than
+quietly dropping it: recall stays at 1.00 across every ramp length
+tested, including a 1000-step ramp that never even finishes within an
+1100-step series.** The reasoning that seemed plausible going in missed
+something real: because the calibration reference is *fixed* once per
+cycle rather than continuously re-chased, `s_pos`'s accumulated deviation
+from that fixed `mu0` grows with *any* persistent positive drift, however
+slow — mathematically guaranteed to cross threshold eventually, not a
+coincidence of the specific rates tested. Detection delay grows with ramp
+length, but sub-linearly (a 3.3x longer ramp from 300→1000 produced only
+a 2.4x longer delay) — a real, expected cost, not a breakdown.
+**Gradual drift is not, on this evidence, actually outside this
+detector's practical capability** — the "outside CUSUM's design"
+framing that motivated this test applies more to *how quickly* it reacts
+than to *whether* it eventually reacts at all.
+
 ## Full updated status
 
-Two follow-ups to the original noise/regime-length sweeps, both
-confirming or extending the original finding rather than overturning it:
+Five follow-ups to the original noise/regime-length sweeps now:
 segmentation quality degrades gracefully in proportion to detection
-quality (not catastrophically), and the DTW mechanism this module now
-also provides does exactly what the established literature says it
-should, demonstrated with a constructed counterexample against naive
-comparison rather than taken on faith.
+quality (not catastrophically); DTW does exactly what the established
+literature says it should, demonstrated with a constructed counterexample
+rather than taken on faith; joint multi-key detection gives a real,
+bounded advantage over a union-of-detectors control; heavy-tailed noise
+is a genuine, substantial specificity failure (the same pattern found in
+experiment 4, now confirmed a second time in an unrelated mechanism); and
+gradual drift, going in the most likely candidate for a real breakdown,
+turned out not to be one — the working hypothesis was wrong, and finding
+that out empirically rather than assuming it going in is the actual
+result worth keeping.

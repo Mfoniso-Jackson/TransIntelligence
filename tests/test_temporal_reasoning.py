@@ -135,3 +135,43 @@ def test_trajectory_distance_matches_dynamic_time_warp_on_the_underlying_series(
     history_b = StateHistory(_states([0.2, 0.8, 0.8, 0.8, 0.2]))
     reasoner = CUSUMTemporalReasoner(burn_in=10)
     assert reasoner.trajectory_distance(history_a, history_b, "v") == 0.0
+
+
+def test_joint_change_points_detects_a_shared_clean_shift():
+    states = [State("x", {"a": a, "b": b}, T0 + timedelta(minutes=i))
+              for i, (a, b) in enumerate(zip([0.3] * 30 + [0.9] * 30, [0.4] * 30 + [1.0] * 30))]
+    history = StateHistory(states)
+    reasoner = CUSUMTemporalReasoner(burn_in=10, k_sigma=0.5, h_sigma=5.0, min_sigma=1e-6)
+    changes = reasoner.joint_change_points(history, ["a", "b"])
+    assert len(changes) == 1
+    detected_index = (changes[0] - T0).total_seconds() / 60
+    assert 28 <= detected_index <= 32
+
+
+def test_joint_change_points_drops_states_missing_any_tracked_key():
+    states = [
+        State("x", {"a": 0.3}, T0),  # missing "b" -- dropped entirely, not partially used
+        State("x", {"a": 0.3, "b": 0.4}, T0 + timedelta(minutes=1)),
+    ]
+    history = StateHistory(states)
+    reasoner = CUSUMTemporalReasoner(burn_in=10)
+    # Should run without error on the single fully-aligned state; nothing to detect.
+    assert reasoner.joint_change_points(history, ["a", "b"]) == []
+
+
+def test_joint_change_points_false_positive_rate_matches_single_key_calibration():
+    """Regression guard: the sqrt(n_keys) normalization should keep the
+    joint statistic's false-positive rate close to the single-key
+    calibration (~6-8%, see model.py docstring and RESULTS.md) rather than
+    inflating with more keys -- checked directly, not assumed."""
+    import random
+    false_positives = 0
+    trials = 30
+    for seed in range(trials):
+        rng = random.Random(seed)
+        states = [State("x", {"a": 0.5 + rng.gauss(0, 0.02), "b": 0.5 + rng.gauss(0, 0.02)},
+                         T0 + timedelta(minutes=i)) for i in range(100)]
+        reasoner = CUSUMTemporalReasoner()
+        if reasoner.joint_change_points(StateHistory(states), ["a", "b"]):
+            false_positives += 1
+    assert false_positives / trials < 0.2
