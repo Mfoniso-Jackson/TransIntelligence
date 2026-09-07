@@ -8,18 +8,28 @@ temporal reasoning: detecting *when* a tracked value's regime changed, and
 segmenting a history into contiguous regimes -- not just looking values up
 by time.
 
-CUSUMTemporalReasoner implements this via a two-sided CUSUM control chart
-(Page, *Continuous Inspection Schemes*, Biometrika 41(1-2), 1954,
-see docs/related-work.md §9a) -- a simple, well-established, self-
-calibrating method for detecting a shift in a series' mean, chosen over a
-full Bayesian changepoint or HMM treatment (Adams & MacKay 2007;
-Rabiner 1989) for the same reason BaselineRelativeReasoner started with a
-location-shift formula rather than a probabilistic model: smallest
-mechanism that could produce a falsifiable result, matching this repo's
-engineering discipline. It restarts and recalibrates after each detected
-change to find multiple regime changes across a long series, which is a
-practical adaptation of Page's original single-changepoint formulation,
-not part of the original method.
+CUSUMTemporalReasoner bundles two established mechanisms for this,
+mirroring how BaselineRelativeReasoner bundles evaluate/compare/rank/
+sensitivity under one Phase-1 baseline rather than one class per method:
+
+- Change detection: a two-sided CUSUM control chart (Page, *Continuous
+  Inspection Schemes*, Biometrika 41(1-2), 1954, see
+  docs/related-work.md §9a) -- a simple, well-established, self-
+  calibrating method for detecting a shift in a series' mean, chosen over
+  a full Bayesian changepoint or HMM treatment (Adams & MacKay 2007;
+  Rabiner 1989) for the same reason BaselineRelativeReasoner started with
+  a location-shift formula rather than a probabilistic model: smallest
+  mechanism that could produce a falsifiable result. It restarts and
+  recalibrates after each detected change to find multiple regime changes
+  across a long series, a practical adaptation of Page's original
+  single-changepoint formulation, not part of the original method.
+- Temporal comparison: Dynamic Time Warping (Sakoe, Chiba, *Dynamic
+  Programming Algorithm Optimization for Spoken Word Recognition*, IEEE
+  Trans. Acoustics, Speech, Signal Processing 26(1), 1978) -- the basic
+  symmetric form, with no slope constraint (the paper's own refinement,
+  not implemented here), for comparing two trajectories that may be
+  time-shifted or of different lengths, where naive pointwise comparison
+  fails.
 """
 from __future__ import annotations
 
@@ -37,6 +47,27 @@ class RegimeSegment:
     window: TimeWindow
     states: tuple[State, ...]
     mean_value: float
+
+
+def dynamic_time_warp(series_a: list[float], series_b: list[float]) -> float:
+    """Basic symmetric-form DTW distance (Sakoe & Chiba 1978, no slope
+    constraint) between two numeric sequences, which may differ in length
+    or be time-shifted relative to each other. 0.0 for identical
+    sequences; grows with genuine shape difference, not with length or
+    alignment offset the way naive pointwise (same-index) comparison
+    does. O(n*m) time and space -- fine at the scale this repo operates
+    at, not intended for long sequences."""
+    n, m = len(series_a), len(series_b)
+    if n == 0 or m == 0:
+        raise ValueError("cannot compute DTW distance for an empty series")
+    inf = float("inf")
+    d = [[inf] * (m + 1) for _ in range(n + 1)]
+    d[0][0] = 0.0
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            cost = abs(series_a[i - 1] - series_b[j - 1])
+            d[i][j] = cost + min(d[i - 1][j], d[i][j - 1], d[i - 1][j - 1])
+    return d[n][m]
 
 
 class CUSUMTemporalReasoner:
@@ -137,3 +168,13 @@ class CUSUMTemporalReasoner:
         shape as ReferenceFrame.differences()."""
         keys = set(a.values) | set(b.values)
         return {k: (a.values.get(k), b.values.get(k)) for k in keys if a.values.get(k) != b.values.get(k)}
+
+    def trajectory_distance(self, a: StateHistory, b: StateHistory, key: str) -> float:
+        """DTW distance between two StateHistories' `values[key]` numeric
+        streams -- a genuine trajectory comparison, unlike `compare()`
+        (a single-state pointwise diff). Ignores each history's actual
+        timestamps beyond ordering: DTW aligns by shape, not by wall-clock
+        time, which is the point of using it over a same-index comparison."""
+        series_a = [v for _, v in self._numeric_series(a, key)]
+        series_b = [v for _, v in self._numeric_series(b, key)]
+        return dynamic_time_warp(series_a, series_b)

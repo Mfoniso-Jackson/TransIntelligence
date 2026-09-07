@@ -523,9 +523,32 @@ this go through."
 - **Falsification:** would have been "no useful recall/precision at any
   noise level" or "no coherent relationship between regime length and
   detection" — neither happened; both sweeps produced clean, mechanistically
-  explicable results. Full numbers, the calibration sweep, and what
-  isn't yet tested (only `change_points()` benchmarked directly, not
-  `regime_segments()`'s per-segment accuracy; no non-Gaussian/gradual-drift
+  explicable results.
+- **Follow-up 1 — `regime_segments()`'s per-segment accuracy (not just
+  `change_points()`'s recall/precision):** measured mean absolute error
+  between each state's assigned segment mean and its true regime's mean,
+  against a no-segmentation floor and a ground-truth-segmentation ceiling.
+  Result: detected segmentation stays consistently ~2-2.6x worse than the
+  ceiling across every noise level tested (not diverging as noise grows),
+  and 60x+ better than not segmenting at low noise, still ~2.75x better
+  at the noisiest level tested. Detection quality degrading under noise
+  does not translate into disproportionately worse segment estimates.
+- **Follow-up 2 — temporal comparison via DTW** (Sakoe & Chiba 1978, see
+  `docs/related-work.md` §9a): implemented `dynamic_time_warp()` and
+  `trajectory_distance()`, then constructed the literature's own
+  motivating case directly rather than citing it on faith — a template
+  trajectory, a time-shifted-but-identically-shaped version, and a
+  same-position-but-different-shaped version. Naive same-index comparison
+  ranks these **backwards** starting at a 2-step shift (through a 9-step
+  shift, an 8-value window), while DTW ranks correctly throughout,
+  recognizing the shifted version as a perfect match (distance 0)
+  regardless of delay. DTW's own apparent breakdown past shift=10 is a
+  construction artifact (the fixed-length test harness runs out of room
+  to represent a pure shift at that exact point, so the trajectory
+  genuinely changes shape there) — stated precisely rather than left
+  implying a real DTW limitation.
+- Full numbers, the calibration sweep, and what still isn't tested (more
+  than one tracked `key` simultaneously; non-Gaussian/gradual-drift
   transitions, which CUSUM isn't designed to detect cleanly) in
   [experiments/exp05_regime_change_detection/RESULTS.md](../experiments/exp05_regime_change_detection/RESULTS.md).
 

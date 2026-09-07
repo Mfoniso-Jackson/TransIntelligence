@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from transintelligence import State, StateHistory
-from transintelligence.reasoning.temporal import CUSUMTemporalReasoner, RegimeSegment
+from transintelligence.reasoning.temporal import CUSUMTemporalReasoner, RegimeSegment, dynamic_time_warp
 
 T0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
@@ -93,3 +93,45 @@ def test_compare_returns_only_differing_keys():
     diff = reasoner.compare(a, b)
     assert diff == {"regime": ("calm", "volatile"), "new_key": (None, 1)}
     assert "volatility" not in diff
+
+
+def test_dynamic_time_warp_identical_sequences_have_zero_distance():
+    assert dynamic_time_warp([1.0, 2.0, 3.0], [1.0, 2.0, 3.0]) == 0.0
+
+
+def test_dynamic_time_warp_recognizes_same_shape_despite_different_length():
+    a = [0.2, 0.2, 0.8, 0.8, 0.8, 0.2, 0.2]
+    b = [0.2, 0.8, 0.8, 0.8, 0.2]  # same shape, compressed
+    assert dynamic_time_warp(a, b) == 0.0
+
+
+def test_dynamic_time_warp_beats_naive_pointwise_comparison_under_time_shift():
+    """The motivating case for DTW (Sakoe & Chiba 1978, docs/related-work.md
+    §9a), constructed directly: a shifted-but-identically-shaped bump is
+    ranked as MORE similar to the template by naive pointwise comparison
+    than a genuinely different-shaped one at the same position -- backwards
+    -- while DTW ranks correctly. See
+    experiments/exp05_regime_change_detection/dtw_comparison.py for the
+    full shift-magnitude sweep this is drawn from (shift=5 is comfortably
+    inside the range where naive fails but DTW doesn't)."""
+    template = [0.2] * 10 + [0.8] * 10 + [0.2] * 10
+    shifted = [0.2] * 15 + [0.8] * 10 + [0.2] * 5      # same bump, delayed onset
+    different = [0.2] * 10 + [0.6] * 10 + [0.2] * 10   # same position, different height
+
+    def naive(x, y):
+        return sum(abs(p - q) for p, q in zip(x, y))
+
+    assert dynamic_time_warp(template, shifted) <= dynamic_time_warp(template, different)
+    assert naive(template, shifted) > naive(template, different)  # naive gets it backwards
+
+
+def test_dynamic_time_warp_raises_on_empty_series():
+    with pytest.raises(ValueError):
+        dynamic_time_warp([], [1.0])
+
+
+def test_trajectory_distance_matches_dynamic_time_warp_on_the_underlying_series():
+    history_a = StateHistory(_states([0.2, 0.2, 0.8, 0.8, 0.8, 0.2, 0.2]))
+    history_b = StateHistory(_states([0.2, 0.8, 0.8, 0.8, 0.2]))
+    reasoner = CUSUMTemporalReasoner(burn_in=10)
+    assert reasoner.trajectory_distance(history_a, history_b, "v") == 0.0

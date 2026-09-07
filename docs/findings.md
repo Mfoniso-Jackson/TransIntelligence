@@ -226,6 +226,19 @@ calibration window can never be calibrated on before the next change
 happens, and the clean transition right at the parameter boundary
 confirms the mechanism does exactly what it's designed to do.
 
+Two follow-ups extended this rather than overturning it. **Per-segment
+accuracy** (not just detection recall/precision): `regime_segments()`'s
+mean estimates stay consistently ~2-2.6x worse than a ground-truth
+oracle across every noise level tested, not diverging as noise grows —
+imperfect detection costs a roughly constant penalty, not a
+compounding one. **Temporal comparison via Dynamic Time Warping** (Sakoe
+& Chiba, 1978): constructed the technique's own classic motivating case
+directly — a time-shifted-but-identically-shaped trajectory and a
+same-position-but-differently-shaped one. Naive same-index comparison
+ranks these backwards starting at just a 2-step shift; DTW ranks them
+correctly throughout an 8-step window where naive is wrong, recognizing
+the shifted trajectory as a perfect match regardless of delay.
+
 → [experiments/exp05_regime_change_detection/RESULTS.md](../experiments/exp05_regime_change_detection/RESULTS.md)
 
 ## What isn't tested yet
@@ -239,12 +252,9 @@ confirms the mechanism does exactly what it's designed to do.
   family — two or more simultaneously missing regimes, a continuously
   drifting regime, or a richer frame structure than `(baseline,
   direction)` would all break the current grid-search fit.
-- `regime_segments()`'s per-segment accuracy under noise (only
-  `change_points()` was benchmarked directly), temporal comparison of
-  whole trajectories rather than point-to-point state diffs (dynamic time
-  warping is the established method, not implemented), and non-Gaussian
-  or gradual-drift regime transitions, which CUSUM isn't designed to
-  detect cleanly.
+- Tracking more than one `key` simultaneously, and non-Gaussian or
+  gradual-drift regime transitions, which CUSUM isn't designed to detect
+  cleanly.
 - The master context's remaining later phases (causal, counterfactual
   reasoning; world models; agency; meta-intelligence) — all still
   pre-formalization, per `research-agenda.md`'s own sequencing.

@@ -6,6 +6,11 @@ import statistics
 
 from experiments.exp05_regime_change_detection.run import make_history, run_trial
 from experiments.exp05_regime_change_detection.sweep_regime_length import run_trial as run_trial_regime_length
+from experiments.exp05_regime_change_detection.sweep_segment_accuracy import (
+    detected_segmentation_mae,
+    ground_truth_segmentation_mae,
+    no_segmentation_mae,
+)
 
 
 def test_low_noise_detection_is_reliable():
@@ -44,3 +49,17 @@ def test_regime_at_or_above_burn_in_is_reliably_detected():
 def test_make_history_produces_expected_change_point_positions():
     _, true_change_steps = make_history(seed=0, noise_sigma=0.05, regime_means=[0.1, 0.2, 0.3], regime_length=25)
     assert true_change_steps == [25, 50]
+
+
+def test_detected_segmentation_beats_no_segmentation_and_trails_ground_truth():
+    """Regression guard for the per-segment accuracy finding in RESULTS.md:
+    detected segmentation should sit strictly between the no-segmentation
+    floor and the ground-truth-segmentation ceiling, not tie either one --
+    if detected ever matches no_segmentation, regime_segments() has
+    stopped doing anything useful; if it ever beats ground_truth, the
+    ground-truth oracle computation has a bug."""
+    history, _ = make_history(seed=0, noise_sigma=0.05)
+    no_seg = no_segmentation_mae(history)
+    detected = detected_segmentation_mae(history)
+    gt = ground_truth_segmentation_mae(history)
+    assert gt <= detected < no_seg
