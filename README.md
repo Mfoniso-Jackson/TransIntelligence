@@ -18,6 +18,10 @@ This repository currently implements the first milestone: typed primitives for e
 
 Temporal, causal, counterfactual, predictive, simulation, planning, verification, richer memory, persistence, and production domain adapters are intentionally left behind replaceable interfaces.
 
+## Research
+
+The first three falsifiable experiments from [docs/research-agenda.md](docs/research-agenda.md) have run. Short version: reference-frame conditioning helps within a bounded regime, and every result that looked clean on first pass got smaller once the control that could have killed it was actually run. See [docs/findings.md](docs/findings.md) for the summary, or [docs/related-work.md](docs/related-work.md) for how these claims relate to prior art.
+
 ## Quick start
 
 ```bash

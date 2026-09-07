@@ -9,6 +9,11 @@ project vision (see `docs/architecture.md`, `docs/intelligence-model.md`):
 vision motivates the program, this document constrains near-term work to
 what can actually be measured.
 
+All three experiments below have now run. For a standalone summary of what
+they actually established — without reading this document's incremental
+updates or three separate `RESULTS.md` files — see
+[docs/findings.md](findings.md).
+
 Distinguish four categories throughout:
 
 - **Established theory** — already proven elsewhere; we reuse it.
