@@ -216,6 +216,42 @@ technical sense — it's a naming inspiration, not prior art for a
 mechanism. Listed here only so nobody later mistakes vocabulary overlap
 for a substantive connection.**
 
+## 8a. Frame discovery: change-point detection, nonparametric mixtures, open-set recognition (Experiment 4)
+
+- Change-point detection: Adams, MacKay, *Bayesian Online Changepoint
+  Detection*, arXiv:0710.3742, 2007. Maintains an exact posterior over
+  "time since the last changepoint" via online message-passing — the
+  principled version of "detect that recent fit quality has dropped
+  because the underlying regime changed."
+- Growing a hypothesis space online: Ferguson, *A Bayesian Analysis of
+  Some Nonparametric Problems*, Annals of Statistics, 1973 (the Dirichlet
+  process); Neal, *Markov Chain Sampling Methods for Dirichlet Process
+  Mixture Models*, Journal of Computational and Graphical Statistics,
+  2000 (practical inference, including the Chinese Restaurant Process
+  view). These let a mixture model's number of components grow
+  nonparametrically as data demands it, rather than being fixed in
+  advance — the established version of "add a new candidate frame when
+  the known ones don't fit."
+- Recognizing inputs that don't belong to any known class: open-set
+  recognition / novelty detection, surveyed in *Managing the Unknown: A
+  Survey on Open Set Recognition and Tangential Areas*, arXiv:2312.08785,
+  and *A Unified Survey on Anomaly, Novelty, Open-Set, and
+  Out-of-Distribution Detection*, arXiv:2110.14051.
+
+**Classification: established theory for all three pieces (changepoint
+detection, nonparametric mixture growth, open-set recognition). Experiment
+4's planned mechanism (a rolling reward-rate trigger plus a one-shot grid
+search for a new `(baseline, direction)` pair) is a deliberately crude,
+narrow heuristic version of all three — not an implementation of any of
+them. State this plainly in any write-up: the experiment tests whether the
+*simplest possible* version of "detect novelty, then discover a new
+hypothesis" recovers anything, not whether the established machinery
+works (that's already known to work, elsewhere, at far more engineering
+cost than this repo's "lightweight dependencies" constraint allows for
+right now). If the crude version fails outright, these three citations are
+the concrete upgrade path, not a vague gesture at "more sophisticated
+methods."**
+
 ## 9. Summary table
 
 | Area | Nearest citation(s) | Classification |
@@ -225,6 +261,7 @@ for a substantive connection.**
 | Frame-dependence detection | Arjovsky et al. 2019; arXiv:2010.05761; Zhou et al. 2023; Wang et al. 2022 | Established theory; current `sensitivity()` is a naive baseline against it |
 | Geometric reasoning over non-physical spaces | Bronstein et al. 2021 | Established theory, directly prior art |
 | Cross-domain structural transfer | Gentner 1983; Lake & Baroni 2018/2023 | Established distinctions; TransIntelligence's specific transfer claim is a hypothesis |
+| Frame discovery (Experiment 4) | Adams & MacKay 2007; Ferguson 1973; Neal 2000; arXiv:2312.08785; arXiv:2110.14051 | Established theory in full form; the planned mechanism is a deliberately crude heuristic version, not an implementation of any of these |
 | Strange loops / recursive self-model | Hofstadter 1979/2007; Friston 2010; Rabinowitz et al. 2018 | Motivation only, not yet a hypothesis — needs operationalization |
 | "Reference frame" terminology | Fillmore 1982 | Naming inspiration, not a mechanism |
 

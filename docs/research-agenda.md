@@ -313,6 +313,87 @@ read the linked results for the algebra and the full noise-sweep tables.
   nonzero — so report this as partial support with a large, quantified
   confound, not as confirmation or as falsification.
 
+## 7a. Experiment 4 — Frame discovery, not just frame selection
+
+**Status: scoped, not yet built.** Motivated directly by an empirical
+finding, not speculation: experiment 1's held-out-frame test
+([RESULTS.md](../experiments/exp01_frame_conditioning/RESULTS.md)) showed
+`rf_aware` loses 0.181 accuracy the instant the active regime isn't in its
+fixed candidate list, while baselines with no such list barely notice.
+Every experiment on `rf_aware` so far has assumed the candidate frame set
+is given and complete. This experiment asks whether that assumption can be
+relaxed at all, in the narrowest possible way.
+
+- **Hypothesis:** an agent that (a) monitors its own recent reward rate as
+  a fit-quality signal, (b) triggers a "discovery" step when that signal
+  drops persistently below what its known frames should produce, and
+  (c) fits a new candidate frame (a `(baseline, direction)` pair) from a
+  window of recent `(raw, reward, own-prediction)` triples — using the
+  same reward-implies-label trick `LearnedEmbeddingAgent` already uses —
+  recovers materially more of the held-out-frame accuracy loss than a
+  static-candidate-list `rf_aware`, without spuriously growing its
+  candidate list when no novel regime is actually present.
+- **Established theory this borrows from, and how it differs:**
+  - Change-point detection: Adams & MacKay, *Bayesian Online Changepoint
+    Detection*, arXiv:0710.3742, 2007. Their message-passing posterior
+    over "time since the last changepoint" is the principled version of
+    step (b)'s "recent fit quality dropped" trigger; the mechanism
+    proposed here is a much cruder rolling-window heuristic, not their
+    exact-inference algorithm. If the crude version doesn't work
+    reliably, this is the natural upgrade path.
+  - Growing a hypothesis space online: Dirichlet process / Chinese
+    restaurant process mixture models (Ferguson 1973; Neal, *Markov Chain
+    Sampling Methods for Dirichlet Process Mixture Models*, J. Comp.
+    Graph. Stat., 2000) let the number of mixture components grow
+    nonparametrically as data demands it. Step (c) is a hand-rolled,
+    single-shot version of this idea (fit one new component when
+    triggered, not a full nonparametric posterior over how many
+    components should exist) — accept that as a real limitation, not an
+    oversight, given this repo's "lightweight dependencies" constraint.
+  - Recognizing when input doesn't belong to any known class: open-set
+    recognition / novelty detection (see the survey landscape in
+    arXiv:2312.08785 and arXiv:2110.14051). Step (b) is this problem in
+    its simplest possible form (one scalar fit-quality signal, not a
+    learned rejection boundary).
+  - **None of this theory is being implemented in its full form here.**
+    The point of citing it is to be honest that a crude heuristic trigger
+    and a crude grid-search fit are being tested first, precisely because
+    `research-agenda.md` §21/§30 call for the smallest experiment before
+    the more ambitious mechanism, not to claim the established machinery
+    was actually built.
+- **Design:** reuse `FrameSwitchEnv` and the exact held-out-frame setup
+  from experiment 1 (`held_out_frame.py`) — `rf_aware` still starts
+  knowing only 3 of 4 frames, the environment still switches among all 4.
+  Add a `DiscoveringRFAgent`: same Bayesian belief filter as `rf_aware`,
+  plus a rolling reward-rate window and a threshold trigger; on trigger,
+  fit a new `(baseline, direction)` pair via a small grid search over
+  recent implied labels, append it to the candidate list with a modest
+  initial belief share, and continue as normal.
+- **Critical control, planned from the start (the lesson from experiment
+  3):** a `RandomDiscoveryAgent` that triggers on the identical condition
+  but appends a *randomly generated* frame instead of a fitted one. If
+  this control recovers nearly as much accuracy as the fitted version,
+  the result is really "having a growable candidate list helps" — the
+  same "any extra capacity helps regardless of whether it's informed"
+  confound experiment 3 found — not evidence that discovery is finding
+  anything real. Do not run the positive case without this control; build
+  both from the first commit, not as an afterthought once a clean number
+  shows up.
+- **Metrics:** (1) accuracy during held-out-frame-active periods, split
+  into before-first-discovery vs. after — the recovery this experiment is
+  actually about; (2) false-discovery rate — how often the trigger fires
+  while the active frame *is* one of the 3 known ones (just noisy), since
+  a mechanism that isn't specific enough will pollute the candidate list
+  and dilute belief across near-duplicate frames; (3) candidate-list size
+  over time — does it stabilize once the true regime set is covered, or
+  keep growing.
+- **Falsification:** no accuracy recovery relative to static `rf_aware`
+  on the held-out regime, or the fitted-discovery agent's recovery is not
+  meaningfully larger than the random-discovery control's — either result
+  means this narrow heuristic doesn't do what it claims, and the next
+  step would be the Adams & MacKay-style or Dirichlet-process-style
+  upgrade instead of tuning this version further.
+
 ## 8. Sequencing
 
 1. ~~Experiment 2 first~~ — **done**, see §6. Result: `sensitivity()` failed
@@ -343,6 +424,12 @@ read the linked results for the algebra and the full noise-sweep tables.
    transfer-vs-scratch comparison suggests once the "any non-random start
    helps" confound is subtracted out. Full decomposition in
    [experiments/exp03_cross_domain_transfer/](../experiments/exp03_cross_domain_transfer/RESULTS.md).
+5. Experiment 4 next — **scoped in §7a, not yet built.** Directly motivated
+   by experiment 1's held-out-frame finding rather than the original plan
+   (which stopped at experiment 3). Build the `RandomDiscoveryAgent`
+   control in the same commit as `DiscoveringRFAgent`, not after — that
+   ordering is itself a lesson from experiment 3, where the confound
+   control was added only after the naive result already looked clean.
 
 ## 9. What would make this publishable, and what would make a reviewer skeptical
 
