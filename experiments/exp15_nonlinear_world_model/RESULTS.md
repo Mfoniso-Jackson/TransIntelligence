@@ -84,6 +84,20 @@ dynamics prediction itself), and adds the boundary condition experiments
 misspecification is severe enough to change which discrete decision is
 actually best.
 
+## Follow-up: generalized into a kernel primitive
+
+`NonlinearWorldModelAgent`'s `_refit`/`_predict` fitting logic has since
+been generalized into `NonlinearDynamicsModel`
+(`transintelligence/world_models/model.py`), the same way experiment
+12's one-off `choose_action` became `RecedingHorizonPlanner` — refactored
+in after this experiment shipped and verified to produce bit-for-bit
+identical results (seed 0: reward -0.1522518487, ceiling -0.1416587840,
+both before and after). `LinearDynamicsModel` and `NonlinearDynamicsModel`
+now live side by side in `transintelligence/world_models/`, mirroring
+`LinearDynamicsModel`'s exact API (`fit`, `known_actions`, `predict`) —
+a fixed nonlinear functional form, not a generic polynomial-feature
+wrapper, matching `LinearDynamicsModel`'s own fixed-form precedent.
+
 ## What this does not establish
 
 - **A single nonlinear functional form tested** (a quadratic restoring

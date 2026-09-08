@@ -546,6 +546,34 @@ specific alternative mechanism and, by elimination, leaving experiment
 16's original chaining hypothesis as the more plausible remaining
 explanation, still not directly confirmed.**
 
+## 3m. Extending regime-adaptation to a nonlinear dynamics model (Experiment 19, Phase 6, continued)
+
+A third synthesis experiment (after experiments 13 and 16) — no new
+mechanism implemented, only `CUSUMTemporalReasoner` (Page 1954, already
+cited for experiment 5) and `NonlinearDynamicsModel` (generalized from
+experiment 15's own fitting logic, itself grounded in Pearl, Glymour &
+Jewell 2016's additive-noise principle, already cited in §3i), combined.
+
+**Classification: established theory in full for every underlying
+mechanism — nothing here is novel. What experiment 19 contributes is a
+genuinely new, mechanistically-explained finding only visible by testing
+the actual nonlinear+regime-shift combination.** A mild shift, an honest
+null result for experiment 13's linear model, actively *hurts* here:
+`oracle_adapts` performs worse than `never_adapts`, traced directly (via
+instrumentation, not inference) to a cold-start cost `NonlinearDynamicsModel`'s
+higher per-action data requirement (3 observations, not `LinearDynamicsModel`'s
+2) creates for any hard-reset adaptation strategy. A severe shift still
+favors adaptation overall, matching experiment 13's conclusion, but
+CUSUM detection reliability itself measurably degrades (9/15 vs.
+experiment 13's 15/15 seeds detected, ~5.4x slower mean latency) for a
+reason checked directly and refuted (steady-state residual noise is
+statistically identical between the linear and nonlinear settings) but
+not otherwise identified — an honestly reported open question, not
+papered over with a plausible-sounding but unverified explanation. A
+simpler sliding-window heuristic, which never fully empties its training
+data, ends up more practically robust than CUSUM-triggered detection
+here, reversing experiment 13's own preference ordering.
+
 ## 4. Frame-dependence / frame-invariance detection (Experiment 2)
 
 - Invariant Risk Minimization: Arjovsky, Bottou, Gulrajani, Lopez-Paz,
@@ -724,6 +752,7 @@ methods."**
 | Regime detection + multi-step planning (Experiment 16, Phase 6) | Page 1954; Richalet et al. 1978 / Lowerre 1976 (all already cited) — no new citation, a synthesis | Established theory in full for every component — an independent replication of experiment 14's oscillation pathology, plus a new, only-visible-in-combination finding (learned multi-step planning's persistent cost), are the contribution |
 | `MonteCarloSimulator` validation (Experiment 17, Phase 6, closing) | Sutton 1990/1991 (Dyna, already cited, §3e) | Established theory in full — Monte Carlo rollout comparison is textbook; the contribution is a validation, not a new claim: independently recovering experiment 16's already-known ranking via a different methodology, with a built-in rollout-count sensitivity control |
 | `CalibrationVerifier` / testing experiment 16's compounding-error hypothesis (Experiment 18, Phase 6 closing) | Dawid 1982 (calibration); Kupiec 1995 (unconditional-coverage LR test) | Established theory in full — a new hypothesis test, not a validation: rules out a self-steered-training-distribution alternative explanation for experiment 16's persistent gap, leaving the original chaining hypothesis the more plausible remaining one, still unconfirmed |
+| Nonlinear dynamics + regime-adaptation (Experiment 19, Phase 6) | Page 1954; Pearl, Glymour & Jewell 2016 (both already cited) — no new citation, a synthesis | Established theory in full for every component — the contribution is a mechanistically-explained negative-under-mild-shift finding (a nonlinear model's cold-start cost) and a measured, only-partly-explained detection-reliability degradation, neither predictable from experiments 13 or 15 alone |
 | Frame-dependence detection | Arjovsky et al. 2019; arXiv:2010.05761; Zhou et al. 2023; Wang et al. 2022 | Established theory; current `sensitivity()` is a naive baseline against it |
 | Geometric reasoning over non-physical spaces | Bronstein et al. 2021 | Established theory, directly prior art |
 | Cross-domain structural transfer | Gentner 1983; Lake & Baroni 2018/2023 | Established distinctions; TransIntelligence's specific transfer claim is a hypothesis |

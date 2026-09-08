@@ -1,8 +1,8 @@
 # Findings
 
-A standalone summary of what the first eighteen experiments in
+A standalone summary of what the first nineteen experiments in
 [research-agenda.md](research-agenda.md) actually established, for anyone
-who wants the result without reading eighteen `RESULTS.md` files and the
+who wants the result without reading nineteen `RESULTS.md` files and the
 incremental updates to the agenda itself. Each section below is a compressed
 version of a much more detailed writeup — follow the links for the numbers,
 the code, and the caveats a one-paragraph summary can't carry.
@@ -75,7 +75,12 @@ the multi-step planner's dynamics model is not measurably worse-
 calibrated than the single-step planner's, ruling out one plausible
 alternative explanation and, by elimination, leaving the original
 chained-prediction hypothesis the more plausible remaining one, still
-not directly confirmed.
+not directly confirmed, and a nineteenth extended regime-adaptation to a
+nonlinear dynamics model and found the composition does not transfer for
+free from the linear case: a mild shift, an honest null result before,
+actively hurts here, traced to a real cold-start cost; a severe shift
+still favors adaptation, but change detection itself becomes measurably
+less reliable for a reason checked and ruled out but not identified.
 
 ## Experiment 2 — Does `sensitivity()` detect frame-dependent conclusions?
 
@@ -219,7 +224,7 @@ same session, sharpened exactly how much harder:
 
 ## The meta-finding
 
-Across the eighteen experiments, the same discipline applied every time: build
+Across the nineteen experiments, the same discipline applied every time: build
 the control that could kill the result, then run it, and don't stop at the
 first configuration that looks clean. Every single result got a real
 qualifier once that happened. Three times the headline *number* shrank —
@@ -318,10 +323,18 @@ experiment 17's sibling primitive made possible: `CalibrationVerifier`
 gave experiment 16's own best-supported-but-unconfirmed explanation a
 real chance to be *directly* checked rather than only argued from reward
 patterns, and one competing explanation for it was ruled out as a
-result, not just left unaddressed. That makes seventeen genuine
-hypothesis tests total (the sixteen above, plus 18), with experiment 17
-as the one deliberate exception — a validation rather than a claim about
-the world.
+result, not just left unaddressed. Experiment 19 is a hypothesis test
+too, and the clearest demonstration yet of the "investigate a result
+that looks wrong instead of reporting it" discipline applied to a
+*negative* surprise: an oracle performing worse than an agent that never
+adapts at all is exactly the kind of result that invites either
+suspicion of a bug or a quiet rerun with different settings — instead it
+was traced to a specific, confirmed mechanism (a nonlinear model's
+cold-start data requirement) via direct instrumentation, not just
+argued from the pattern of final rewards. That makes eighteen genuine
+hypothesis tests total (the sixteen above, plus 18 and 19), with
+experiment 17 as the one deliberate exception — a validation rather than
+a claim about the world.
 
 Experiment 5 adds a second kind of validation to this pattern: not a
 control on its own result, but independent confirmation of a fix proposed
@@ -875,6 +888,42 @@ itself still was not directly manipulated — the hypothesis is narrower
 now, with one fewer competitor, not confirmed.
 
 → [experiments/exp18_calibration_verifier/RESULTS.md](../experiments/exp18_calibration_verifier/RESULTS.md)
+
+## Experiment 19 — Does regime-adaptation still work when the dynamics model is nonlinear?
+
+**A third synthesis experiment (after 13 and 16), and a genuinely
+new, mechanistically-explained finding — not the "it just works the same
+way" result the setup might suggest.** Structurally identical to
+experiment 13, with one substitution: `NonlinearDynamicsModel`
+(generalized from experiment 15 into a kernel primitive alongside
+`LinearDynamicsModel`) in place of the linear one. `CUSUMTemporalReasoner`
+monitors residuals agnostic to whether the underlying model is linear —
+but a nonlinear model needs one more observation per action to fit at
+all (3, not 2), and there was no guarantee a detection/adaptation
+pipeline implicitly calibrated around a linear model's behavior would
+transfer unchanged.
+
+**It doesn't, in two distinct ways.** Under a mild shift — an honest
+null result for the linear model in experiment 13 — adaptation here
+actively *hurts*: an oracle given the true shift trial exactly performs
+worse than an agent that never adapts at all. Confirmed directly, not
+inferred: instrumentation shows a post-shift agent's known actions stay
+completely empty for the entire first refit window, forcing pure random
+action selection — the nonlinear model's higher data requirement gives
+any hard-reset adaptation strategy a real, measurable cold-start tax a
+linear model's shorter cold start doesn't produce. Under a severe shift,
+adaptation still wins overall, matching experiment 13 — but change
+detection itself becomes measurably less reliable (barely more than half
+the seeds detect the shift at all, and detection that does happen takes
+roughly five times as long) for a reason checked directly and *refuted*
+(residual noise in steady state is statistically identical between the
+linear and nonlinear settings) but not otherwise identified — reported
+as an open question, not dressed up with an unverified explanation. A
+simpler heuristic that never fully empties its training data sidesteps
+the cold-start cliff entirely and ends up more practically robust than
+change detection here, reversing experiment 13's own preference.
+
+→ [experiments/exp19_nonlinear_regime_shift/RESULTS.md](../experiments/exp19_nonlinear_regime_shift/RESULTS.md)
 
 ## What isn't tested yet
 

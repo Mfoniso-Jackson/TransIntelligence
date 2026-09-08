@@ -62,8 +62,7 @@ import random
 import statistics
 
 from environments.transworld import NUDGES, NonlinearControlEnv
-from transintelligence.reasoning.causal import ordinary_least_squares
-from transintelligence.world_models import LinearDynamicsModel
+from transintelligence.world_models import LinearDynamicsModel, NonlinearDynamicsModel
 
 ACTIONS = list(NUDGES.keys())
 TARGET = 0.0
@@ -113,45 +112,27 @@ class LinearWorldModelAgent:
 
 
 class NonlinearWorldModelAgent:
-    """Fits next_state ~ intercept(a) + b1(a)*state + b2(a)*state*|state|
-    per action, via ordinary_least_squares -- a function class that CAN
-    represent the true restoring-force dynamics exactly."""
+    """Reuses `NonlinearDynamicsModel` (generalized from this class's own
+    original `_refit`/`_predict` logic into
+    `transintelligence/world_models/`, the same way experiment 12's
+    `choose_action` was generalized into `RecedingHorizonPlanner`) -- a
+    function class that CAN represent the true restoring-force dynamics
+    exactly, unlike `LinearWorldModelAgent`'s straight line."""
 
     def __init__(self) -> None:
         self.transitions: list[tuple[float, str, float]] = []
-        self.coefficients: dict[str, tuple[float, float, float]] = {}
-
-    def _refit(self) -> None:
-        by_action: dict[str, list[tuple[float, float]]] = {}
-        for s, a, ns in self.transitions:
-            by_action.setdefault(a, []).append((s, ns))
-        coefficients: dict[str, tuple[float, float, float]] = {}
-        for a, pairs in by_action.items():
-            if len(pairs) < 3:
-                continue
-            features = [[1.0, s, s * abs(s)] for s, _ in pairs]
-            targets = [ns for _, ns in pairs]
-            try:
-                intercept, b1, b2 = ordinary_least_squares(features, targets)
-            except ValueError:
-                continue
-            coefficients[a] = (intercept, b1, b2)
-        self.coefficients = coefficients
-
-    def _predict(self, state: float, action: str) -> float:
-        intercept, b1, b2 = self.coefficients[action]
-        return intercept + b1 * state + b2 * state * abs(state)
+        self.model = NonlinearDynamicsModel()
 
     def choose_action(self, state: float, rng: random.Random) -> str:
-        known = list(self.coefficients.keys())
+        known = self.model.known_actions()
         if not known:
             return rng.choice(ACTIONS)
-        return min(known, key=lambda a: (self._predict(state, a) - TARGET) ** 2)
+        return min(known, key=lambda a: (self.model.predict(state, a) - TARGET) ** 2)
 
     def observe(self, state: float, action: str, next_state: float, reward: float) -> None:
         self.transitions.append((state, action, next_state))
         if len(self.transitions) % REFIT_INTERVAL == 0:
-            self._refit()
+            self.model = NonlinearDynamicsModel.fit(self.transitions)
 
 
 class OracleDynamicsAgent:

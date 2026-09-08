@@ -1453,6 +1453,57 @@ validation against an already-known answer.
   threshold) in
   [experiments/exp18_calibration_verifier/RESULTS.md](../experiments/exp18_calibration_verifier/RESULTS.md).
 
+## 7p. Experiment 19 — Extending regime-adaptation to a nonlinear dynamics model (Phase 6, continued)
+
+**Status: run.** A third synthesis experiment (after 13 and 16): does
+`CUSUMTemporalReasoner`-triggered adaptation (experiment 13) still work
+when the learned model is `NonlinearDynamicsModel` (generalized from
+experiment 15 into `transintelligence/world_models/`) instead of
+`LinearDynamicsModel`? Structurally identical to experiment 13
+(`environments/transworld/nonlinear_regime_shift_env.py` combines
+experiment 15's restoring force with experiment 13's silent actuator
+rescaling), one substitution only.
+
+- **Hypothesis:** the composition holds the same way it did for the
+  linear model in experiment 13 — no benefit under a mild shift, a clear
+  benefit under a severe one.
+- **Why it wasn't obvious:** `CUSUMTemporalReasoner` monitors residuals
+  agnostic to whether the underlying model is linear, but
+  `NonlinearDynamicsModel` needs 3 observations per action to fit at
+  all, one more than `LinearDynamicsModel`'s 2 — no a priori guarantee a
+  pipeline implicitly calibrated around a linear model transfers
+  unchanged.
+- **Finding 1:** under a mild shift, `oracle_adapts` performs *worse*
+  than `never_adapts` (-0.5278 vs. -0.3630) — not merely
+  indistinguishable, as experiment 13 found for its linear model
+  (-5.0996 vs. -5.0823, ~0.3% gap). Confirmed directly, not inferred:
+  instrumentation shows a post-shift agent's `known_actions()` stays
+  completely empty for the entire first 19-trial refit window (forced
+  pure random action selection) — the nonlinear model's higher
+  per-action data requirement gives a hard-reset strategy a real,
+  measurable cold-start cost a linear model's shorter cold start doesn't
+  produce.
+- **Finding 2:** under a severe shift, `oracle_adapts` still clearly
+  beats `never_adapts` (-0.4151 vs. -1.6340), but `cusum_detects_and_adapts`
+  (-1.3364) fails the confound-controlled test experiment 13's design
+  passed — it does not beat `sliding_window_baseline` (-0.4255).
+  Detection itself is measurably less reliable (9/15 seeds detected vs.
+  experiment 13's 15/15; mean latency 125.2 vs. 23.0 trials) — the
+  natural "noisier residuals" explanation was checked directly and
+  **refuted** (pre-shift residual stdev ~0.30 in both linear and
+  nonlinear settings, 5 matched seeds), leaving the true cause
+  unidentified. `sliding_window_baseline`, which never fully empties its
+  training data, avoids the cold-start cliff entirely and becomes the
+  most practically competitive strategy in both severities — reversing
+  experiment 13's own preference ordering.
+- **Falsification:** would have been the composition holding unchanged
+  (matching experiment 13's pattern with no new effect) — it didn't.
+  Full numbers and what isn't tested (the cause of degraded detection
+  reliability; only one nonlinearity and GAMMA value; the cold-start cost
+  not mitigated or engineered around; not combined with multi-step
+  planning) in
+  [experiments/exp19_nonlinear_regime_shift/RESULTS.md](../experiments/exp19_nonlinear_regime_shift/RESULTS.md).
+
 ## 8. Sequencing
 
 1. ~~Experiment 2 first~~ — **done**, see §6. Result: `sensitivity()` failed
@@ -1672,7 +1723,7 @@ validation against an already-known answer.
   borrows from (§8a of `related-work.md`) solves a much harder version of
   this problem than what was actually tested here, and both follow-ups
   show exactly where that gap matters.
-- **All eighteen experiments are now done** (§5-7o). If this program is
+- **All nineteen experiments are now done** (§5-7p). If this program is
   written up externally, the honest headline is: reference-frame
   conditioning helps within a bounded noise/coverage regime (experiment 1),
   a naive frame-dependence detector can fail in exactly the common case and
@@ -1757,11 +1808,23 @@ validation against an already-known answer.
   ruling out one plausible alternative explanation (a self-steered,
   degraded training distribution) and, by elimination, leaving the
   original chaining hypothesis the more plausible remaining one, still
-  not directly confirmed (experiment 18). That's a coherent, modest,
+  not directly confirmed (experiment 18), and a nineteenth extended
+  regime-adaptation to a nonlinear dynamics model (the last of Phase 6's
+  named remaining-gaps items) and found the composition does NOT
+  transfer for free: a mild shift, an honest null in experiment 13's
+  linear version, actively HURTS here (oracle_adapts worse than
+  never_adapts), traced directly to a cold-start cost the nonlinear
+  model's higher per-action data requirement creates; a severe shift
+  still favors adaptation overall, but CUSUM detection itself is
+  measurably less reliable (9/15 vs. experiment 13's 15/15 seeds
+  detected) for a reason checked and ruled out (steady-state residual
+  noise) but not identified, and a simpler sliding-window heuristic ends
+  up more robust than CUSUM detection here, reversing experiment 13's
+  own preference ordering (experiment 19). That's a coherent, modest,
   defensible set of claims — resist the
-  temptation to round any of them up, experiments 4 through 18 included.
-- **Experiments 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, and 18 are
-  also the first results from this program that are reusable kernel
+  temptation to round any of them up, experiments 4 through 19 included.
+- **Experiments 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, and 19
+  are also the first results from this program that are reusable kernel
   capabilities, not RL research scripts** — worth leading with in any framing aimed at the "is any of
   this actually usable" question, separate from the reference-frame-
   conditioning experiments' own framing. Experiments 6 and 7 together

@@ -86,3 +86,65 @@ class LinearDynamicsModel:
             raise ValueError(f"no fitted dynamics for action {action!r} yet -- not enough transitions observed")
         intercept, slope = self.coefficients[action]
         return intercept + slope * state
+
+
+@dataclass(frozen=True)
+class NonlinearDynamicsModel:
+    """A learned per-action nonlinear transition model: for each action
+    seen so far, `next_state = intercept[action] + b1[action]*state +
+    b2[action]*state*|state|`, fit independently per action via OLS on
+    the two features `[state, state*|state|]`.
+
+    Generalizes `NonlinearWorldModelAgent._refit`/`_predict`
+    (`experiments/exp15_nonlinear_world_model/run.py`) into a kernel
+    primitive, exactly the way `RecedingHorizonPlanner` generalized
+    experiment 12's one-off `choose_action` -- refactored in after
+    experiment 15 shipped and verified to produce bit-for-bit identical
+    results, not a new mechanism. The `state*|state|` feature (not a
+    bare `state**2`) keeps the fitted nonlinearity sign-aware, matching
+    the odd-function restoring-force shape experiment 15's environment
+    actually has -- see that experiment's docstring for why a bare
+    square would be a different (and wrong) functional form here.
+
+    This is deliberately a FIXED functional form, the same way
+    `LinearDynamicsModel` is fixed to a straight line rather than
+    accepting arbitrary feature functions -- not a generic polynomial-
+    regression wrapper. A different nonlinearity shape would need its
+    own class, the same way this one needed its own rather than
+    extending `LinearDynamicsModel` with an optional feature."""
+
+    coefficients: dict[Hashable, tuple[float, float, float]] = field(default_factory=dict)
+
+    @classmethod
+    def fit(cls, transitions: list[tuple[float, Hashable, float]]) -> "NonlinearDynamicsModel":
+        """`transitions` is a list of (state, action, next_state)
+        triples -- refit from scratch each call, matching
+        `LinearDynamicsModel.fit`'s same non-incremental convention.
+        Needs at least 3 observations per action (2 features plus an
+        intercept), one more than `LinearDynamicsModel`'s minimum of 2,
+        since there's one more coefficient to estimate."""
+        by_action: dict[Hashable, list[tuple[float, float]]] = {}
+        for state, action, next_state in transitions:
+            by_action.setdefault(action, []).append((state, next_state))
+
+        coefficients: dict[Hashable, tuple[float, float, float]] = {}
+        for action, pairs in by_action.items():
+            if len(pairs) < 3:
+                continue
+            features = [[1.0, s, s * abs(s)] for s, _ in pairs]
+            targets = [ns for _, ns in pairs]
+            try:
+                intercept, b1, b2 = ordinary_least_squares(features, targets)
+            except ValueError:
+                continue  # degenerate -- skip, not enough signal yet
+            coefficients[action] = (intercept, b1, b2)
+        return cls(coefficients=coefficients)
+
+    def known_actions(self) -> set[Hashable]:
+        return set(self.coefficients.keys())
+
+    def predict(self, state: float, action: Hashable) -> float:
+        if action not in self.coefficients:
+            raise ValueError(f"no fitted dynamics for action {action!r} yet -- not enough transitions observed")
+        intercept, b1, b2 = self.coefficients[action]
+        return intercept + b1 * state + b2 * state * abs(state)

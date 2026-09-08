@@ -1,3 +1,3 @@
-from .model import LinearDynamicsModel
+from .model import LinearDynamicsModel, NonlinearDynamicsModel
 
-__all__ = ["LinearDynamicsModel"]
+__all__ = ["LinearDynamicsModel", "NonlinearDynamicsModel"]
