@@ -1353,6 +1353,52 @@ implemented — every mechanism is reused exactly as already verified.
   dynamics) in
   [experiments/exp16_regime_shift_multistep_planning/RESULTS.md](../experiments/exp16_regime_shift_multistep_planning/RESULTS.md).
 
+## 7n. Experiment 17 — Validating `MonteCarloSimulator` against experiment 16's already-established finding (Phase 6, closing)
+
+**Status: run.** The validating experiment for `transintelligence/simulation/`'s
+new `MonteCarloSimulator` (§13/§19 `Simulator`, the last of Phase 6's
+three remaining gaps after experiment 14 — nonlinear dynamics and
+regime-adaptation + multi-step planning were the first two, closed by
+experiments 15 and 16). Rather than a fresh, unrelated claim, this is a
+genuine pre-registered check against a result already established by a
+completely different methodology.
+
+- **Hypothesis:** `MonteCarloSimulator.compare_policies`, given only
+  experiment 16's two already-trained, frozen policies
+  (`greedy_cusum_adapts`, `mpc_beam_cusum_adapts` — learning switched
+  off) and the environment's true post-shift dynamics formula plus its
+  real observation noise, recovers via short stochastic rollouts alone
+  the same ranking experiment 16 found via full multi-seed environment
+  rollouts averaged over 400 episodes each: `greedy_cusum_adapts` beats
+  `mpc_beam_cusum_adapts` post-shift.
+- **Why this is a real risk, not a formality:** the answer was already
+  known, so a mismatch would have been a real, reportable finding —
+  either a bug in `MonteCarloSimulator`, or evidence that experiment 16's
+  full-environment result doesn't generalize to arbitrary starting
+  states, not just its own `reset()` distribution.
+- **Verified against a hand-computed case before trusting it here:** a
+  deterministic (noise-free) canonical case first
+  (`tests/test_simulation.py`) — always-up beats always-down by exactly
+  the hand-computed margin, with zero spread, and swapping which policy
+  is passed first flips the reported winner — before running it on
+  anything stochastic or previously-unseen.
+- **Result:** greedy wins 58/60 Monte Carlo comparisons (96.7%) across
+  12 seeds × 5 starting states, with mean simulated rewards (-2.29 vs.
+  -32.98) landing close to experiment 16's own full-environment numbers
+  (-4.52 vs. -33.06) despite the completely different methodology.
+- **Sensitivity control built into the same run:** dropping `n_rollouts`
+  from 200 to 5 (same trained agents, same start states) reduced the win
+  rate to 88.3% — noisier, as expected, but still correctly favoring
+  greedy in the large majority of cases, confirming `n_rollouts` does
+  real work rather than being cosmetic.
+- **Falsification:** would have been a win rate near 50% (no recoverable
+  signal) or favoring `mpc_beam_cusum_adapts` (contradicting experiment
+  16 outright) — neither happened. What isn't tested (only one policy
+  pair, one environment, one severity; `n_rollouts` sensitivity checked
+  at only two values; pre-shift, where both agents perform
+  near-identically, not separately validated) in
+  [experiments/exp17_monte_carlo_simulator/RESULTS.md](../experiments/exp17_monte_carlo_simulator/RESULTS.md).
+
 ## 8. Sequencing
 
 1. ~~Experiment 2 first~~ — **done**, see §6. Result: `sensitivity()` failed
@@ -1572,7 +1618,7 @@ implemented — every mechanism is reused exactly as already verified.
   borrows from (§8a of `related-work.md`) solves a much harder version of
   this problem than what was actually tested here, and both follow-ups
   show exactly where that gap matters.
-- **All sixteen experiments are now done** (§5-7m). If this program is
+- **All seventeen experiments are now done** (§5-7n). If this program is
   written up externally, the honest headline is: reference-frame
   conditioning helps within a bounded noise/coverage regime (experiment 1),
   a naive frame-dependence detector can fail in exactly the common case and
@@ -1641,10 +1687,17 @@ implemented — every mechanism is reused exactly as already verified.
   only be found by testing the actual combination: learned multi-step
   planning persistently underperforms learned single-step planning once
   combined with regime-adaptation, with the obvious "reduced
-  exploration" explanation checked directly and refuted (experiment 16).
-  That's a coherent, modest, defensible set of claims — resist the
-  temptation to round any of them up, experiments 4 through 16 included.
-- **Experiments 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, and 16 are also
+  exploration" explanation checked directly and refuted (experiment 16),
+  and a seventeenth closed out Phase 6 with a validation rather than a
+  new claim: `MonteCarloSimulator`, a newly-built kernel primitive using
+  a completely different methodology (short stochastic rollouts from
+  arbitrary starting states, not full 400-episode environment averages),
+  independently recovered experiment 16's exact ranking in 58/60
+  comparisons, with a built-in sensitivity control confirming the number
+  of rollouts genuinely mattered rather than being cosmetic (experiment
+  17). That's a coherent, modest, defensible set of claims — resist the
+  temptation to round any of them up, experiments 4 through 17 included.
+- **Experiments 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, and 17 are also
   the first results from this program that are reusable kernel
   capabilities, not RL research scripts** — worth leading with in any framing aimed at the "is any of
   this actually usable" question, separate from the reference-frame-

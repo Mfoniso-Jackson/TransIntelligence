@@ -1,8 +1,8 @@
 # Findings
 
-A standalone summary of what the first sixteen experiments in
+A standalone summary of what the first seventeen experiments in
 [research-agenda.md](research-agenda.md) actually established, for anyone
-who wants the result without reading sixteen `RESULTS.md` files and the
+who wants the result without reading seventeen `RESULTS.md` files and the
 incremental updates to the agenda itself. Each section below is a compressed
 version of a much more detailed writeup — follow the links for the numbers,
 the code, and the caveats a one-paragraph summary can't carry.
@@ -63,7 +63,12 @@ fourteenth's oscillation pathology in an unrelated environment before
 finding something new only visible in combination: learned multi-step
 planning persistently underperforms learned single-step planning once
 combined with regime-adaptation, with the obvious "reduced exploration"
-explanation checked directly and refuted.
+explanation checked directly and refuted, and a seventeenth closed out
+Phase 6 not with a new claim but a validation: a newly-built Monte Carlo
+policy comparator, using short stochastic rollouts rather than full
+environment averages, independently recovered the sixteenth's exact
+ranking in 58 of 60 comparisons, with a built-in sensitivity control
+confirming the rollout count itself was doing real work.
 
 ## Experiment 2 — Does `sensitivity()` detect frame-dependent conclusions?
 
@@ -207,7 +212,7 @@ same session, sharpened exactly how much harder:
 
 ## The meta-finding
 
-Across the sixteen experiments, the same discipline applied every time: build
+Across the seventeen experiments, the same discipline applied every time: build
 the control that could kill the result, then run it, and don't stop at the
 first configuration that looks clean. Every single result got a real
 qualifier once that happened. Three times the headline *number* shrank —
@@ -289,6 +294,16 @@ was never tested against one, and the one experiment where the *core*
 control confirmed rather than shrank the effect is still the one worth
 the most trust — its remaining caveats are about scope, not about whether
 the central claim is real.
+
+Experiment 17 is a different kind of check than the sixteen hypothesis
+tests above it — not "does this claim about the world hold up," but
+"does a newly-built tool (`MonteCarloSimulator`) reproduce, by an
+independent method, a result already established by hypothesis-testing
+discipline." It carried the same real risk of failure (the answer was
+known in advance, so a mismatch would have been reportable either way),
+and it passed — the closest thing this program has to an external
+validity check on its own experimental machinery, not just on its
+claims.
 
 Experiment 5 adds a second kind of validation to this pattern: not a
 control on its own result, but independent confirmation of a fix proposed
@@ -768,6 +783,37 @@ lookahead never has to pay — a cost that doesn't shrink with more data,
 unlike a small-sample transient.
 
 → [experiments/exp16_regime_shift_multistep_planning/RESULTS.md](../experiments/exp16_regime_shift_multistep_planning/RESULTS.md)
+
+## Experiment 17 — Does `MonteCarloSimulator`, a newly-built kernel primitive, independently recover experiment 16's already-established finding?
+
+**A validation, not a new claim — closing Phase 6's last remaining gap
+(`Simulator`).** `transintelligence/simulation/`'s new
+`MonteCarloSimulator` compares two given candidate policies via
+stochastic rollouts, rather than predicting one state (`Predictor`) or
+searching internally for one best action (`Planner`). Hand-verified
+first against a deterministic canonical case (always-up beats
+always-down by exactly the hand-computed margin, zero spread, and
+swapping argument order flips the reported winner), then run on a real,
+previously-unseen question: reusing experiment 16's own trained agents
+and environment exactly, freezing them (learning switched off), does
+`MonteCarloSimulator.compare_policies` — given only short stochastic
+rollouts from fresh starting states — recover the same ranking
+experiment 16 found via full 400-episode environment averages
+(`greedy_cusum_adapts` beats `mpc_beam_cusum_adapts` post-shift)?
+
+**Result: yes, cleanly.** 58 of 60 comparisons (12 seeds × 5 starting
+states) favored greedy, with mean simulated rewards (-2.29 vs. -32.98)
+landing close to experiment 16's own numbers (-4.52 vs. -33.06) despite
+the completely different methodology. A built-in sensitivity control —
+dropping `n_rollouts` from 200 to 5 — reduced the win rate to 88.3%,
+confirming the rollout count genuinely affects verdict reliability rather
+than being cosmetic, while also showing the underlying effect is large
+enough that even a small sample rarely gets the ranking backwards. This
+was a genuine risk, not a formality: the answer was already known, so a
+mismatch would have meant either a bug in the new code or a real
+limitation of experiment 16's own result.
+
+→ [experiments/exp17_monte_carlo_simulator/RESULTS.md](../experiments/exp17_monte_carlo_simulator/RESULTS.md)
 
 ## What isn't tested yet
 

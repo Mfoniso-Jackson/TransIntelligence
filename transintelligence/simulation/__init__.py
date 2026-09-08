@@ -1,1 +1,3 @@
-"""Interface placeholder for future replaceable intelligence modules."""
+from .model import MonteCarloSimulator
+
+__all__ = ["MonteCarloSimulator"]

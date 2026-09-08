@@ -478,6 +478,36 @@ was checked directly and refuted; the best-supported remaining
 explanation (compounding estimation error across chained predictions) is
 stated as a hypothesis, not confirmed by direct manipulation.
 
+## 3k. `MonteCarloSimulator`: validating a Monte Carlo policy comparator against experiment 16's already-established finding (Experiment 17, Phase 6, closing)
+
+- Sutton, ICML 1990 / SIGART Bulletin 1991 (already cited in §3e). The
+  same Dyna framing generalized one step further: where
+  `LinearDynamicsModel` (`Predictor`) simulates to predict a single next
+  state and `RecedingHorizonPlanner` (`Planner`) simulates to search
+  internally for the best action, `MonteCarloSimulator`
+  (`transintelligence/simulation/model.py`) simulates to *compare* two
+  already-chosen candidate policies under real stochasticity, the
+  standalone capability the master context's own §13 framing describes
+  ("S_t →A_1→ S_t+1 can be compared against S_t →A_2→ S'_t+1") but
+  neither `Predictor` nor `Planner` provides directly.
+
+**Classification: established theory in full — Monte Carlo rollout
+comparison of candidate policies is textbook, not novel. What experiment
+17 contributes is not a new claim but a validation**: rather than
+trusting newly-written code on a fresh, unrelated environment, it asks
+whether `MonteCarloSimulator`, using a completely different methodology
+(short stochastic rollouts from arbitrary starting states) than
+experiment 16 used (full multi-seed environment rollouts averaged over
+400 episodes each), independently recovers experiment 16's already-known
+ranking (`greedy_cusum_adapts` beats `mpc_beam_cusum_adapts` post-shift).
+It does — 58/60 comparisons (96.7%) — with a built-in sensitivity control
+(dropping `n_rollouts` from 200 to 5 reduces the win rate to 88.3%,
+confirming sample size genuinely affects verdict reliability rather than
+being cosmetic). This is the same "confirm a new mechanism against an
+already-established result before trusting it further" pattern
+experiment 5 used for experiment 4's fixed-threshold trigger, applied
+here to a newly-built kernel primitive instead of a newly-run experiment.
+
 ## 4. Frame-dependence / frame-invariance detection (Experiment 2)
 
 - Invariant Risk Minimization: Arjovsky, Bottou, Gulrajani, Lopez-Paz,
@@ -654,6 +684,7 @@ methods."**
 | Beam search for planning (Experiment 14, Phase 6) | Lowerre 1976 (beam search) | Established theory in full — the mechanism is textbook; the finding that it's more robust to a receding-horizon oscillation pathology, not just cheaper, is the contribution |
 | Nonlinear world-model dynamics (Experiment 15, Phase 6) | Pearl, Glymour & Jewell 2016 (already cited, §3b) | Established theory — polynomial-feature OLS is textbook; the boundary-condition finding (weak nonlinearity shows no gap, strong does) mirroring experiment 13 is the contribution |
 | Regime detection + multi-step planning (Experiment 16, Phase 6) | Page 1954; Richalet et al. 1978 / Lowerre 1976 (all already cited) — no new citation, a synthesis | Established theory in full for every component — an independent replication of experiment 14's oscillation pathology, plus a new, only-visible-in-combination finding (learned multi-step planning's persistent cost), are the contribution |
+| `MonteCarloSimulator` validation (Experiment 17, Phase 6, closing) | Sutton 1990/1991 (Dyna, already cited, §3e) | Established theory in full — Monte Carlo rollout comparison is textbook; the contribution is a validation, not a new claim: independently recovering experiment 16's already-known ranking via a different methodology, with a built-in rollout-count sensitivity control |
 | Frame-dependence detection | Arjovsky et al. 2019; arXiv:2010.05761; Zhou et al. 2023; Wang et al. 2022 | Established theory; current `sensitivity()` is a naive baseline against it |
 | Geometric reasoning over non-physical spaces | Bronstein et al. 2021 | Established theory, directly prior art |
 | Cross-domain structural transfer | Gentner 1983; Lake & Baroni 2018/2023 | Established distinctions; TransIntelligence's specific transfer claim is a hypothesis |
