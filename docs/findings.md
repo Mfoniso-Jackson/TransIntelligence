@@ -577,9 +577,14 @@ starts.**
   specifically on the true transition being exactly linear); a
   non-stationary version of the environment (combining a learned world
   model with the existing regime-change-detection machinery from Phase 4
-  is untested); a nonlinear model-free baseline (e.g. quadratic-feature
-  regression) that could in principle represent the true reward surface
-  and close the gap experiment 11 found.
+  is untested). A follow-up to experiment 11 tested whether a nonlinear
+  (quadratic-feature) model-free baseline could represent the true
+  reward surface and close the gap — it did (regret dropped from 3.5421
+  to 0.0144, matching the world-model agent), confirming the original
+  explanation (linear cannot represent a peak) was the real cause, using
+  the exactly-correct feature set — whether model-free methods find that
+  feature set unprompted, in a real environment where the reward's
+  functional form isn't known in advance, remains untested.
 - The master context's remaining later phases (agency; meta-intelligence;
   strange loops; cross-domain transfer) — all still pre-formalization,
   per `research-agenda.md`'s own sequencing. World models (Phase 6) has

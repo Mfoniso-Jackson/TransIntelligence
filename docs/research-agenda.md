@@ -1002,9 +1002,27 @@ every other empty-stub reasoning protocol had before its phase started.
   failing to reach the oracle ceiling despite ample data (a bug in the
   learned-dynamics mechanism) — neither happened. Full numbers and what
   isn't tested (single-step lookahead only, not multi-step planning;
-  genuinely linear dynamics; discrete small action set; no nonlinear
-  model-free comparison; stationary environment) in
+  genuinely linear dynamics; discrete small action set; stationary
+  environment) in
   [experiments/exp11_world_model_planning/RESULTS.md](../experiments/exp11_world_model_planning/RESULTS.md).
+
+**Follow-up: does a nonlinear model-free baseline close the gap?** The
+main result's explanation makes a specific, checkable prediction — a
+function class that CAN represent the true reward's shape should close
+the gap. `model_free_quadratic_q`
+(`experiments/exp11_world_model_planning/quadratic_baseline.py`, same
+`ordinary_least_squares` tool with an added quadratic feature) confirmed
+it: regret dropped from `model_free_linear_q`'s 3.5421 to **0.0144**,
+landing at essentially the same level as `world_model` (-0.0002). This
+confirms the original mechanism (linear cannot represent a peak) was the
+actual cause, not an unaccounted-for difference between conditions — and
+sharpens what `world_model`'s real advantage in this environment is: not
+unbeatable accuracy, but getting that accuracy "for free" from correctly
+specifying the *easier* (linear) part of the problem, rather than needing
+to discover the *harder* (quadratic) part empirically with the exactly
+right feature set. Full numbers in
+[experiments/exp11_world_model_planning/RESULTS.md](../experiments/exp11_world_model_planning/RESULTS.md)
+("Follow-up" section).
 
 ## 8. Sequencing
 

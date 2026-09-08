@@ -82,6 +82,39 @@ it never has to fit the reward's curvature at all — it fits the (truly
 linear) *transition*, then plugs the result into the exact, known reward
 formula.
 
+## Follow-up: does a nonlinear model-free baseline close the gap?
+
+Ran: `PYTHONPATH=. python experiments/exp11_world_model_planning/quadratic_baseline.py`.
+Same 20 seeds × 2000 trials protocol. The main result's explanation
+(`model_free_linear_q` loses because a linear fit cannot represent the
+true reward's peak) makes a specific, checkable prediction: a function
+class that *can* represent a parabola should close the gap. Left
+untested, this would just be an unverified caveat — checked directly
+instead.
+
+| condition | mean reward | mean ceiling | mean regret |
+|---|---|---|---|
+| model_free_linear_q | -5.4436 | -1.9015 | 3.5421 |
+| **model_free_quadratic_q** | **-1.9159** | -1.9015 | **0.0144** |
+| world_model | -1.9013 | -1.9015 | -0.0002 |
+
+`model_free_quadratic_q` (fits `reward ~ intercept(a) + b1(a)·state +
+b2(a)·state²` per action, via the same `ordinary_least_squares`, just
+with an extra feature column) **closes almost the entire gap** — regret
+0.0144, landing at essentially the same level as `world_model`
+(-0.0002) and dramatically better than the linear baseline's 3.5421.
+**This confirms the mechanism identified in the main result was the
+actual cause, not an unaccounted-for difference between the two
+conditions**: it was never really about "linear vs. nonlinear" in the
+abstract, specifically about whether the fitted function class can
+represent the true relationship's shape. Give the model-free approach a
+rich-enough function class and it converges to the same performance as
+the world-model approach here — the world-model agent's real advantage
+in this specific environment isn't unbeatable accuracy, it's that it
+gets that accuracy "for free" from correctly specifying the *easier*
+(linear) part of the problem (the dynamics) rather than needing to
+discover the *harder* (quadratic) part (the reward) empirically.
+
 ## What this establishes
 
 `LinearDynamicsModel` (`transintelligence/world_models/model.py`) was
@@ -112,12 +145,12 @@ direct model-free fit of the same complexity class cannot match.
 - **Discrete, small, fixed action set** (6 actions) — no continuous
   action space, no action-space search/optimization beyond exhaustive
   enumeration over 6 candidates.
-- **No comparison against a nonlinear model-free baseline** (e.g. a
-  quadratic-feature regression, which *could* represent the true reward
-  surface exactly) — the claim here is specifically about a
-  linear-vs-linear comparison with different targets (dynamics vs.
-  reward), not a claim that model-free methods can never represent this
-  reward surface with a richer function class.
+- **The quadratic model-free follow-up used a correctly-specified
+  feature set** (the true reward is exactly quadratic in state, and the
+  regression used exactly quadratic features) — a real environment
+  wouldn't hand an engineer the right polynomial degree in advance; this
+  follow-up shows the gap is closeable given the right function class,
+  not that model-free methods reliably find that class unprompted.
 - **Stationary environment, no regime changes** — unlike Experiments 4/5
   (Phase 3/4), the dynamics never shift mid-experiment; combining
   learned world models with regime-change detection is untested.
