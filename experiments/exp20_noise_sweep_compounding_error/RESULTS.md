@@ -84,17 +84,60 @@ and not itself surprising.
   confirmed as sample noise via a targeted re-check, not left in the
   reported result unexamined.
 
+## Follow-up: characterizing the noise → gap functional form
+
+Ran: `PYTHONPATH=. python experiments/exp20_noise_sweep_compounding_error/functional_form.py`.
+25 seeds per noise level (up from the original 20), same 6 noise levels,
+gap re-measured then fit against three simple two-parameter candidate
+forms via `ordinary_least_squares` (already used elsewhere in this
+codebase) — linear, quadratic, and power-law (log-log) — rather than
+assuming any one is correct.
+
+| noise_sigma | gap |
+|---|---|
+| 0.00 | 1.2580 |
+| 0.02 | 4.8280 |
+| 0.05 | 19.0130 |
+| 0.10 | 25.8746 |
+| 0.20 | 23.7639 |
+| 0.40 | 34.9375 |
+
+| form | fitted equation | R² |
+|---|---|---|
+| linear | gap = 8.96 + 72.64·σ | 0.7197 |
+| quadratic | gap = 12.97 + 149.71·σ² | 0.5293 |
+| power law | gap = 71.60·σ^0.585 | 0.7835 |
+
+**The power law fits best of the three, but none fits strongly.** An
+exponent of ~0.585 is closer to a square-root relationship (σ^0.5) than
+a linear or quadratic one — loosely consistent with estimation-error
+standard deviation scaling roughly linearly with environment noise
+(standard OLS theory) propagating through a squared-error reward metric
+sub-quadratically, though this experiment does not derive or test that
+mechanism directly, only observes which curve shape fits the numbers
+best. **R²=0.78 for even the best-fitting form leaves real, unexplained
+variance** — attributable to some combination of continuing seed-to-seed
+noise in the gap estimates (a milder version of the same non-monotonic
+wobble at `noise_sigma=0.2` seen in the original 20-seed sweep persists
+here too, 23.76 vs. 25.87 at 0.1) and the thinness of fitting a
+2-parameter model to only 6 points. **This does not establish the true
+underlying functional form** — it characterizes which of three simple
+candidates fits best given the available data, with real remaining
+uncertainty, not a confirmed law.
+
 ## What this does not establish
 
 - **Only one environment, regime-shift severity, lookahead depth
   (`LOOKAHEAD=2`), and beam width (`BEAM_WIDTH=2`) were tested** — as in
   experiments 16 and 18.
-- **The exact functional form of the noise->gap relationship is not
-  characterized** — the sweep shows a strong, mostly-monotonic increase,
-  not a fitted curve or a claim about linearity, quadratic scaling, or
-  any other specific form.
-- **`NOISE_SIGMA=0.0`'s small residual gap (1.44, not exactly 0) is not
-  further investigated** — plausibly a genuine finite-sample transient
-  (even a deterministic environment needs *some* fresh post-reset data
-  before a model fits exactly) rather than evidence against the
-  hypothesis, but this wasn't directly confirmed.
+- **The true functional form remains uncertain** — the follow-up above
+  found a power law fits best among three simple candidates (R²=0.78),
+  but no candidate fit strongly enough to call this settled; more noise
+  levels, more seeds per level, or a first-principles derivation from
+  OLS estimation-error theory would be needed to go further.
+- **`NOISE_SIGMA=0.0`'s small residual gap (1.26-1.44 across the two
+  sweeps, not exactly 0) is not further investigated** — plausibly a
+  genuine finite-sample transient (even a deterministic environment
+  needs *some* fresh post-reset data before a model fits exactly) rather
+  than evidence against the hypothesis, but this wasn't directly
+  confirmed.
