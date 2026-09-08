@@ -353,15 +353,16 @@ gap, ruling out an unaccounted-for confound as the real explanation.**
   Applications to Industrial Processes*, Automatica 14(5), 429-445,
   1978. The founding paper for what's now called Model Predictive
   Control / receding-horizon control — the established mechanism
-  `choose_action`'s multi-step branch
-  (`experiments/exp12_multistep_planning/run.py`) implements the
-  smallest version of: simulate several steps ahead using a learned
-  model, execute only the first action, then replan from the newly
-  observed state at every step. Experiment 11's Dyna citation (Sutton
-  1990/1991, above) already covers "plan via simulated rollouts through
-  a learned model" in the single-step case; this is the direct
-  multi-step generalization of the same idea, from a different but
-  closely related literature.
+  `RecedingHorizonPlanner`
+  (`transintelligence/planning/model.py`, generalized from experiment
+  12's original environment-specific `choose_action` function after the
+  experiment shipped) implements the smallest version of: simulate
+  several steps ahead using a learned model, execute only the first
+  action, then replan from the newly observed state at every step.
+  Experiment 11's Dyna citation (Sutton 1990/1991, above) already covers
+  "plan via simulated rollouts through a learned model" in the
+  single-step case; this is the direct multi-step generalization of the
+  same idea, from a different but closely related literature.
 
 **Classification: established theory in full — receding-horizon control
 is foundational, decades-old control theory, not a novel mechanism.

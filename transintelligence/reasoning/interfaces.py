@@ -1,6 +1,6 @@
 from __future__ import annotations
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 from transintelligence.core.states import State, StateHistory
 from transintelligence.representation.reference_frames import ReferenceFrame
 
@@ -28,5 +28,7 @@ class CounterfactualReasoner(Protocol):
 class Predictor(Protocol):
     def predict(self, state: Any, action: Any) -> Any: ...
 class Simulator(Protocol): pass
-class Planner(Protocol): pass
+class Planner(Protocol):
+    def choose_action(self, state: Any, transition_fn: Callable[[Any, Any], Any],
+                       score_fn: Callable[[Any], float], depth: int) -> Any: ...
 class Verifier(Protocol): pass

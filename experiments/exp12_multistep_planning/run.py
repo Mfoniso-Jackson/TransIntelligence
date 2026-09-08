@@ -39,15 +39,22 @@ same margin `mpc_oracle` beats `greedy_oracle`, the advantage is really
 about horizon, not about the learned model happening to be better in one
 condition than another.
 
+`choose_action` below was originally a self-contained, environment-
+specific function; it now delegates the actual search to
+`RecedingHorizonPlanner` (`transintelligence/planning/model.py`), a
+domain-agnostic kernel primitive filling the `Planner` protocol stub --
+refactored after the fact, verified to produce bit-for-bit identical
+results (confirmed by rerunning this script before and after).
+
 Run: PYTHONPATH=. python experiments/exp12_multistep_planning/run.py
 """
 from __future__ import annotations
 
-import itertools
 import random
 import statistics
 
 from environments.transworld import DelayedControlEnv, NUDGES
+from transintelligence.planning import RecedingHorizonPlanner
 from transintelligence.reasoning.causal import ordinary_least_squares
 
 ACTIONS = list(NUDGES.keys())
@@ -102,29 +109,30 @@ class LearnedDynamics:
 
 def choose_action(position: float, pending: float, predict_fn, known_actions: set[str],
                    lookahead: int, remaining_steps: int, rng: random.Random) -> str:
-    """Receding-horizon action selection: enumerate all action sequences
-    of depth `min(lookahead, remaining_steps)`, simulate each via
-    `predict_fn` chained forward (pending's own evolution is always
-    exactly known -- it's just the last action taken, deterministic by
-    construction, no learning needed for that part), score by predicted
-    final-position squared distance to target, execute only the first
-    action of the best sequence. `lookahead=1` reduces to pure greedy
-    1-step lookahead (experiment 11's `world_model` policy)."""
+    """Receding-horizon action selection, delegating to the kernel
+    `RecedingHorizonPlanner` (`transintelligence/planning/model.py`):
+    this environment's `(position, pending)` state, `predict_fn` (which
+    predicts only the position half of the transition), and
+    "minimize squared distance to target" objective are all
+    environment-specific details, passed to the domain-agnostic planner
+    as closures rather than baked into the search logic itself.
+    `lookahead=1` reduces to pure greedy 1-step lookahead (experiment
+    11's `world_model` policy)."""
     known = [a for a in ACTIONS if a in known_actions]
     if not known:
         return rng.choice(ACTIONS)
     depth = max(1, min(lookahead, remaining_steps))
-    best_action, best_score = None, None
-    for sequence in itertools.product(known, repeat=depth):
-        p, pend = position, pending
-        for a in sequence:
-            p = predict_fn(p, pend, a)
-            pend = NUDGES[a]
-        score = (p - TARGET) ** 2
-        if best_score is None or score < best_score:
-            best_score = score
-            best_action = sequence[0]
-    return best_action
+    planner = RecedingHorizonPlanner(actions=tuple(known))
+
+    def transition_fn(state: tuple[float, float], action: str) -> tuple[float, float]:
+        p, pend = state
+        return predict_fn(p, pend, action), NUDGES[action]
+
+    def score_fn(state: tuple[float, float]) -> float:
+        p, _ = state
+        return -((p - TARGET) ** 2)  # maximize = minimize squared distance
+
+    return planner.choose_action((position, pending), transition_fn, score_fn, depth)
 
 
 def run_episode(env: DelayedControlEnv, dynamics: LearnedDynamics | None, lookahead: int,

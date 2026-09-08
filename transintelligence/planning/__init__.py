@@ -1,1 +1,3 @@
-"""Interface placeholder for future replaceable intelligence modules."""
+from .model import RecedingHorizonPlanner
+
+__all__ = ["RecedingHorizonPlanner"]

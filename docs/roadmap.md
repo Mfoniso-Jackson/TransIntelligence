@@ -12,11 +12,11 @@ Counterfactual reasoning has also started: `transintelligence/reasoning/counterf
 
 Phase 6 (World Models, `docs/master-context.md` §13/§19) has now started: `transintelligence/world_models/` implements `LinearDynamicsModel`, a learned per-action forward dynamics model (docs/research-agenda.md #7h), filling the `Predictor` protocol stub. `environments/transworld/resource_control_env.py` is the first environment with genuine state→action→consequence dynamics (`FrameSwitchEnv`, used through experiment 4, is a stateless bandit — the agent's choice never changes a persistent world state). Experiment 11 found a world-model-planning agent matches an oracle's performance ceiling almost exactly, while an equally state-aware, identically-tooled model-free baseline falls far short — the same "a linear fit can't represent a relationship with a peak" lesson experiment 10 found for effect estimation, now shown in a planning setting; a follow-up confirmed the mechanism directly by showing a correctly-specified nonlinear baseline closes almost the entire gap — the fourth reusable kernel primitive from this research program's causal/world-model family (fifth counting `CUSUMTemporalReasoner`).
 
-Multi-step planning has also started: `environments/transworld/delayed_control_env.py` is the first environment with genuine multi-step credit assignment (episodes persist across steps, reward only at the final step, unlike experiment 11's fresh-state-per-trial design). Experiment 12's `choose_action` (`experiments/exp12_multistep_planning/run.py`) implements receding-horizon (MPC-style) planning over the learned dynamics model and found a real, consistent, but honestly modest planning-horizon advantage over greedy 1-step lookahead — isolated from model-quality via a 2x2 factorial design (docs/research-agenda.md #7i). This logic is a working prototype, not yet generalized into a reusable `transintelligence/planning/` kernel primitive (see Next milestone).
+Multi-step planning has also started: `environments/transworld/delayed_control_env.py` is the first environment with genuine multi-step credit assignment (episodes persist across steps, reward only at the final step, unlike experiment 11's fresh-state-per-trial design). Experiment 12 found a real, consistent, but honestly modest planning-horizon advantage over greedy 1-step lookahead — isolated from model-quality via a 2x2 factorial design (docs/research-agenda.md #7i). Its planning logic has since been generalized into `transintelligence/planning/`'s `RecedingHorizonPlanner` — a domain-agnostic kernel primitive (needs only a `transition_fn`/`score_fn`, no particular state representation or action vocabulary) filling the `Planner` protocol stub, refactored in after experiment 12 shipped and verified to produce bit-for-bit identical results — the sixth reusable kernel primitive from this research program.
 
 ## Next milestone
 
-Add richer observation querying, reference-frame validation, domain adapter examples for growth and property, and structured verifier outputs. Causal reasoning's stated gaps are now all closed: backdoor adjustment, causal discovery (skeleton recovery, collider orientation, and Meek's R1-R3 edge-orientation-propagation rules -- R4 is provably inapplicable without a background-knowledge mechanism this pipeline doesn't have), instrumental variables, front-door adjustment, and nonlinear structural equations (for counterfactual abduction; linear-only effect estimation remains a known, demonstrated limit, not a gap left untested) are all implemented. Phase 6's own remaining gaps: generalizing experiment 12's `choose_action` into a real `Planner` kernel primitive under `transintelligence/planning/` (it currently only works for `DelayedControlEnv`'s specific action/nudge vocabulary, not domain-agnostically); nonlinear dynamics; and a non-stationary environment (combining world models with the existing regime-change-detection machinery from Phase 4 is untested).
+Add richer observation querying, reference-frame validation, domain adapter examples for growth and property, and structured verifier outputs. Causal reasoning's stated gaps are now all closed: backdoor adjustment, causal discovery (skeleton recovery, collider orientation, and Meek's R1-R3 edge-orientation-propagation rules -- R4 is provably inapplicable without a background-knowledge mechanism this pipeline doesn't have), instrumental variables, front-door adjustment, and nonlinear structural equations (for counterfactual abduction; linear-only effect estimation remains a known, demonstrated limit, not a gap left untested) are all implemented. `Predictor` and `Planner` are now both filled too. Phase 6's remaining gaps: nonlinear dynamics; a non-stationary environment (combining world models with the existing regime-change-detection machinery from Phase 4 is untested); a smarter search strategy for `RecedingHorizonPlanner` (exhaustive enumeration over action sequences won't scale to larger action sets or longer horizons); and `Simulator`, which remains fully unbuilt.
 
 ## Later milestones
 
@@ -24,16 +24,15 @@ Add richer observation querying, reference-frame validation, domain adapter exam
   reasoning remains.
 - ~~Causal and counterfactual engines.~~ Both started — see above. Every
   reasoning protocol stub that existed before Phase 4 now has a real
-  implementation except `Simulator`, `Planner`, `Verifier` (`Predictor`
-  is now filled too, by Phase 6's `LinearDynamicsModel` —
-  `EvidenceVerifier` in `transintelligence/verification/` is a separate,
-  earlier, unrelated implementation).
+  implementation except `Simulator`, `Verifier` (`Predictor` and
+  `Planner` are now filled too, by Phase 6's `LinearDynamicsModel` and
+  `RecedingHorizonPlanner` — `EvidenceVerifier` in
+  `transintelligence/verification/` is a separate, earlier, unrelated
+  implementation).
 - ~~World models (Phase 6).~~ Started — see above; nonlinear dynamics
   remains.
-- ~~Multi-step planning/rollouts.~~ A working prototype exists
-  (experiment 12) — see above; not yet a reusable `Planner` kernel
-  primitive, and `Simulator` remains fully unbuilt.
-- Generalize experiment 12's planning logic into `transintelligence/planning/`,
-  filling the `Planner` protocol stub properly.
+- ~~Multi-step planning/rollouts.~~ Started — see above; a smarter
+  search strategy than exhaustive enumeration remains, and `Simulator`
+  is still fully unbuilt.
 - Persistent storage adapters, eventually PostgreSQL/pgvector.
 - External model provider adapters behind interfaces.

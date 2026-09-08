@@ -626,15 +626,14 @@ advantage here is efficiency, not preventing catastrophic mistakes.
   baseline the exactly-correct quadratic features rather than having it
   discover them).
 - Multi-step planning beyond a 2-step lookahead and a single fixed
-  1-step-lag structure (experiment 12); a real `Planner` kernel
-  primitive generalizing experiment 12's environment-specific
-  `choose_action` logic (`transintelligence/planning/` doesn't exist
-  yet, `Simulator` remains fully unbuilt); a smarter search than
-  exhaustive enumeration over action sequences, needed before this
-  approach could scale to larger action sets or longer horizons; a
-  nonlinear or momentum-based (rather than simple linear-lag) delay
-  structure, which might show a more dramatic planning advantage than
-  experiment 12's modest ~17% one.
+  1-step-lag structure (experiment 12); a smarter search than exhaustive
+  enumeration over action sequences in `RecedingHorizonPlanner`
+  (`transintelligence/planning/`, filling the `Planner` stub after
+  experiment 12 shipped — `Simulator` remains fully unbuilt), needed
+  before this approach could scale to larger action sets or longer
+  horizons; a nonlinear or momentum-based (rather than simple
+  linear-lag) delay structure, which might show a more dramatic planning
+  advantage than experiment 12's modest ~17% one.
 - The master context's remaining later phases (agency; meta-intelligence;
   strange loops; cross-domain transfer) — all still pre-formalization,
   per `research-agenda.md`'s own sequencing. World models (Phase 6) has

@@ -12,7 +12,8 @@ This repository currently implements the first milestone: typed primitives for e
 - Temporal reasoning: regime-change detection, multi-key tracking, and dynamic time warping over `StateHistory` (`transintelligence/reasoning/temporal/`).
 - Causal reasoning: causal graphs, d-separation, the backdoor criterion for confounding-bias correction, PC-style causal discovery (skeleton recovery, collider orientation, and Meek's R1-R3 edge-orientation-propagation rules), and identification under an unobserved confounder via two-stage least squares or front-door adjustment (`transintelligence/reasoning/causal/`).
 - Counterfactual reasoning: per-unit "what would Y have been had X been different" queries via Pearl's abduction-action-prediction procedure, for linear or nonlinear structural equations (`transintelligence/reasoning/counterfactual/`).
-- World models: learned per-action forward dynamics (`LinearDynamicsModel`) for 1-step-lookahead planning (`transintelligence/world_models/`), plus multi-step receding-horizon (MPC-style) planning over the same learned dynamics, and matched synthetic control environments (`environments/transworld/resource_control_env.py`, `environments/transworld/delayed_control_env.py`).
+- World models: learned per-action forward dynamics (`LinearDynamicsModel`) for 1-step-lookahead planning (`transintelligence/world_models/`), and matched synthetic control environments (`environments/transworld/resource_control_env.py`, `environments/transworld/delayed_control_env.py`).
+- Planning: domain-agnostic receding-horizon (Model Predictive Control-style) multi-step planning over any learned or oracle transition model (`RecedingHorizonPlanner`, `transintelligence/planning/`).
 - Epistemic models: `Claim`, `Evidence`, `CounterEvidence`, `Hypothesis`, `Confidence`, `Source`.
 - In-memory episodic/semantic/strategic storage namespaces.
 - Minimal `KernelAgent` loop that stores simulated steps.
@@ -20,7 +21,7 @@ This repository currently implements the first milestone: typed primitives for e
 
 ## Planned
 
-Predictive, simulation, planning, verification, richer memory, persistence, and production domain adapters are intentionally left behind replaceable interfaces.
+Predictive modeling beyond linear dynamics, simulation, verification, richer memory, persistence, and production domain adapters are intentionally left behind replaceable interfaces (`Simulator`, `Verifier` remain unbuilt; `Predictor` and `Planner` are now filled).
 
 ## Research
 

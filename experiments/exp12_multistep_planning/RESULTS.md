@@ -82,11 +82,13 @@ learned-dynamics experiment was trusted.
   different lag strengths or multi-step delays weren't swept; the
   planning advantage's size likely depends on how much of an action's
   effect is genuinely invisible to a 1-step lookahead.
-- **`itertools.product` exhaustive search over action sequences** — with
-  6 actions and lookahead 2, only 36 sequences per decision; this
-  wouldn't scale to larger action sets or longer horizons without a
-  smarter search (the natural next gap, and the reason `Planner` remains
-  otherwise unbuilt beyond this specific script).
+- **Exhaustive search over action sequences** — with 6 actions and
+  lookahead 2, only 36 sequences per decision; this wouldn't scale to
+  larger action sets or longer horizons without a smarter search. (This
+  search logic has since been generalized into
+  `transintelligence/planning/`'s `RecedingHorizonPlanner`, filling the
+  `Planner` protocol stub — a domain-agnostic kernel primitive, but the
+  same exhaustive-enumeration limitation carries over unchanged.)
 - **No comparison against a nonlinear or momentum-based delay
   structure** — the delay here is a simple linear first-order lag; a
   genuinely nonlinear multi-step-critical environment (e.g. a
