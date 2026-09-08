@@ -113,6 +113,42 @@ receding-horizon control actually gets executed (one action at a time,
 replanned from the true resulting state) than exhaustive search's
 terminal-only objective is.
 
+## Follow-up: does a smarter tie-breaking rule close the gap?
+
+Ran: `PYTHONPATH=. python experiments/exp14_beam_search_planning/tie_breaking.py`.
+Same 15 states, same depths, same true dynamics as above.
+`choose_action_min_effort_tiebreak` (a standalone alternate exhaustive
+search, not merged into `RecedingHorizonPlanner`) finds the exact same
+best final score exhaustive search does, but among all sequences within
+floating-point tolerance of that score, picks the one with the smallest
+cumulative `|action|` — the most conservative path among equally
+"optimal" ones — instead of whichever sequence enumeration order finds
+first.
+
+| depth | method | mean score | converged |
+|---|---|---|---|
+| 2 | exhaustive (original) | -0.0170 | 13/15 |
+| 2 | exhaustive (min-effort) | -0.0170 | 13/15 |
+| 2 | beam_width=2 | -0.0045 | 15/15 |
+| 3 | exhaustive (original) | -1.9568 | 2/15 |
+| 3 | exhaustive (min-effort) | -1.0423 | 6/15 |
+| 3 | beam_width=2 | -0.0045 | 15/15 |
+
+**A real, partial fix — not a full one.** At depth 2, min-effort
+tie-breaking changes nothing (identical score and convergence count) —
+consistent with the module docstring's own note that this vocabulary has
+few ties at shallow depth. At depth 3, where the oscillation pathology
+is worst, it more than triples the convergence count (2/15 → 6/15) and
+roughly halves the mean regret magnitude (-1.9568 → -1.0423) — tie-
+breaking evidently does matter more than the "few ties" framing above
+suggested. But it comes nowhere close to beam search's 15/15 — **beam
+search's robustness advantage is not reducible to a smarter tie-break**,
+confirming the module docstring's own diagnosis: the deeper mechanism is
+exhaustive search's terminal-only scoring being blind to path, which a
+better tie-break among already-tied best-final-score sequences cannot
+fully address, since most of the pathological choices at depth 3 aren't
+close ties to begin with.
+
 ## What this does not establish
 
 - **A general claim about beam search vs. exhaustive search's
@@ -122,10 +158,11 @@ terminal-only objective is.
   first action is executed and the rest is discarded (the receding-
   horizon protocol), not a claim that exhaustive search's own stated
   objective is wrong.
-- **Whether a smarter tie-breaking rule (e.g. preferring minimal-effort
-  actions among ties) would close the gap** — not attempted; the fix
-  applied here removed the pathological action vocabulary rather than
-  fixing exhaustive search's tie-breaking directly.
+- **Whether beam search's advantage generalizes to a different dynamics
+  structure** — the follow-up above rules out "it's just a tie-breaking
+  artifact" as the explanation for THIS environment, but doesn't test
+  whether the same terminal-only-scoring pathology, or beam search's
+  robustness to it, appears in a differently-shaped control problem.
 - **Deeper depths were not tested with ground truth** — depth 6 only
   reports beam search's own results (exhaustive is intractable there);
   whether exhaustive search's convergence failure gets worse, better, or
