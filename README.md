@@ -7,7 +7,8 @@ This repository currently implements the first milestone: typed primitives for e
 ## Implemented
 
 - Core representation: `Entity`, `Relationship`, `Observation`, `State`, `Context`.
-- Reference-frame model with composition and comparison.
+- Observation querying: `ObservationStore`/`ObservationQuery` (`transintelligence/core/observations/`) -- filtering by single or multiple entities/properties, confidence bounds, and time range, plus `latest_per_entity` and `group_by_entity` aggregation.
+- Reference-frame model with composition, comparison, and structural self-validation (`ReferenceFrame.validate()`).
 - Reasoning protocols plus deterministic geometric and relative baselines.
 - Temporal reasoning: regime-change detection, multi-key tracking, and dynamic time warping over `StateHistory` (`transintelligence/reasoning/temporal/`).
 - Causal reasoning: causal graphs, d-separation, the backdoor criterion for confounding-bias correction, PC-style causal discovery (skeleton recovery, collider orientation, and Meek's R1-R3 edge-orientation-propagation rules), and identification under an unobserved confounder via two-stage least squares or front-door adjustment (`transintelligence/reasoning/causal/`).
@@ -20,7 +21,7 @@ This repository currently implements the first milestone: typed primitives for e
 - Epistemic models: `Claim`, `Evidence`, `CounterEvidence`, `Hypothesis`, `Confidence`, `Source`.
 - In-memory episodic/semantic/strategic storage namespaces.
 - Minimal `KernelAgent` loop that stores simulated steps.
-- Finance and knowledge examples showing the same primitives across domains.
+- Finance, knowledge, growth, and property examples showing the same primitives across domains (`transintelligence/domains/`, `examples/`).
 
 ## Planned
 
@@ -38,4 +39,6 @@ Twenty falsifiable experiments from [docs/research-agenda.md](docs/research-agen
 python -m pytest
 python examples/finance_demo.py
 python examples/knowledge_demo.py
+python examples/growth_demo.py
+python examples/property_demo.py
 ```

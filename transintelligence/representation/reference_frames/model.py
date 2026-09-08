@@ -32,3 +32,23 @@ class ReferenceFrame:
     def differences(self, other: "ReferenceFrame") -> dict[str, tuple[object, object]]:
         fields = ("baseline", "observer", "objective", "domain", "scale", "assumptions", "constraints")
         return {f: (getattr(self, f), getattr(other, f)) for f in fields if getattr(self, f) != getattr(other, f)}
+
+    def validate(self) -> tuple[str, ...]:
+        """Structural sanity checks on this frame's own fields --
+        returns a tuple of human-readable issue descriptions (empty if
+        none), the same non-raising, traceable-output convention already
+        used elsewhere in this codebase (`VerificationResult`,
+        `CalibrationResult`) rather than an exception: a frame failing
+        validation is informative diagnostic output a caller can act on,
+        not necessarily a fatal error at construction time -- a
+        `ReferenceFrame` is still a plain frozen dataclass, constructible
+        with any field values, exactly as before."""
+        issues: list[str] = []
+        if not self.name:
+            issues.append("name must be non-empty")
+        if self.domain is not None and not self.domain.strip():
+            issues.append("domain, if set, must be non-empty")
+        if (self.time_window is not None and self.time_window.start is not None
+                and self.time_window.end is not None and self.time_window.start > self.time_window.end):
+            issues.append(f"time_window.start ({self.time_window.start}) is after time_window.end ({self.time_window.end})")
+        return tuple(issues)
