@@ -574,6 +574,31 @@ simpler sliding-window heuristic, which never fully empties its training
 data, ends up more practically robust than CUSUM-triggered detection
 here, reversing experiment 13's own preference ordering.
 
+## 3n. Directly confirming experiment 16's compounding-estimation-error hypothesis via a noise sweep (Experiment 20, Phase 6, continued)
+
+No new citation — nothing new is implemented; `Agent`,
+`DelayedRegimeShiftControlEnv`, and `run_episode` are reused exactly as
+experiments 16-18 already verified, with the environment's own
+observation noise (`NOISE_SIGMA`) swept as a parameter instead of held
+fixed.
+
+**Classification: a direct empirical test of experiment 16's own
+previously-stated, unconfirmed mechanism — not new theory.** Experiment
+16 proposed that multi-step lookahead's persistent post-shift
+underperformance comes from chaining two predictions from the same
+learned model, each carrying estimation error that never fully vanishes
+*because the environment has real observation noise*. Experiment 18
+tested a specific alternative explanation and ruled it out but never
+manipulated this stated cause directly. Experiment 20 does: the
+post-shift reward gap between single-step and multi-step planning scales
+strongly with the environment's own noise level — negligible at zero
+noise, ~17-21x larger at or above the original noise level used in
+experiments 16-18 — with detection reliability shown to track closely
+between the two agents at every noise level, ruling out differential
+detection as an alternative explanation. This is the first direct,
+positive confirmation of the mechanism in this program's Phase 6 arc,
+closing a loop experiments 16 and 18 both left open.
+
 ## 4. Frame-dependence / frame-invariance detection (Experiment 2)
 
 - Invariant Risk Minimization: Arjovsky, Bottou, Gulrajani, Lopez-Paz,
@@ -753,6 +778,7 @@ methods."**
 | `MonteCarloSimulator` validation (Experiment 17, Phase 6, closing) | Sutton 1990/1991 (Dyna, already cited, §3e) | Established theory in full — Monte Carlo rollout comparison is textbook; the contribution is a validation, not a new claim: independently recovering experiment 16's already-known ranking via a different methodology, with a built-in rollout-count sensitivity control |
 | `CalibrationVerifier` / testing experiment 16's compounding-error hypothesis (Experiment 18, Phase 6 closing) | Dawid 1982 (calibration); Kupiec 1995 (unconditional-coverage LR test) | Established theory in full — a new hypothesis test, not a validation: rules out a self-steered-training-distribution alternative explanation for experiment 16's persistent gap, leaving the original chaining hypothesis the more plausible remaining one, still unconfirmed |
 | Nonlinear dynamics + regime-adaptation (Experiment 19, Phase 6) | Page 1954; Pearl, Glymour & Jewell 2016 (both already cited) — no new citation, a synthesis | Established theory in full for every component — the contribution is a mechanistically-explained negative-under-mild-shift finding (a nonlinear model's cold-start cost) and a measured, only-partly-explained detection-reliability degradation, neither predictable from experiments 13 or 15 alone |
+| Noise sweep confirming experiment 16's compounding hypothesis (Experiment 20, Phase 6) | No new citation — a direct manipulation of experiment 16's own already-stated mechanism | Not new theory — the contribution is the first direct, positive confirmation of experiment 16's central hypothesis (the persistent multi-step-planning gap scales ~17-21x with environment noise), with detection reliability tracked as a confound control |
 | Frame-dependence detection | Arjovsky et al. 2019; arXiv:2010.05761; Zhou et al. 2023; Wang et al. 2022 | Established theory; current `sensitivity()` is a naive baseline against it |
 | Geometric reasoning over non-physical spaces | Bronstein et al. 2021 | Established theory, directly prior art |
 | Cross-domain structural transfer | Gentner 1983; Lake & Baroni 2018/2023 | Established distinctions; TransIntelligence's specific transfer claim is a hypothesis |

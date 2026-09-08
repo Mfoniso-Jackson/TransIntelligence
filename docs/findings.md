@@ -1,8 +1,8 @@
 # Findings
 
-A standalone summary of what the first nineteen experiments in
+A standalone summary of what the first twenty experiments in
 [research-agenda.md](research-agenda.md) actually established, for anyone
-who wants the result without reading nineteen `RESULTS.md` files and the
+who wants the result without reading twenty `RESULTS.md` files and the
 incremental updates to the agenda itself. Each section below is a compressed
 version of a much more detailed writeup — follow the links for the numbers,
 the code, and the caveats a one-paragraph summary can't carry.
@@ -80,7 +80,13 @@ nonlinear dynamics model and found the composition does not transfer for
 free from the linear case: a mild shift, an honest null result before,
 actively hurts here, traced to a real cold-start cost; a severe shift
 still favors adaptation, but change detection itself becomes measurably
-less reliable for a reason checked and ruled out but not identified.
+less reliable for a reason checked and ruled out but not identified, and
+a twentieth went back and closed the loop the sixteenth and eighteenth
+both left open — directly manipulating the environment's own noise level
+and finding the persistent multi-step-planning gap scale strongly with
+it, near-zero at zero noise and largest at the highest noise tested, the
+first direct positive confirmation (not just an alternative ruled out)
+of the mechanism this whole sub-thread was chasing.
 
 ## Experiment 2 — Does `sensitivity()` detect frame-dependent conclusions?
 
@@ -224,7 +230,7 @@ same session, sharpened exactly how much harder:
 
 ## The meta-finding
 
-Across the nineteen experiments, the same discipline applied every time: build
+Across the twenty experiments, the same discipline applied every time: build
 the control that could kill the result, then run it, and don't stop at the
 first configuration that looks clean. Every single result got a real
 qualifier once that happened. Three times the headline *number* shrank —
@@ -331,10 +337,15 @@ adapts at all is exactly the kind of result that invites either
 suspicion of a bug or a quiet rerun with different settings — instead it
 was traced to a specific, confirmed mechanism (a nonlinear model's
 cold-start data requirement) via direct instrumentation, not just
-argued from the pattern of final rewards. That makes eighteen genuine
-hypothesis tests total (the sixteen above, plus 18 and 19), with
-experiment 17 as the one deliberate exception — a validation rather than
-a claim about the world.
+argued from the pattern of final rewards. Experiment 20 closes out this
+particular thread: where experiment 18 tested and ruled out one
+*alternative* to experiment 16's hypothesis, experiment 20 manipulated
+the hypothesis's own stated cause directly (the environment's noise
+level) and watched the predicted pattern actually appear — the
+difference between narrowing a field of explanations and confirming the
+survivor positively. That makes nineteen genuine hypothesis tests total
+(the sixteen above, plus 18, 19, and 20), with experiment 17 as the one
+deliberate exception — a validation rather than a claim about the world.
 
 Experiment 5 adds a second kind of validation to this pattern: not a
 control on its own result, but independent confirmation of a fix proposed
@@ -924,6 +935,34 @@ the cold-start cliff entirely and ends up more practically robust than
 change detection here, reversing experiment 13's own preference.
 
 → [experiments/exp19_nonlinear_regime_shift/RESULTS.md](../experiments/exp19_nonlinear_regime_shift/RESULTS.md)
+
+## Experiment 20 — Does experiment 16's central hypothesis hold up when the environment's own noise is directly manipulated?
+
+**The most literal possible test of a claim this program had been
+circling since experiment 16, and the first one to confirm it directly
+rather than only rule out a competitor.** Experiment 16 proposed that
+multi-step planning's persistent post-shift underperformance comes from
+chaining two predictions from the same learned model, each carrying
+estimation error that never fully vanishes *because the environment has
+real observation noise*. Experiment 18 tested a specific alternative
+explanation and ruled it out, but never touched the stated cause itself.
+This experiment does: sweep the environment's own noise level from zero
+up to four times its original value and watch what happens to the gap.
+
+**It scales strongly, close to the predicted shape.** Near zero at zero
+noise (a deterministic environment gives a correctly-specified model
+nothing left to compound), roughly 17-21x larger at or above the
+original noise level used throughout experiments 16-18. Detection
+reliability — a plausible confound, given experiment 19 already found it
+sensitive to a model's residual behavior — was tracked at every noise
+level for both agents and stays closely matched throughout, ruling it
+out as an alternative explanation for the pattern. A first pass at 10
+seeds showed an apparent dip at one noise level that looked like it
+might break the trend; doubling the seed count made it mostly disappear,
+and the result reported here is the checked version, not the first one
+run.
+
+→ [experiments/exp20_noise_sweep_compounding_error/RESULTS.md](../experiments/exp20_noise_sweep_compounding_error/RESULTS.md)
 
 ## What isn't tested yet
 

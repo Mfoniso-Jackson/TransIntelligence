@@ -1504,6 +1504,49 @@ rescaling), one substitution only.
   planning) in
   [experiments/exp19_nonlinear_regime_shift/RESULTS.md](../experiments/exp19_nonlinear_regime_shift/RESULTS.md).
 
+## 7q. Experiment 20 — Directly confirming experiment 16's compounding-estimation-error hypothesis via a noise sweep (Phase 6, continued)
+
+**Status: run.** Nothing new implemented — `Agent`,
+`DelayedRegimeShiftControlEnv`, and `run_episode` reused exactly as
+experiments 16-18 already verified, with `noise_sigma` swept instead of
+fixed. The most literal possible test of experiment 16's own stated
+mechanism: multi-step lookahead's persistent post-shift gap comes from
+chained predictions' estimation error, which never fully vanishes
+*because the environment has real observation noise* — does the gap
+shrink toward zero as that noise shrinks toward zero?
+
+- **Hypothesis:** the `greedy_cusum_adapts` vs. `mpc_beam_cusum_adapts`
+  post-shift reward gap should shrink substantially as `NOISE_SIGMA` ->
+  0 — a deterministic environment gives a correctly-specified model
+  nothing left to compound.
+- **The confound this needed to control for:** detection reliability
+  could plausibly vary across noise levels (experiment 19 already found
+  detection sensitivity to a model's residual characteristics) — if the
+  two agents detected the shift at very different rates at some noise
+  level, that alone could produce a reward gap unrelated to
+  estimation-error compounding. Detection counts/latencies for both
+  agents, at every noise level, reported in the same run.
+- **Result:** the gap scales strongly with `NOISE_SIGMA` — 1.44 at
+  `NOISE_SIGMA=0.0` vs. 24.72-30.92 at `NOISE_SIGMA in [0.1, 0.4]`, a
+  ~17-21x difference between the noise-free and noisy ends of the
+  sweep. Detection reliability tracks closely between the two agents at
+  every noise level, ruling out differential detection as an
+  alternative explanation. A 10-seed first pass showed an apparent
+  non-monotonic dip at `NOISE_SIGMA=0.2` (gap 6.91) that a targeted
+  20-seed re-check did not replicate (19.75) — investigated before being
+  trusted, attributed to sample noise, not left unexamined.
+- **What this establishes:** the first direct, positive, manipulation-
+  based confirmation of experiment 16's central hypothesis — experiment
+  18 only ruled out one alternative explanation without testing the
+  mechanism's own stated cause; this test does, and it holds.
+- **Falsification:** would have been the gap staying roughly constant
+  across the sweep (a noise-independent, structural cause instead) — it
+  didn't. Full numbers and what isn't tested (the noise -> gap
+  relationship's exact functional form; `NOISE_SIGMA=0.0`'s small
+  residual gap not further investigated; only one environment, severity,
+  lookahead depth, and beam width) in
+  [experiments/exp20_noise_sweep_compounding_error/RESULTS.md](../experiments/exp20_noise_sweep_compounding_error/RESULTS.md).
+
 ## 8. Sequencing
 
 1. ~~Experiment 2 first~~ — **done**, see §6. Result: `sensitivity()` failed
@@ -1723,7 +1766,7 @@ rescaling), one substitution only.
   borrows from (§8a of `related-work.md`) solves a much harder version of
   this problem than what was actually tested here, and both follow-ups
   show exactly where that gap matters.
-- **All nineteen experiments are now done** (§5-7p). If this program is
+- **All twenty experiments are now done** (§5-7q). If this program is
   written up externally, the honest headline is: reference-frame
   conditioning helps within a bounded noise/coverage regime (experiment 1),
   a naive frame-dependence detector can fail in exactly the common case and
@@ -1820,12 +1863,21 @@ rescaling), one substitution only.
   detected) for a reason checked and ruled out (steady-state residual
   noise) but not identified, and a simpler sliding-window heuristic ends
   up more robust than CUSUM detection here, reversing experiment 13's
-  own preference ordering (experiment 19). That's a coherent, modest,
+  own preference ordering (experiment 19), and a twentieth went back and
+  directly confirmed experiment 16's central hypothesis rather than only
+  ruling out an alternative to it (experiment 18's contribution): sweeping
+  the environment's own observation noise from 0 up to 4x its original
+  value shows the persistent multi-step-planning gap scale strongly with
+  it — 1.44 at zero noise vs. 24.72-30.92 at noise levels at or above the
+  original, a ~17-21x difference — with detection reliability tracked
+  and shown to stay closely matched between both agents throughout,
+  ruling out differential detection as an alternative explanation for
+  the pattern (experiment 20). That's a coherent, modest,
   defensible set of claims — resist the
-  temptation to round any of them up, experiments 4 through 19 included.
-- **Experiments 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, and 19
-  are also the first results from this program that are reusable kernel
-  capabilities, not RL research scripts** — worth leading with in any framing aimed at the "is any of
+  temptation to round any of them up, experiments 4 through 20 included.
+- **Experiments 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, and
+  20 are also the first results from this program that are reusable
+  kernel capabilities, not RL research scripts** — worth leading with in any framing aimed at the "is any of
   this actually usable" question, separate from the reference-frame-
   conditioning experiments' own framing. Experiments 6 and 7 together
   remain the cleanest, most textbook-dramatic results: a spurious effect
