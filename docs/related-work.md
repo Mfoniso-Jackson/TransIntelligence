@@ -377,6 +377,38 @@ its actual (modest, ~17% relative) size rather than overstated — smaller
 than experiment 11's dynamics-vs-reward-modeling result, for a
 structural reason stated plainly in the results, not glossed over.**
 
+## 3g. Combining world models with regime-change detection (Experiment 13, Phase 6, continued)
+
+This is a synthesis experiment, not a new-mechanism one — it combines
+two already-built, already-verified kernel primitives rather than
+introducing anything new:
+
+- `CUSUMTemporalReasoner` (Page 1954; already cited and independently
+  verified in experiment 5, §9a below) monitors a residual stream for a
+  mean-level shift.
+- `LinearDynamicsModel` (already cited and independently verified in
+  experiment 11, §3e above) is the world model being monitored.
+
+No new citation is needed for the mechanism itself; the only question is
+empirical — does composing two independently-correct primitives actually
+work as expected when wired together, and under what conditions.
+
+**Classification: established theory in full for both underlying
+mechanisms — nothing here is a novel algorithm. What experiment 13
+contributes is a directly-constructed test of composition, and an honest
+report of where the naive hypothesis (adaptation always helps) failed on
+its first, simpler run: a mild regime shift that doesn't change which
+action is locally best produced no detectable adaptation benefit, and
+adaptation's real cost (discarding a large body of converged prior data
+for a small, noisy post-shift sample) briefly outweighed its benefit. A
+severe shift (reversing the actuator's direction entirely) is where
+detection-triggered adaptation earned its complexity, beating both a
+do-nothing baseline and a naive always-use-recent-data heuristic — the
+same "isolate the real claim from the trivial one" discipline experiment
+11's model-free baseline and experiment 9's weak-instrument sweep both
+used, now applied to a synthesis of two Phase 4/6 primitives instead of
+a single new mechanism.**
+
 ## 4. Frame-dependence / frame-invariance detection (Experiment 2)
 
 - Invariant Risk Minimization: Arjovsky, Bottou, Gulrajani, Lopez-Paz,
@@ -549,6 +581,7 @@ methods."**
 | Nonlinear structural equations (Experiment 10, Phase 5) | Pearl, Glymour & Jewell 2016 (abduction only needs additive noise, not linearity) | Established theory — abduction confirmed exact for a nonlinear case; linear OLS-based effect estimation confirmed biased under nonlinearity by construction, not a new finding about OLS itself |
 | World models for planning (Experiment 11, Phase 6) | Sutton 1990/1991 (Dyna); Ha & Schmidhuber 2018; Sutton & Barto 2018 | Established theory in full — Dyna-style planning and linear value-function approximation are both textbook; the specific comparison isolating dynamics-modeling from reward-fitting is a directly-constructed demonstration, not a new algorithm |
 | Multi-step planning (Experiment 12, Phase 6) | Richalet, Rault, Testud & Papon 1978 (MPC/receding-horizon control) | Established theory in full — the 2x2 design isolating planning-horizon from model-quality is a directly-constructed demonstration, not a new algorithm |
+| World models + regime-change detection (Experiment 13, Phase 6) | Page 1954 (CUSUM, already cited for experiment 5); no new citation — a synthesis of two already-verified primitives | Established theory in full for both components — the empirical composition test, and the severity-dependent finding it produced, are the contribution, not any mechanism |
 | Frame-dependence detection | Arjovsky et al. 2019; arXiv:2010.05761; Zhou et al. 2023; Wang et al. 2022 | Established theory; current `sensitivity()` is a naive baseline against it |
 | Geometric reasoning over non-physical spaces | Bronstein et al. 2021 | Established theory, directly prior art |
 | Cross-domain structural transfer | Gentner 1983; Lake & Baroni 2018/2023 | Established distinctions; TransIntelligence's specific transfer claim is a hypothesis |

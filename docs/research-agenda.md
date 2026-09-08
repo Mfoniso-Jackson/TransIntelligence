@@ -9,9 +9,9 @@ project vision (see `docs/architecture.md`, `docs/intelligence-model.md`):
 vision motivates the program, this document constrains near-term work to
 what can actually be measured.
 
-All twelve experiments below have now run. For a standalone summary of
+All thirteen experiments below have now run. For a standalone summary of
 what they actually established — without reading this document's
-incremental updates or twelve separate `RESULTS.md` files — see
+incremental updates or thirteen separate `RESULTS.md` files — see
 [docs/findings.md](findings.md).
 
 Distinguish four categories throughout:
@@ -1085,6 +1085,82 @@ where that stops being true.
   based delay structure; stationary environment) in
   [experiments/exp12_multistep_planning/RESULTS.md](../experiments/exp12_multistep_planning/RESULTS.md).
 
+## 7j. Experiment 13 — Combining world models with regime-change detection (Phase 6, continued)
+
+**Status: run.** A synthesis experiment, not a new-mechanism one: does
+`CUSUMTemporalReasoner` (Phase 4, experiment 5) composed with
+`LinearDynamicsModel` (Phase 6, experiment 11) actually work as expected
+when wired together — an agent that detects a mid-experiment shift in
+the true dynamics and discards its stale data should recover performance
+an agent that never adapts loses.
+
+- **Hypothesis:** detection-triggered adaptation beats both a
+  never-adapts baseline and a naive always-use-recent-data heuristic
+  (`sliding_window_baseline`), because it discards stale data only when
+  there's genuine evidence the world changed, not on a fixed schedule.
+- **The confound this needed to control for, stated up front:** showing
+  CUSUM-triggered adaptation beat never-adapting alone would only prove
+  *some* adaptation helps — the same trivial trap experiments 3, 8, and
+  11 each had to control for. `sliding_window_baseline` isolates whether
+  explicit detection specifically is doing real work.
+- **What actually happened, honestly reported rather than re-run until
+  it looked clean:** the first version tested one fixed, mild regime
+  shift (`post_shift_scale=0.4`) and found `oracle_adapts` (told the true
+  shift trial exactly) performed statistically indistinguishably from
+  `never_adapts` — the opposite of the hypothesis. Investigating why
+  (rather than reporting a null result and stopping) found the actual
+  mechanism: this environment's state range is wide relative to its
+  nudge magnitudes, so most trials start far enough from target that a
+  stale and a correctly-calibrated model pick the *same* largest-available
+  action regardless of the exact scale factor — mild miscalibration
+  rarely changes which action is locally best, while discarding a large
+  body of converged prior data for a small, noisy post-shift refit has a
+  real, visible cost (confirmed directly: `oracle_adapts` starts *worse*
+  than `never_adapts` in the first 100-trial chunk after the shift).
+  This turned the experiment into a deliberate two-severity sweep, not a
+  single condition.
+- **Design:** `RegimeShiftControlEnv`
+  (`environments/transworld/regime_shift_control_env.py`) — like
+  experiment 11's environment, but nudge magnitudes silently rescale at
+  an unknown trial. Four conditions sharing the identical greedy 1-step
+  policy and `LinearDynamicsModel` fitting tool, differing only in which
+  transitions each trains on: `never_adapts`, `oracle_adapts` (given the
+  true shift trial exactly), `sliding_window_baseline` (always the most
+  recent transitions), `cusum_detects_and_adapts` (tracks its own
+  model's prediction residuals as a `StateHistory`, calls
+  `CUSUMTemporalReasoner.change_points()` on that series, discards
+  pre-detection data once triggered).
+- **Result: severity-dependent, exactly as the mechanism predicts once
+  investigated.** At mild attenuation (`0.4`), all four conditions
+  perform similarly post-shift (-5.08 to -5.41) — the honest null case,
+  reported as such. At a severe sign-flip (`-1.0`, the actuator's effect
+  reverses direction entirely), `never_adapts` collapses (post-shift
+  reward -15.49, ~8x worse than pre-shift), `oracle_adapts` recovers
+  almost completely (-2.36), and **`cusum_detects_and_adapts` (-2.62)
+  beats `sliding_window_baseline` (-3.00)** — the confound-controlled
+  result the experiment needed, landing closer to the oracle ceiling
+  than the simpler heuristic does. Detection: 15/15 seeds detected the
+  severe shift (mean latency 23.0 trials) vs. 13/15 for the mild one
+  (mean latency 36.5 trials) — a larger shift produces an
+  easier-to-detect signal, as expected. **3/15 seeds (20%) showed a
+  false-positive detection before the true shift, in both severities —
+  notably higher than experiment 5's own ~6% baseline**, traced to a
+  real, reported cause: this experiment's residual stream comes from a
+  periodically-refit model, whose own re-fits introduce small genuine
+  jumps a stationary raw signal (like experiment 5's) wouldn't have.
+- **Falsification:** would have been detection-triggered adaptation
+  failing to beat the sliding-window baseline even at severe shift
+  severity (meaning explicit detection isn't earning its complexity at
+  all), or the mild-severity null finding turning out to be a bug rather
+  than a real, investigated mechanism — neither happened once both
+  severities were tested and the discrepancy was traced to its actual
+  cause. Full numbers and what isn't tested (only two severities; a
+  single fixed shift trial and post-shift window length; the elevated
+  false-positive rate reported but not addressed; only tested with the
+  linear dynamics model, not experiment 10's nonlinear generalization or
+  experiment 12's multi-step planner; a single sliding-window size) in
+  [experiments/exp13_regime_shift_world_model/RESULTS.md](../experiments/exp13_regime_shift_world_model/RESULTS.md).
+
 ## 8. Sequencing
 
 1. ~~Experiment 2 first~~ — **done**, see §6. Result: `sensitivity()` failed
@@ -1220,6 +1296,22 @@ where that stops being true.
     model quality — a real, consistent (14/15 seeds), but modest (~17%
     relative) effect, reported at its actual size. Full results in
     [experiments/exp12_multistep_planning/](../experiments/exp12_multistep_planning/RESULTS.md).
+14. ~~Experiment 13~~ — **done**, see §7j. A synthesis experiment
+    combining `CUSUMTemporalReasoner` (Phase 4) with `LinearDynamicsModel`
+    (Phase 6). The first, simpler version of this experiment found a
+    null result (adaptation didn't help under a mild regime shift) that
+    was investigated rather than reported as-is, revealing the actual
+    mechanism (mild miscalibration rarely changes which action is
+    locally best) and turning the experiment into a severity sweep. At
+    a severe (sign-flipping) shift, detection-triggered adaptation
+    beat both a do-nothing baseline (post-shift reward -2.62 vs. -15.49)
+    and a naive always-use-recent-data heuristic (-2.62 vs. -3.00),
+    landing close to the oracle ceiling (-2.36). Also surfaced a real,
+    traced limitation: a 20% false-positive rate, notably higher than
+    experiment 5's ~6%, caused by monitoring a periodically-refit
+    model's residuals rather than a stationary raw signal. Full results
+    in
+    [experiments/exp13_regime_shift_world_model/](../experiments/exp13_regime_shift_world_model/RESULTS.md).
 
 ## 9. What would make this publishable, and what would make a reviewer skeptical
 
@@ -1255,7 +1347,7 @@ where that stops being true.
   borrows from (§8a of `related-work.md`) solves a much harder version of
   this problem than what was actually tested here, and both follow-ups
   show exactly where that gap matters.
-- **All twelve experiments are now done** (§5-7i). If this program is
+- **All thirteen experiments are now done** (§5-7j). If this program is
   written up externally, the honest headline is: reference-frame
   conditioning helps within a bounded noise/coverage regime (experiment 1),
   a naive frame-dependence detector can fail in exactly the common case and
@@ -1299,11 +1391,17 @@ where that stops being true.
   lookahead by a real, consistent, but honestly modest margin, with a
   2x2 design confirming the advantage is specifically about planning
   horizon rather than an accidental model-quality difference (experiment
-  12). That's a coherent, modest, defensible set of claims — resist the
-  temptation to round any of them up, experiments 4 through 12 included.
-- **Experiments 5, 6, 7, 8, 9, 10, 11, and 12 are also the first results
-  from this program that are reusable kernel capabilities, not RL
-  research scripts** — worth leading with in any framing aimed at the "is any of
+  12), and combining two already-verified Phase 4/6 primitives
+  (CUSUM change detection, learned dynamics) works as expected but only
+  conditionally: a mild regime shift showed no adaptation benefit at
+  all (a real, investigated null result, not a bug), while a severe one
+  showed detection-triggered adaptation beating both a do-nothing
+  baseline and a naive recency heuristic decisively (experiment 13).
+  That's a coherent, modest, defensible set of claims — resist the
+  temptation to round any of them up, experiments 4 through 13 included.
+- **Experiments 5, 6, 7, 8, 9, 10, 11, 12, and 13 are also the first
+  results from this program that are reusable kernel capabilities, not
+  RL research scripts** — worth leading with in any framing aimed at the "is any of
   this actually usable" question, separate from the reference-frame-
   conditioning experiments' own framing. Experiments 6 and 7 together
   remain the cleanest, most textbook-dramatic results: a spurious effect
@@ -1329,3 +1427,9 @@ where that stops being true.
   (planning horizon, not function-class mismatch) with its own dedicated
   2x2 confound-isolation design, and reports a genuinely modest effect
   size honestly rather than reaching for a more dramatic-sounding number.
+  Experiment 13 is the first result in this program built entirely from
+  two already-verified pieces rather than any new mechanism — and its
+  most valuable moment wasn't the positive result at severe shift
+  severity, it was catching and explaining the *null* result at mild
+  severity instead of quietly re-running the experiment until a cleaner
+  number appeared.

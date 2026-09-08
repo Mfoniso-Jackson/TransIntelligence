@@ -1,8 +1,8 @@
 # Findings
 
-A standalone summary of what the first twelve experiments in
+A standalone summary of what the first thirteen experiments in
 [research-agenda.md](research-agenda.md) actually established, for anyone
-who wants the result without reading twelve `RESULTS.md` files and the
+who wants the result without reading thirteen `RESULTS.md` files and the
 incremental updates to the agenda itself. Each section below is a compressed
 version of a much more detailed writeup — follow the links for the numbers,
 the code, and the caveats a one-paragraph summary can't carry.
@@ -37,12 +37,16 @@ ceiling almost exactly, while an equally state-aware, identically-tooled
 model-free baseline falls far short, because the true value surface has
 a peak that no linear fit can represent, no matter how much data it
 gets — confirmed directly by a follow-up showing a correctly-specified
-nonlinear baseline closes almost the entire gap — and a twelfth found
+nonlinear baseline closes almost the entire gap — a twelfth found
 that planning further ahead (not just having a model at all) gives a
 real, consistent, but honestly modest advantage over greedy single-step
 lookahead, with a 2×2 design confirming the advantage is specifically
 about how far ahead the agent looks, not an accidental difference in
-model quality.
+model quality, and a thirteenth combined two already-verified mechanisms
+(change detection, learned dynamics) and found the honest answer is
+conditional — no benefit under a mild regime shift, a real, investigated
+null result rather than a smoothed-over one, but a clear,
+confound-controlled benefit under a severe one.
 
 ## Experiment 2 — Does `sensitivity()` detect frame-dependent conclusions?
 
@@ -186,7 +190,7 @@ same session, sharpened exactly how much harder:
 
 ## The meta-finding
 
-Across the twelve experiments, the same discipline applied every time: build
+Across the thirteen experiments, the same discipline applied every time: build
 the control that could kill the result, then run it, and don't stop at the
 first configuration that looks clean. Every single result got a real
 qualifier once that happened. Three times the headline *number* shrank —
@@ -234,9 +238,16 @@ multi-step planner scored higher" could have meant either "planning
 ahead helps" or "this run's learned model happened to be better," and
 the design makes those two possibilities separable rather than
 conflated — the near-identical gap size in the learned and oracle pairs
-is what makes the horizon claim trustworthy. No experiment that was
-actually pushed on came back unqualified. None of the twelve hypotheses
-were fully falsified, but none survived untouched either — that's the intended
+is what makes the horizon claim trustworthy. Experiment 13's first run
+produced a genuine null result (mild-shift adaptation showed no benefit
+at all) that got investigated rather than discarded or re-run until it
+looked better — the explanation it surfaced (miscalibration only matters
+when it changes which action ranks best) is what justified testing a
+second, more severe condition, where the confound-controlled positive
+result (beating a naive recency heuristic, not just doing nothing)
+actually held up. No experiment that was actually pushed on came back
+unqualified. None of the thirteen hypotheses were fully falsified, but
+none survived untouched either — that's the intended
 outcome of the experimental discipline in
 [research-agenda.md](research-agenda.md) §21, not a failure of it. A
 result that survives its own strongest test is worth more than one that
@@ -572,6 +583,44 @@ advantage here is efficiency, not preventing catastrophic mistakes.
 
 → [experiments/exp12_multistep_planning/RESULTS.md](../experiments/exp12_multistep_planning/RESULTS.md)
 
+## Experiment 13 — Does combining a world model with regime-change detection work as expected?
+
+**Conditional — a real null result at mild severity, a real
+confound-controlled positive at severe severity, both reported
+honestly.** This is the first synthesis experiment in this program: it
+combines two already-verified mechanisms (`CUSUMTemporalReasoner` from
+Phase 4, `LinearDynamicsModel` from Phase 6) rather than testing a new
+one, asking only whether they compose as expected when wired together.
+
+The first version tested one fixed, mild regime shift and found
+`oracle_adapts` (told the true shift trial exactly, zero detection
+delay) performed statistically indistinguishably from `never_adapts` —
+the opposite of the hypothesis. Investigated rather than reported as a
+clean result: this environment's state range is wide relative to its
+nudge magnitudes, so a stale and a correctly-calibrated model usually
+pick the *same* largest-available action anyway — mild miscalibration
+rarely changes which action ranks best, while discarding a large body of
+converged prior data for a small, noisy post-shift refit has a real,
+visible cost (confirmed directly by inspecting the reward trajectory:
+`oracle_adapts` starts *worse* than `never_adapts` right after the
+shift, before the two converge).
+
+That turned the experiment into a two-severity sweep. At a severe
+shift (the actuator's effect reverses direction entirely),
+`never_adapts` collapses (post-shift reward ~8x worse than pre-shift),
+while `cusum_detects_and_adapts` recovers to near the oracle ceiling and
+**beats `sliding_window_baseline`** — the confound control that
+mattered: explicit detection measurably outperforms the simpler
+always-use-recent-data heuristic, not just "doing something." A real
+limitation surfaced along the way, reported rather than glossed over: a
+20% false-positive detection rate, notably higher than experiment 5's
+~6% under the identical default calibration — traced to a specific,
+understood cause (this experiment's residual stream comes from a
+periodically-refit model, whose own re-fits introduce small genuine
+jumps a stationary raw signal wouldn't have).
+
+→ [experiments/exp13_regime_shift_world_model/RESULTS.md](../experiments/exp13_regime_shift_world_model/RESULTS.md)
+
 ## What isn't tested yet
 
 - A learned-embedding baseline that matches prior art's actual mechanism
@@ -617,14 +666,12 @@ advantage here is efficiency, not preventing catastrophic mistakes.
   against Rubin's potential-outcomes framework (noted as the alternative
   formalization, not implemented or benchmarked against).
 - Nonlinear dynamics (the world-model's advantage in experiment 11 rests
-  specifically on the true transition being exactly linear); a
-  non-stationary version of the environment (combining a learned world
-  model with the existing regime-change-detection machinery from Phase 4
-  is untested); whether model-free methods find the right feature set
-  unprompted, in a real environment where the reward's functional form
-  isn't known in advance (experiment 11's follow-up handed the model-free
-  baseline the exactly-correct quadratic features rather than having it
-  discover them).
+  specifically on the true transition being exactly linear); whether
+  model-free methods find the right feature set unprompted, in a real
+  environment where the reward's functional form isn't known in advance
+  (experiment 11's follow-up handed the model-free baseline the
+  exactly-correct quadratic features rather than having it discover
+  them).
 - Multi-step planning beyond a 2-step lookahead and a single fixed
   1-step-lag structure (experiment 12); a smarter search than exhaustive
   enumeration over action sequences in `RecedingHorizonPlanner`
@@ -634,7 +681,19 @@ advantage here is efficiency, not preventing catastrophic mistakes.
   horizons; a nonlinear or momentum-based (rather than simple
   linear-lag) delay structure, which might show a more dramatic planning
   advantage than experiment 12's modest ~17% one.
+- A continuous regime-shift-severity sweep, rather than experiment 13's
+  two fixed severities (mild attenuation, full sign flip) — where
+  adaptation's benefit actually crosses over from negligible to real is
+  unmapped; a longer post-shift window (whether `never_adapts`'s
+  mixed-data model eventually catches up as more post-shift data
+  dilutes the stale pre-shift fit is untested); recalibrating CUSUM for
+  monitoring a periodically-refit model's residuals specifically, rather
+  than just reporting the resulting elevated false-positive rate;
+  combining regime-change-adaptive world models with the multi-step
+  planner (experiment 12) or a nonlinear dynamics model (experiment 10's
+  generalization) — experiment 13 only tested the single-step, linear
+  case.
 - The master context's remaining later phases (agency; meta-intelligence;
   strange loops; cross-domain transfer) — all still pre-formalization,
   per `research-agenda.md`'s own sequencing. World models (Phase 6) has
-  now started (experiments 11-12).
+  now started (experiments 11-13).

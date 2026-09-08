@@ -2,7 +2,7 @@
 
 ## Current milestone
 
-A working core that represents entities, relationships, observations, states, contexts, and reference frames, then performs basic geometric and relative reasoning with traceable results. Twelve falsifiable experiments have run against the reference-frame-conditioning hypothesis and related claims (see `docs/research-agenda.md`, summarized in `docs/findings.md`).
+A working core that represents entities, relationships, observations, states, contexts, and reference frames, then performs basic geometric and relative reasoning with traceable results. Thirteen falsifiable experiments have run against the reference-frame-conditioning hypothesis and related claims (see `docs/research-agenda.md`, summarized in `docs/findings.md`).
 
 Temporal reasoning has also started: `transintelligence/reasoning/temporal/` implements regime-change detection, multi-key joint detection, and dynamic time warping (`CUSUMTemporalReasoner`, docs/research-agenda.md #7b) — the first reusable kernel primitive from this research program, rather than an experiment-only script.
 
@@ -14,9 +14,11 @@ Phase 6 (World Models, `docs/master-context.md` §13/§19) has now started: `tra
 
 Multi-step planning has also started: `environments/transworld/delayed_control_env.py` is the first environment with genuine multi-step credit assignment (episodes persist across steps, reward only at the final step, unlike experiment 11's fresh-state-per-trial design). Experiment 12 found a real, consistent, but honestly modest planning-horizon advantage over greedy 1-step lookahead — isolated from model-quality via a 2x2 factorial design (docs/research-agenda.md #7i). Its planning logic has since been generalized into `transintelligence/planning/`'s `RecedingHorizonPlanner` — a domain-agnostic kernel primitive (needs only a `transition_fn`/`score_fn`, no particular state representation or action vocabulary) filling the `Planner` protocol stub, refactored in after experiment 12 shipped and verified to produce bit-for-bit identical results — the sixth reusable kernel primitive from this research program.
 
+Combining world models with regime-change detection has also started: experiment 13 (docs/research-agenda.md #7j) wired `CUSUMTemporalReasoner` (Phase 4) into a `LinearDynamicsModel`'s own prediction residuals, testing whether detecting a mid-experiment shift in the true dynamics and discarding stale data recovers performance a never-adapts agent loses. The honest result is severity-dependent: a mild shift showed no adaptation benefit at all (investigated and explained, not a bug), while a severe one showed detection-triggered adaptation beating both a do-nothing baseline and a naive always-use-recent-data heuristic. A real limitation was also surfaced and reported, not hidden: a 20% false-positive detection rate, notably higher than experiment 5's ~6%, traced to monitoring a periodically-refit model's residuals rather than a stationary raw signal.
+
 ## Next milestone
 
-Add richer observation querying, reference-frame validation, domain adapter examples for growth and property, and structured verifier outputs. Causal reasoning's stated gaps are now all closed: backdoor adjustment, causal discovery (skeleton recovery, collider orientation, and Meek's R1-R3 edge-orientation-propagation rules -- R4 is provably inapplicable without a background-knowledge mechanism this pipeline doesn't have), instrumental variables, front-door adjustment, and nonlinear structural equations (for counterfactual abduction; linear-only effect estimation remains a known, demonstrated limit, not a gap left untested) are all implemented. `Predictor` and `Planner` are now both filled too. Phase 6's remaining gaps: nonlinear dynamics; a non-stationary environment (combining world models with the existing regime-change-detection machinery from Phase 4 is untested); a smarter search strategy for `RecedingHorizonPlanner` (exhaustive enumeration over action sequences won't scale to larger action sets or longer horizons); and `Simulator`, which remains fully unbuilt.
+Add richer observation querying, reference-frame validation, domain adapter examples for growth and property, and structured verifier outputs. Causal reasoning's stated gaps are now all closed: backdoor adjustment, causal discovery (skeleton recovery, collider orientation, and Meek's R1-R3 edge-orientation-propagation rules -- R4 is provably inapplicable without a background-knowledge mechanism this pipeline doesn't have), instrumental variables, front-door adjustment, and nonlinear structural equations (for counterfactual abduction; linear-only effect estimation remains a known, demonstrated limit, not a gap left untested) are all implemented. `Predictor` and `Planner` are now both filled too. Phase 6's remaining gaps: nonlinear dynamics; a smarter search strategy for `RecedingHorizonPlanner` (exhaustive enumeration over action sequences won't scale to larger action sets or longer horizons); recalibrating (or explaining more precisely) CUSUM's elevated false-positive rate when monitoring a co-evolving model's residuals; extending regime-change-adaptive world models to the multi-step planner (experiment 12) or a nonlinear dynamics model (experiment 10's generalization); and `Simulator`, which remains fully unbuilt.
 
 ## Later milestones
 
@@ -34,5 +36,9 @@ Add richer observation querying, reference-frame validation, domain adapter exam
 - ~~Multi-step planning/rollouts.~~ Started — see above; a smarter
   search strategy than exhaustive enumeration remains, and `Simulator`
   is still fully unbuilt.
+- ~~Non-stationary environment + regime-change detection integration.~~
+  Started — see above (experiment 13); a continuous severity sweep, a
+  longer post-shift window, and integration with the multi-step planner
+  or a nonlinear dynamics model all remain.
 - Persistent storage adapters, eventually PostgreSQL/pgvector.
 - External model provider adapters behind interfaces.
