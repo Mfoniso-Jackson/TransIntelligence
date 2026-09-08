@@ -104,6 +104,45 @@ strategy in both severities here — a genuine reversal of experiment 13's
 own preference for CUSUM-triggered adaptation, specific to combining
 detection with a data-hungrier nonlinear model.
 
+## Follow-up: what actually causes the detection degradation?
+
+Ran: `PYTHONPATH=. python experiments/exp19_nonlinear_regime_shift/detection_diagnosis.py`.
+10 seeds, `sign_flip` severity (the case the detection gap was found
+in). Three hypotheses checked, all against matched linear/nonlinear
+agents on identical seeds:
+
+1. **Steady-state (pre-shift) residual noise** — the original
+   hypothesis above, reproduced as code instead of an ad-hoc check:
+   REFUTED again, 0.3045 vs. 0.3118 mean stdev across 10 seeds
+   (previously 5).
+2. **Residual autocorrelation (lag-1, pre-shift)** — a serially
+   correlated residual stream could slow CUSUM's cumulative-sum
+   statistic without needing higher variance at all. Also REFUTED:
+   -0.0035 (nonlinear) vs. 0.0027 (linear), both indistinguishable from
+   zero.
+3. **Post-shift (pre-detection) residual variability, using the agent's
+   own real greedy action selection rather than a forced/uniform one** —
+   a genuine, measured difference: nonlinear post-shift residual stdev
+   averaged 1.42 across 10 seeds vs. linear's 0.91, and the *spread*
+   across seeds was also much larger for nonlinear (1.74 vs. 1.10, max
+   observed 2.08 vs. 1.52) — several nonlinear seeds show markedly
+   noisier post-shift residual behavior than any linear seed does.
+
+**This narrows the explanation without fully resolving it.** Pre-shift,
+the two models are statistically indistinguishable in both variance and
+autocorrelation — the difference is not an intrinsic property of the
+nonlinear functional form's fitting or residual behavior in a stable
+regime. It emerges specifically post-shift, before detection, while both
+agents are still acting on their stale (pre-shift-fit) model — plausibly
+because the stale nonlinear model's own greedy action choices interact
+with the now-shifted dynamics more erratically than the stale linear
+model's do, feeding CUSUM a genuinely noisier, more seed-dependent
+signal to detect against, not just a smaller one. **The exact mechanism
+generating that extra post-shift variability was not identified** — this
+is a real, verified narrowing (from "unexplained" to "post-shift
+action-driven interaction, not steady-state model noise"), not a
+complete account.
+
 ## What this establishes
 
 - **Regime-adaptation does not generalize for free from a linear to a
@@ -124,10 +163,15 @@ detection with a data-hungrier nonlinear model.
 
 ## What this does not establish
 
-- **The cause of degraded CUSUM detection reliability under a nonlinear
-  model is unconfirmed** — the natural "noisier residuals" hypothesis
-  was checked directly and refuted; no alternative mechanism was
-  identified or tested.
+- **The exact mechanism generating degraded CUSUM detection reliability
+  under a nonlinear model is still not fully identified** — the
+  follow-up above ruled out two candidate explanations (steady-state
+  residual noise, residual autocorrelation) and localized the effect to
+  post-shift, pre-detection behavior specifically, showing it's
+  plausibly driven by the stale model's own action choices interacting
+  with the shifted environment rather than an intrinsic property of the
+  nonlinear fit — but did not pin down precisely why that interaction is
+  noisier for a nonlinear model than a linear one.
 - **Only one nonlinearity (experiment 15's quadratic restoring force)
   and one GAMMA value (0.3) were tested** — whether the cold-start cost
   scales with nonlinearity strength, or is specific to this functional

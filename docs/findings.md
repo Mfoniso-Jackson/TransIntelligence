@@ -930,8 +930,14 @@ roughly five times as long) for a reason checked directly and *refuted*
 (residual noise in steady state is statistically identical between the
 linear and nonlinear settings) but not otherwise identified — reported
 as an open question, not dressed up with an unverified explanation. A
-simpler heuristic that never fully empties its training data sidesteps
-the cold-start cliff entirely and ends up more practically robust than
+follow-up ruled out a second candidate too (residual autocorrelation)
+and localized the real difference to post-shift, pre-detection behavior
+specifically — plausibly the stale model's own action choices
+interacting with the now-shifted environment more erratically than the
+linear model's do — without fully explaining why that interaction is
+noisier for a nonlinear model. A simpler heuristic that never fully
+empties its training data sidesteps the cold-start cliff entirely and
+ends up more practically robust than
 change detection here, reversing experiment 13's own preference.
 
 → [experiments/exp19_nonlinear_regime_shift/RESULTS.md](../experiments/exp19_nonlinear_regime_shift/RESULTS.md)
