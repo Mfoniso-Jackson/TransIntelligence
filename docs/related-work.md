@@ -186,6 +186,24 @@ linear abduction) that could produce a falsifiable result, explicitly not
 a claim to handle the general nonlinear/non-additive-noise case Balke &
 Pearl's methods were built for.**
 
+**Update (Experiment 10, Phase 5): the "not nonlinear" limitation above
+turned out to be narrower than it looked.** `StructuralEquation` now
+accepts an arbitrary `nonlinear_fn` in place of its linear coefficient
+form, and `abduct()`/`counterfactual()` needed *zero changes* to support
+it — because Pearl's abduction step only ever requires the noise to be
+*additive*, never that the structural function be linear, the same
+closed-form residual is exact for any function, verified against a
+hand-computed quadratic case before being trusted. What remains
+genuinely linear-only is `reasoning/causal/`'s OLS-based *effect
+estimation*, which experiment 10 shows is substantially biased under
+true nonlinearity (absolute gap 0.5799 against an exact nonlinear
+reference, vs. 0.0121 in a linear control) — and, more sharply, that a
+single linear coefficient cannot represent a *heterogeneous* effect at
+all (the true per-unit shift effect ranged from -1.5 to +3.3 and even
+flipped sign across the tested reference points, while the linear model
+predicted one constant number everywhere). Non-additive noise remains the
+one part of Balke & Pearl's general theory still not attempted here.**
+
 ## 3c. Causal discovery: constraint-based structure recovery (Experiment 8, Phase 5)
 
 - Spirtes, Glymour, *An Algorithm for Fast Recovery of Sparse Causal
@@ -440,9 +458,10 @@ methods."**
 | RNN encoder-decoder condition-B attempt (vanishing gradients) | Bengio, Simard & Frasconi 1994; Williams & Peng 1990; Hochreiter & Schmidhuber 1997 | Established theory in full — the failure mode, the training method, and the fix (unimplemented) are all textbook |
 | Causal framing of `evaluate(x,R)` | Pearl 2009 | Established theory; `evaluate()` itself still makes no causal claim |
 | Backdoor criterion / confounding bias (Experiment 6, Phase 5) | Pearl 1995; Verma & Pearl 1988; Simpson 1951; Rubin 1974 | Established theory in full — implemented and empirically verified, not novel |
-| Per-unit counterfactuals (Experiment 7, Phase 5) | Pearl, Glymour & Jewell 2016; Balke & Pearl 1994 | Established theory in full — closed-form linear special case, not the general nonlinear treatment |
+| Per-unit counterfactuals (Experiment 7, Phase 5) | Pearl, Glymour & Jewell 2016; Balke & Pearl 1994 | Established theory in full — closed-form abduction, now confirmed exact for nonlinear (not just linear) additive-noise structural equations too (Experiment 10) |
 | Causal discovery (Experiment 8, Phase 5) | Spirtes & Glymour 1991; Fisher 1921; Meek 1995 (unimplemented) | Established theory in full — skeleton + collider orientation only, Meek's further propagation rules deliberately not implemented |
 | Instrumental variables & front-door adjustment (Experiment 9, Phase 5) | Wright (P.) 1928; Pearl 1995; Wright (S.) 1934; Bound, Jaeger & Baker 1995 | Established theory in full — both mechanisms implemented and empirically verified, including their theory-predicted failure modes |
+| Nonlinear structural equations (Experiment 10, Phase 5) | Pearl, Glymour & Jewell 2016 (abduction only needs additive noise, not linearity) | Established theory — abduction confirmed exact for a nonlinear case; linear OLS-based effect estimation confirmed biased under nonlinearity by construction, not a new finding about OLS itself |
 | Frame-dependence detection | Arjovsky et al. 2019; arXiv:2010.05761; Zhou et al. 2023; Wang et al. 2022 | Established theory; current `sensitivity()` is a naive baseline against it |
 | Geometric reasoning over non-physical spaces | Bronstein et al. 2021 | Established theory, directly prior art |
 | Cross-domain structural transfer | Gentner 1983; Lake & Baroni 2018/2023 | Established distinctions; TransIntelligence's specific transfer claim is a hypothesis |

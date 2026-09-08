@@ -9,9 +9,9 @@ project vision (see `docs/architecture.md`, `docs/intelligence-model.md`):
 vision motivates the program, this document constrains near-term work to
 what can actually be measured.
 
-All nine experiments below have now run. For a standalone summary of what
+All ten experiments below have now run. For a standalone summary of what
 they actually established — without reading this document's incremental
-updates or nine separate `RESULTS.md` files — see
+updates or ten separate `RESULTS.md` files — see
 [docs/findings.md](findings.md).
 
 Distinguish four categories throughout:
@@ -839,6 +839,73 @@ classic alternative identification strategies.
   Rosenbaum bounds) in
   [experiments/exp09_iv_and_frontdoor/RESULTS.md](../experiments/exp09_iv_and_frontdoor/RESULTS.md).
 
+## 7g. Experiment 10 — Nonlinear structural equations: does abduction stay exact, and does linear effect estimation break? (Phase 5, continued)
+
+**Status: run.** The last of the three stated gaps from `docs/findings.md`'s
+"what isn't tested yet" list. Experiments 6, 7, and 9 all assumed linear
+structural equations, the same simplification `reasoning/causal/` and
+`reasoning/counterfactual/` made from the start. This asks the two
+questions that assumption was hiding: does linear-adjusted OLS effect
+estimation actually break under true nonlinearity, and does
+counterfactual abduction — argued from the start to need only additive
+noise, not linearity — actually stay exact when the structural equation
+genuinely is nonlinear?
+
+- **Hypothesis:** `StructuralEquation` can be generalized to an arbitrary
+  `nonlinear_fn` with zero changes to `abduct()`/`counterfactual()`
+  themselves (only to `predict()` and parent-name lookup), because
+  Pearl's abduction step is a residual against *any* additive-noise
+  function, not specifically a linear one. Separately: `reasoning/causal/`'s
+  OLS-based effect estimation, which does assume linearity, will be
+  substantially biased on a genuinely nonlinear relationship — and,
+  because a nonlinear relationship has no single well-defined scalar
+  "effect" at all, a single linear coefficient cannot represent a
+  heterogeneous (unit-dependent) true effect regardless of how it's
+  estimated.
+- **The confound this needed to control for:** showing linear-adjusted
+  OLS fail on a nonlinear model alone could just mean the experimental
+  setup is broken, not that nonlinearity specifically causes it. A
+  `GAMMA2=0.0` control (the truth really is linear) has to show
+  linear-adjusted OLS closely matching the true effect there.
+- **Design:** `StructuralEquation.nonlinear_fn`
+  (`transintelligence/reasoning/counterfactual/model.py`), a backward-
+  compatible generalization (existing linear call sites unchanged).
+  **Verified against a hand-computed quadratic case before being trusted
+  for anything**: `A -> B, B = A² + 3A + noise`, exact residual and
+  exact counterfactual recovery, in `tests/test_counterfactual_reasoning.py`.
+  The experiment reuses experiments 6/7/9's exact confounding-graph shape
+  (`Z→X, Z→Y, X→Y`) with `Y = 0.8Z + 0.3X + GAMMA2·X² + noise`, and
+  computes the **true average shift effect exactly** (not estimated) via
+  `counterfactual(observed, {"X": x+1})["Y"] - observed["Y"]` per unit —
+  each unit's own noise is identical in both terms and cancels
+  algebraically, the same "exact by construction" trick experiment 7
+  used for the linear case.
+- **Result: both predictions held, and the nonlinear case's mismatch was
+  more dramatic than a simple "biased estimate" — the linear model's
+  output was nearly indistinguishable from its own linear-truth control
+  run despite the true effect nearly tripling.** In the linear control
+  (`GAMMA2=0.0`), linear-adjusted OLS matched the true effect closely
+  (gap 0.0121). In the nonlinear condition (`GAMMA2=0.6`), the gap grew
+  to **0.5799** — but the linear-adjusted estimate itself (0.3255) barely
+  moved from the control's (0.3121), because `X`'s near-zero skew makes
+  `Cov(X, X²) ≈ 0`: OLS's linear coefficient is nearly blind to the
+  quadratic contribution rather than reporting a scaled-down version of
+  it. At five fixed reference points, the true shift effect ranged from
+  **-1.5 to +3.3** (even flipping sign) while the linear model predicted
+  the same +0.3255 at every one of them — not a quantitative miss, a
+  category error: a linear coefficient cannot represent an effect that
+  depends on where a unit starts.
+- **Falsification:** would have been the linear control condition itself
+  showing a large gap (meaning the experimental setup, not nonlinearity,
+  was the problem), or the nonlinear hand-computed abduction/
+  counterfactual test failing to match hand arithmetic exactly (a bug in
+  the generalization, since it's supposed to require zero logic changes)
+  — neither happened. Full numbers and what isn't tested (only one
+  functional form tested; non-additive noise still unattempted; no
+  nonlinear effect-estimation alternative added; functional form is
+  given, not discovered) in
+  [experiments/exp10_nonlinear_scm/RESULTS.md](../experiments/exp10_nonlinear_scm/RESULTS.md).
+
 ## 8. Sequencing
 
 1. ~~Experiment 2 first~~ — **done**, see §6. Result: `sensitivity()` failed
@@ -933,6 +1000,19 @@ classic alternative identification strategies.
     mediator" assumption is violated (~99x bias increase). Full results
     in
     [experiments/exp09_iv_and_frontdoor/](../experiments/exp09_iv_and_frontdoor/RESULTS.md).
+11. ~~Experiment 10~~ — **done**, see §7g. The last of the three stated
+    gaps. `StructuralEquation` generalizes to nonlinear structural
+    functions with zero changes to `abduct()`/`counterfactual()`
+    themselves — verified exact on a hand-computed quadratic case.
+    Linear-adjusted OLS effect estimation, by contrast, is substantially
+    biased under true nonlinearity (gap 0.5799 vs. an exact nonlinear
+    reference, vs. 0.0121 in a linear control) and, more sharply, a
+    single linear coefficient cannot represent a heterogeneous effect at
+    all — the true per-unit shift effect ranged from -1.5 to +3.3 and
+    even flipped sign across five reference points, while the linear
+    model predicted the same constant number at every one of them. Full
+    results in
+    [experiments/exp10_nonlinear_scm/](../experiments/exp10_nonlinear_scm/RESULTS.md).
 
 ## 9. What would make this publishable, and what would make a reviewer skeptical
 
@@ -968,7 +1048,7 @@ classic alternative identification strategies.
   borrows from (§8a of `related-work.md`) solves a much harder version of
   this problem than what was actually tested here, and both follow-ups
   show exactly where that gap matters.
-- **All nine experiments are now done** (§5-7f). If this program is
+- **All ten experiments are now done** (§5-7g). If this program is
   written up externally, the honest headline is: reference-frame
   conditioning helps within a bounded noise/coverage regime (experiment 1),
   a naive frame-dependence detector can fail in exactly the common case and
@@ -994,9 +1074,15 @@ classic alternative identification strategies.
   never find doesn't block identification, given a valid instrument or
   mediator — though both of those alternative strategies fail in their
   own theory-predicted ways once their assumptions don't hold (experiment
-  9). That's a coherent, modest, defensible set of claims — resist the
-  temptation to round any of them up, experiments 4 through 9 included.
-- **Experiments 5, 6, 7, 8, and 9 are also the first results from this
+  9), and the linear-only simplification every one of these causal/
+  counterfactual mechanisms made from the start turns out to matter in
+  exactly the way it should: abduction stays exact under nonlinearity
+  with no code changes needed, while linear effect estimation is
+  substantially biased there, unable to represent an effect that
+  genuinely depends on where a unit starts (experiment 10). That's a
+  coherent, modest, defensible set of claims — resist the temptation to
+  round any of them up, experiments 4 through 10 included.
+- **Experiments 5, 6, 7, 8, 9, and 10 are also the first results from this
   program that are reusable kernel capabilities, not RL research
   scripts** — worth leading with in any framing aimed at the "is any of
   this actually usable" question, separate from the reference-frame-
@@ -1011,3 +1097,7 @@ classic alternative identification strategies.
   survives even the case discovery can't solve — a confounder that never
   appears in the data — while still being honest that both of its
   strategies have real, demonstrated breaking points of their own.
+  Experiment 10 closes out Phase 5's stated gaps by showing precisely
+  where the linearity simplification the whole phase made from the start
+  does and doesn't matter: not at all for counterfactual abduction, a
+  great deal for effect estimation.

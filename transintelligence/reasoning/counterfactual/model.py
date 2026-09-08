@@ -16,32 +16,55 @@ just a bigger version of the backdoor-adjustment machinery.
 procedure -- abduction, action, prediction (Pearl, Glymour, Jewell,
 *Causal Inference in Statistics: A Primer*, Wiley, 2016; the underlying
 computational treatment traces to Balke, Pearl, *Counterfactual
-Probabilities: Computational Methods, Bounds and Applications*, UAI 1994)
--- specialized to linear structural equations with additive exogenous
-noise, the same linearity simplification `BaselineRelativeReasoner`,
-`CUSUMTemporalReasoner`, and `reasoning/causal/`'s effect estimation
-already make elsewhere in this codebase. For a linear+additive-noise SCM,
-abduction has a closed form (the residual of each node's equation) rather
-than requiring general inference -- the smallest mechanism that could
-produce a falsifiable result, not a claim to handle nonlinear or
-non-additive-noise SCMs (Pearl's general theory covers those; this
-doesn't).
+Probabilities: Computational Methods, Bounds and Applications*, UAI 1994).
+`StructuralEquation` was originally linear-only, the same linearity
+simplification `BaselineRelativeReasoner`, `CUSUMTemporalReasoner`, and
+`reasoning/causal/`'s effect estimation make elsewhere in this codebase
+-- for a linear+additive-noise SCM, abduction has a closed form (the
+residual of each node's equation) rather than requiring general
+inference, the smallest mechanism that could produce a falsifiable
+result. `StructuralEquation` now also accepts an arbitrary `nonlinear_fn`
+in place of the linear coefficient form -- but `abduct()`/
+`counterfactual()` themselves needed NO changes at all to support this:
+Pearl's abduction step only ever requires the noise to be *additive*
+(`node = f(parents) + noise`), never that `f` be linear, so the same
+closed-form residual (`observed - f(parents)`) is exact for any `f`.
+Nonlinearity only matters for a genuinely different reason, tested in
+experiment 10: `reasoning/causal/`'s OLS-based *effect estimation* (not
+this module) silently assumes a linear `f` and is biased when the true
+`f` isn't, even though counterfactual abduction over the very same
+nonlinear model remains exact.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Callable
 
 from transintelligence.reasoning.causal import CausalGraph
 
 
 @dataclass(frozen=True)
 class StructuralEquation:
-    """node = intercept + sum(coefficients[parent] * value[parent]) + exogenous_noise."""
+    """node = intercept + sum(coefficients[parent] * value[parent]) + exogenous_noise,
+    the linear form -- OR, if `nonlinear_fn` is given, node =
+    nonlinear_fn(parent_values) + exogenous_noise for an arbitrary
+    function of `nonlinear_parents`. Exactly one of the two forms should
+    be used per instance; `nonlinear_fn` takes priority if both are set."""
 
-    coefficients: dict[str, float]
+    coefficients: dict[str, float] = field(default_factory=dict)
     intercept: float = 0.0
+    nonlinear_fn: Callable[[dict[str, float]], float] | None = None
+    nonlinear_parents: tuple[str, ...] = ()
+
+    @property
+    def parent_names(self) -> tuple[str, ...]:
+        if self.nonlinear_fn is not None:
+            return self.nonlinear_parents
+        return tuple(self.coefficients.keys())
 
     def predict(self, parent_values: dict[str, float]) -> float:
+        if self.nonlinear_fn is not None:
+            return self.nonlinear_fn(parent_values)
         return self.intercept + sum(coef * parent_values[p] for p, coef in self.coefficients.items())
 
 
@@ -82,7 +105,7 @@ class StructuralCausalModel:
                 noise[node] = observed[node]
             else:
                 eq = self.equations[node]
-                predicted = eq.predict({p: observed[p] for p in eq.coefficients})
+                predicted = eq.predict({p: observed[p] for p in eq.parent_names})
                 noise[node] = observed[node] - predicted
         return noise
 
@@ -105,6 +128,6 @@ class StructuralCausalModel:
                 result[node] = noise[node]
                 continue
             eq = self.equations[node]
-            predicted = eq.predict({p: result[p] for p in eq.coefficients})
+            predicted = eq.predict({p: result[p] for p in eq.parent_names})
             result[node] = predicted + noise[node]
         return result

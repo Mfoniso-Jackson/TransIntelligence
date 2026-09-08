@@ -1,8 +1,8 @@
 # Findings
 
-A standalone summary of what the first nine experiments in
+A standalone summary of what the first ten experiments in
 [research-agenda.md](research-agenda.md) actually established, for anyone
-who wants the result without reading nine `RESULTS.md` files and the
+who wants the result without reading ten `RESULTS.md` files and the
 incremental updates to the agenda itself. Each section below is a compressed
 version of a much more detailed writeup — follow the links for the numbers,
 the code, and the caveats a one-paragraph summary can't carry.
@@ -21,11 +21,15 @@ quietly make things worse, a seventh extended the same machinery to
 per-unit questions with an exact, not just approximately correct, answer,
 an eighth showed the graph itself doesn't have to be assumed — it can
 be recovered from data, with a negative control ruling out the obvious way
-that could have been a statistical-power illusion — and a ninth showed
-even an unobserved confounder doesn't block identification given a valid
+that could have been a statistical-power illusion, a ninth showed even an
+unobserved confounder doesn't block identification given a valid
 instrument or mediator, while directly demonstrating both of those
 alternative strategies' own theory-predicted breaking points rather than
-just asserting them.
+just asserting them, and a tenth closed out the linearity question every
+one of the causal/counterfactual mechanisms had left open: exact for
+counterfactual abduction under a nonlinear structural equation, but
+substantially biased — and structurally unable to represent a
+heterogeneous effect at all — for linear effect estimation under one.
 
 ## Experiment 2 — Does `sensitivity()` detect frame-dependent conclusions?
 
@@ -169,7 +173,7 @@ same session, sharpened exactly how much harder:
 
 ## The meta-finding
 
-Across the nine experiments, the same discipline applied every time: build
+Across the ten experiments, the same discipline applied every time: build
 the control that could kill the result, then run it, and don't stop at the
 first configuration that looks clean. Every single result got a real
 qualifier once that happened. Three times the headline *number* shrank —
@@ -199,8 +203,12 @@ front-door assumption) each found a real, sharp breaking point rather
 than graceful degradation — 2SLS becomes wildly unstable, not just more
 biased, below a threshold instrument strength, and front-door adjustment
 becomes nearly as biased as doing nothing once its specific structural
-precondition fails. No experiment that was actually pushed on came back
-unqualified. None of the nine hypotheses were fully falsified, but none
+precondition fails. Experiment 10's control condition (a genuinely linear
+truth) confirmed its own setup was sound before the nonlinear condition's
+bias could be trusted as evidence of anything — the same discipline
+applied to a mechanism-generalization result rather than a treatment-
+vs-control one. No experiment that was actually pushed on came back
+unqualified. None of the ten hypotheses were fully falsified, but none
 survived untouched either — that's the intended
 outcome of the experimental discipline in
 [research-agenda.md](research-agenda.md) §21, not a failure of it. A
@@ -421,6 +429,41 @@ criterion, now confirmed for a second, structurally different mechanism.
 
 → [experiments/exp09_iv_and_frontdoor/RESULTS.md](../experiments/exp09_iv_and_frontdoor/RESULTS.md)
 
+## Experiment 10 — Does abduction stay exact under nonlinearity, and does linear effect estimation actually break?
+
+**Both predictions held, and the nonlinear case's mismatch was more
+dramatic than a simple "biased estimate."** Every causal/counterfactual
+mechanism in this program assumed linear structural equations from the
+start. This is the last of the three stated gaps: does that assumption
+matter for counterfactual abduction (which was always argued to need
+only additive noise, not linearity), and does it matter for
+`reasoning/causal/`'s OLS-based effect estimation (which does assume
+linearity)?
+
+`StructuralEquation` now accepts an arbitrary nonlinear function in place
+of its linear coefficients, and `abduct()`/`counterfactual()` needed
+**zero changes** to support it — verified exact on a hand-computed
+quadratic case first. The experiment then reused experiments 6/7/9's
+confounding-graph shape with a quadratic `X→Y` relationship, and computed
+the **true average shift effect exactly** (not estimated) by exploiting
+the same noise-cancellation trick experiment 7 used for the linear case.
+
+A linear control condition (the truth really is linear) confirmed
+linear-adjusted OLS matches the true effect closely there (gap 0.0121) —
+ruling out "the experimental setup itself is broken" before trusting the
+positive result. In the nonlinear condition, the gap grew to **0.5799**,
+but more strikingly: the linear-adjusted estimate itself barely moved
+from the control condition's value, because the treatment variable's
+near-zero skew makes it nearly blind to the entire quadratic
+contribution rather than reporting a scaled-down version of it. At five
+fixed reference points, the true effect ranged from **-1.5 to +3.3**,
+even flipping sign, while the linear model predicted the identical
+number at every one of them — not a quantitative miss, a category
+error: a single coefficient cannot represent an effect that depends on
+where a unit starts.
+
+→ [experiments/exp10_nonlinear_scm/RESULTS.md](../experiments/exp10_nonlinear_scm/RESULTS.md)
+
 ## What isn't tested yet
 
 - A learned-embedding baseline that matches prior art's actual mechanism
@@ -436,8 +479,15 @@ criterion, now confirmed for a second, structurally different mechanism.
   current combination assumes independence across keys); non-i.i.d. noise
   beyond the single contaminated-Gaussian case tested; more than 5 keys
   tracked at once.
-- Nonlinear structural equations (both `reasoning/causal/` and
-  `reasoning/counterfactual/` assume linearity throughout).
+- Non-additive-noise structural equations (`reasoning/counterfactual/`'s
+  abduction now handles nonlinear-but-additive-noise functions exactly,
+  but genuinely non-additive noise, or non-monotonic/discontinuous
+  functional forms beyond the single quadratic case tested, would break
+  the closed-form residual entirely); a nonlinear effect-estimation
+  method for `reasoning/causal/` to replace/complement OLS under known
+  nonlinearity; nonlinear functional forms discovered from data rather
+  than given (interacting with causal discovery's own linear-only
+  independence test, below).
 - Meek's further orientation-propagation rules (UAI 1995) for causal
   discovery — only skeleton recovery plus direct collider orientation
   were implemented and tested; nonlinear dependencies that produce zero

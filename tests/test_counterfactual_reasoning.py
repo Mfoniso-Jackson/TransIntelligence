@@ -70,6 +70,27 @@ def test_intervening_on_a_node_intervenes_regardless_of_its_own_observed_noise()
     assert result_a["X"] == result_b["X"] == pytest.approx(2.0)
 
 
+def test_nonlinear_structural_equation_abduction_matches_hand_computation():
+    """A -> B, B = A^2 + 3*A + noise (quadratic, not linear). Observed
+    A=2, B=11 => predicted = 4 + 6 = 10 => noise_B = 1. Abduction needs
+    only additive noise, not linearity, so the same closed-form residual
+    must still be exact here."""
+    graph = CausalGraph((("A", "B"),))
+    eq = StructuralEquation(nonlinear_fn=lambda p: p["A"] ** 2 + 3 * p["A"], nonlinear_parents=("A",))
+    scm = StructuralCausalModel(graph, {"B": eq})
+    noise = scm.abduct({"A": 2.0, "B": 11.0})
+    assert noise == pytest.approx({"A": 2.0, "B": 1.0})
+
+
+def test_nonlinear_structural_equation_counterfactual_matches_hand_computation():
+    graph = CausalGraph((("A", "B"),))
+    eq = StructuralEquation(nonlinear_fn=lambda p: p["A"] ** 2 + 3 * p["A"], nonlinear_parents=("A",))
+    scm = StructuralCausalModel(graph, {"B": eq})
+    # do(A=5): predicted = 25 + 15 = 40, plus noise_B=1 (from the observed unit above) = 41.
+    result = scm.counterfactual({"A": 2.0, "B": 11.0}, {"A": 5.0})
+    assert result == pytest.approx({"A": 5.0, "B": 41.0})
+
+
 def test_raises_on_cyclic_or_disconnected_equation_reference():
     graph = CausalGraph((("A", "B"),))
     # "C" has an equation but no edges in the graph at all -- topological
