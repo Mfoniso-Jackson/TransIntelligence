@@ -44,6 +44,7 @@ from datetime import datetime
 from typing import Any
 
 from transintelligence.core.common import TimeWindow
+from transintelligence.core.events import Event
 from transintelligence.core.states import State, StateHistory
 
 
@@ -236,3 +237,24 @@ class CUSUMTemporalReasoner:
         series_a = [v for _, v in self._numeric_series(a, key)]
         series_b = [v for _, v in self._numeric_series(b, key)]
         return dynamic_time_warp(series_a, series_b)
+
+
+def events_from_change_points(history: StateHistory, key: str, reasoner: CUSUMTemporalReasoner,
+                               subject_id: str | None = None) -> list[Event]:
+    """Promotes `change_points()`'s bare `datetime`s into first-class
+    `Event` records -- the bridge between regime-change detection (this
+    module) and `Event`/`EventStore` (`transintelligence/core/events/`).
+    Without this, a detected change point is a value discarded the
+    instant the caller looks away; as an `Event` it's queryable, storable,
+    and carries `event_type="regime_change"` plus which `key` changed,
+    not just when. `subject_id` defaults to the first state's own
+    `subject_id` if not given, since every state in one `StateHistory`
+    conventionally shares one subject already (`core/states/model.py`)."""
+    change_ts = reasoner.change_points(history, key)
+    if subject_id is None:
+        subject_id = history.states[0].subject_id if history.states else "unknown"
+    return [
+        Event(subject_id=subject_id, event_type="regime_change", timestamp=ts,
+              description=f"CUSUM-detected regime change in {key!r}", metadata={"key": key})
+        for ts in change_ts
+    ]

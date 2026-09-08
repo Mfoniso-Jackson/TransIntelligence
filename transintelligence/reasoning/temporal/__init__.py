@@ -1,3 +1,3 @@
-from .model import CUSUMTemporalReasoner, RegimeSegment, dynamic_time_warp
+from .model import CUSUMTemporalReasoner, RegimeSegment, dynamic_time_warp, events_from_change_points
 
-__all__ = ["CUSUMTemporalReasoner", "RegimeSegment", "dynamic_time_warp"]
+__all__ = ["CUSUMTemporalReasoner", "RegimeSegment", "dynamic_time_warp", "events_from_change_points"]

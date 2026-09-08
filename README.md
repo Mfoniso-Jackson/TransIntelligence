@@ -6,8 +6,9 @@ This repository currently implements the first milestone: typed primitives for e
 
 ## Implemented
 
-- Core representation: `Entity`, `Relationship`, `Observation`, `State`, `Context`.
+- Core representation: `Entity`, `Relationship`, `Observation`, `State`, `Event`, `Context`.
 - Observation querying: `ObservationStore`/`ObservationQuery` (`transintelligence/core/observations/`) -- filtering by single or multiple entities/properties, confidence bounds, and time range, plus `latest_per_entity` and `group_by_entity` aggregation.
+- Event reasoning: `Event`/`EventStore`/`EventQuery` (`transintelligence/core/events/`) -- a discrete happening, distinct from `State` (a snapshot); `events_from_change_points()` (`transintelligence/reasoning/temporal/`) bridges `CUSUMTemporalReasoner`'s detected regime changes into first-class, queryable `Event` records instead of bare timestamps.
 - Reference-frame model with composition, comparison, and structural self-validation (`ReferenceFrame.validate()`).
 - Reasoning protocols plus deterministic geometric and relative baselines.
 - Temporal reasoning: regime-change detection, multi-key tracking, and dynamic time warping over `StateHistory` (`transintelligence/reasoning/temporal/`).
