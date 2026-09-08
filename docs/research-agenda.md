@@ -9,9 +9,9 @@ project vision (see `docs/architecture.md`, `docs/intelligence-model.md`):
 vision motivates the program, this document constrains near-term work to
 what can actually be measured.
 
-All thirteen experiments below have now run. For a standalone summary of
+All fourteen experiments below have now run. For a standalone summary of
 what they actually established — without reading this document's
-incremental updates or thirteen separate `RESULTS.md` files — see
+incremental updates or fourteen separate `RESULTS.md` files — see
 [docs/findings.md](findings.md).
 
 Distinguish four categories throughout:
@@ -1179,6 +1179,63 @@ depends on the application. Full numbers in
 [experiments/exp13_regime_shift_world_model/RESULTS.md](../experiments/exp13_regime_shift_world_model/RESULTS.md)
 ("Follow-up" section).
 
+## 7k. Experiment 14 — Beam search for scalable receding-horizon planning (Phase 6, continued)
+
+**Status: run.** `RecedingHorizonPlanner`'s exhaustive search
+(experiments 12-13) was flagged from the start as `O(len(actions)^depth)`
+— not scalable beyond the 6 actions and depth 2 those experiments used.
+This tests the expected fix directly, and ends up finding something
+sharper than expected by investigating a result that looked wrong rather
+than reporting it.
+
+- **Hypothesis (the expected result):** beam search (Lowerre, 1976)
+  recovers near-exhaustive decision quality using dramatically fewer
+  `transition_fn` calls, letting planning scale to depths exhaustive
+  search can't reach.
+- **The confound this needed to control for:** showing beam search uses
+  fewer calls proves nothing about whether it's still a good planner —
+  every beam-search condition is scored against the same exhaustive-
+  search ground truth at the same starting states.
+- **Two real bugs caught and fixed before the actual finding could be
+  trusted:** (1) the first evaluation scored only one executed step's
+  immediate outcome, not the multi-step rollout the search was actually
+  optimizing for — showing beam search "beating" exhaustive on an
+  objective a single-step evaluation doesn't measure at all; fixed by
+  scoring a full 5-step receding-horizon rollout with replanning every
+  step. (2) A first attempt used a finer, 21-action vocabulary; checked
+  directly, one state at depth 3 had 19 different 3-action sequences
+  tied at score 0.0, and exhaustive search's tie-breaking always favored
+  the most extreme first action among ties — fixed by reusing experiment
+  12's original, widely-spaced 6-action vocabulary (checked to have far
+  fewer ties: 1 and 2 at depths 2 and 3, respectively).
+- **The actual finding, once both bugs were fixed: beam search isn't
+  just cheaper, it's measurably more robust to a genuine receding-
+  horizon-control pathology.** At depth 3, exhaustive search converges
+  to (and stays at) the target in only 2 of 15 starting states — while
+  every beam width tested converges in 13-15 of 15, using 12-22x fewer
+  `transition_fn` calls. Traced one misbehaving state step by step:
+  exhaustive search's chosen policy enters a persistent oscillation
+  (position stuck away from target, `pending` alternating sign forever),
+  while beam search from the identical starting state converges and
+  stays there. **Mechanism**: exhaustive search scores only the *final*
+  simulated state after the full lookahead, indifferent to path — it can
+  select a sequence whose promised final position looks optimal while
+  its first action (the only one actually executed before replanning
+  from scratch) sets up a self-reinforcing overshoot-correct cycle. Beam
+  search scores every intermediate partial state during its own
+  expansion, incidentally biasing toward monotonic progress that happens
+  to avoid exactly this pathology.
+- **Falsification:** would have been beam search failing to reproduce
+  exhaustive search's choice at full beam width (a bug in the
+  implementation, ruled out directly in `tests/test_planning.py` before
+  this experiment), or the oscillation finding disappearing once both
+  methodological bugs were fixed (meaning it was an artifact, not a real
+  phenomenon) — neither happened. Full numbers, the traced pathological
+  case, and what isn't tested (whether a smarter tie-breaking rule would
+  close the gap; deeper depths without ground truth; whether the
+  oscillation pathology is specific to this dynamics structure) in
+  [experiments/exp14_beam_search_planning/RESULTS.md](../experiments/exp14_beam_search_planning/RESULTS.md).
+
 ## 8. Sequencing
 
 1. ~~Experiment 2 first~~ — **done**, see §6. Result: `sensitivity()` failed
@@ -1330,6 +1387,19 @@ depends on the application. Full numbers in
     model's residuals rather than a stationary raw signal. Full results
     in
     [experiments/exp13_regime_shift_world_model/](../experiments/exp13_regime_shift_world_model/RESULTS.md).
+15. ~~Experiment 14~~ — **done**, see §7k. Set out to test the expected,
+    small result (beam search approximates exhaustive search's quality
+    at lower cost) and found something sharper by investigating a result
+    that looked wrong rather than reporting it: at depth 3, exhaustive
+    search's terminal-only scoring converges to target in only 2/15
+    starting states under receding-horizon replanning, while beam search
+    converges in 13-15/15 using 12-22x fewer `transition_fn` calls —
+    beam search's per-step scoring is more robust to a genuine
+    receding-horizon oscillation pathology, not just cheaper. Two real
+    methodological bugs (a single-step evaluation; tie-breaking
+    degeneracy in a fine action grid) were caught and fixed before this
+    finding could be trusted. Full results in
+    [experiments/exp14_beam_search_planning/](../experiments/exp14_beam_search_planning/RESULTS.md).
 
 ## 9. What would make this publishable, and what would make a reviewer skeptical
 
@@ -1365,7 +1435,7 @@ depends on the application. Full numbers in
   borrows from (§8a of `related-work.md`) solves a much harder version of
   this problem than what was actually tested here, and both follow-ups
   show exactly where that gap matters.
-- **All thirteen experiments are now done** (§5-7j). If this program is
+- **All fourteen experiments are now done** (§5-7k). If this program is
   written up externally, the honest headline is: reference-frame
   conditioning helps within a bounded noise/coverage regime (experiment 1),
   a naive frame-dependence detector can fail in exactly the common case and
@@ -1414,10 +1484,16 @@ depends on the application. Full numbers in
   conditionally: a mild regime shift showed no adaptation benefit at
   all (a real, investigated null result, not a bug), while a severe one
   showed detection-triggered adaptation beating both a do-nothing
-  baseline and a naive recency heuristic decisively (experiment 13).
-  That's a coherent, modest, defensible set of claims — resist the
-  temptation to round any of them up, experiments 4 through 13 included.
-- **Experiments 5, 6, 7, 8, 9, 10, 11, 12, and 13 are also the first
+  baseline and a naive recency heuristic decisively (experiment 13), and
+  a fourteenth set out to test a small, expected scalability fix (beam
+  search vs. exhaustive search for the planner) and instead found, by
+  investigating a result that looked wrong rather than reporting it,
+  that beam search isn't just cheaper — it's measurably more robust to a
+  genuine receding-horizon oscillation pathology exhaustive search's
+  terminal-only scoring is vulnerable to (experiment 14). That's a
+  coherent, modest, defensible set of claims — resist the temptation to
+  round any of them up, experiments 4 through 14 included.
+- **Experiments 5, 6, 7, 8, 9, 10, 11, 12, 13, and 14 are also the first
   results from this program that are reusable kernel capabilities, not
   RL research scripts** — worth leading with in any framing aimed at the "is any of
   this actually usable" question, separate from the reference-frame-
@@ -1450,4 +1526,11 @@ depends on the application. Full numbers in
   most valuable moment wasn't the positive result at severe shift
   severity, it was catching and explaining the *null* result at mild
   severity instead of quietly re-running the experiment until a cleaner
-  number appeared.
+  number appeared. Experiment 14 is the sharpest instance yet of that
+  same discipline: it caught two of its own methodological bugs (a
+  single-step evaluation, tie-breaking degeneracy in a fine action grid)
+  before trusting a result that initially looked impossible (beam search
+  "beating" exhaustive search), and what survived after fixing both was
+  more interesting than the originally-planned "cheaper at a small
+  quality cost" story — a genuine, quantified robustness advantage the
+  experiment wasn't designed to find.

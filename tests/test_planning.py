@@ -55,3 +55,46 @@ def test_maximizes_score_not_minimizes():
     planner = RecedingHorizonPlanner(actions=tuple(NUDGES.keys()))
     reward_large_position = lambda state: state[0]  # maximize raw position
     assert planner.choose_action((0.0, 0.0), true_transition, reward_large_position, depth=1) == "large_up"
+
+
+def test_beam_search_with_full_width_matches_exhaustive_search_exactly():
+    """beam_width equal to the number of actions never has to discard a
+    candidate, so it must reproduce the exhaustive search's choice
+    exactly, at every depth -- the same hand-computed case validated for
+    exhaustive search above."""
+    planner = RecedingHorizonPlanner(actions=tuple(NUDGES.keys()))
+    for depth in (1, 2, 3):
+        exhaustive = planner.choose_action((0.0, 2.0), true_transition, score, depth=depth)
+        full_beam = planner.choose_action((0.0, 2.0), true_transition, score, depth=depth, beam_width=len(NUDGES))
+        assert full_beam == exhaustive
+
+
+def test_beam_search_reduces_transition_fn_calls_as_predicted():
+    """O(depth * beam_width * len(actions)) instead of
+    O(len(actions)**depth) -- checked against the exact hand-computed
+    call count, not just "fewer calls than exhaustive"."""
+    class CountingTransition:
+        def __init__(self, fn):
+            self.fn = fn
+            self.calls = 0
+
+        def __call__(self, state, action):
+            self.calls += 1
+            return self.fn(state, action)
+
+    planner = RecedingHorizonPlanner(actions=tuple(NUDGES.keys()))
+
+    counted = CountingTransition(true_transition)
+    planner.choose_action((0.0, 2.0), counted, score, depth=3)
+    assert counted.calls == len(NUDGES) ** 3 * 3  # 216 sequences x 3 steps = 648
+
+    counted = CountingTransition(true_transition)
+    planner.choose_action((0.0, 2.0), counted, score, depth=3, beam_width=2)
+    # step 1: 1 beam entry x 6 actions = 6; steps 2-3: 2 beam entries x 6 actions = 12 each
+    assert counted.calls == 6 + 12 + 12
+
+
+def test_beam_search_raises_on_a_non_positive_beam_width():
+    planner = RecedingHorizonPlanner(actions=tuple(NUDGES.keys()))
+    with pytest.raises(ValueError):
+        planner.choose_action((0.0, 0.0), true_transition, score, depth=1, beam_width=0)

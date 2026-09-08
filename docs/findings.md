@@ -1,8 +1,8 @@
 # Findings
 
-A standalone summary of what the first thirteen experiments in
+A standalone summary of what the first fourteen experiments in
 [research-agenda.md](research-agenda.md) actually established, for anyone
-who wants the result without reading thirteen `RESULTS.md` files and the
+who wants the result without reading fourteen `RESULTS.md` files and the
 incremental updates to the agenda itself. Each section below is a compressed
 version of a much more detailed writeup — follow the links for the numbers,
 the code, and the caveats a one-paragraph summary can't carry.
@@ -42,11 +42,17 @@ that planning further ahead (not just having a model at all) gives a
 real, consistent, but honestly modest advantage over greedy single-step
 lookahead, with a 2×2 design confirming the advantage is specifically
 about how far ahead the agent looks, not an accidental difference in
-model quality, and a thirteenth combined two already-verified mechanisms
+model quality, a thirteenth combined two already-verified mechanisms
 (change detection, learned dynamics) and found the honest answer is
 conditional — no benefit under a mild regime shift, a real, investigated
 null result rather than a smoothed-over one, but a clear,
-confound-controlled benefit under a severe one.
+confound-controlled benefit under a severe one, and a fourteenth set out
+to test a small, expected scalability fix (beam search vs. exhaustive
+search for the planner) and found something sharper by investigating a
+result that looked wrong rather than reporting it: beam search isn't
+just cheaper, it's measurably more robust to a genuine receding-horizon
+oscillation pathology exhaustive search's terminal-only scoring is
+vulnerable to.
 
 ## Experiment 2 — Does `sensitivity()` detect frame-dependent conclusions?
 
@@ -190,7 +196,7 @@ same session, sharpened exactly how much harder:
 
 ## The meta-finding
 
-Across the thirteen experiments, the same discipline applied every time: build
+Across the fourteen experiments, the same discipline applied every time: build
 the control that could kill the result, then run it, and don't stop at the
 first configuration that looks clean. Every single result got a real
 qualifier once that happened. Three times the headline *number* shrank —
@@ -245,8 +251,14 @@ looked better — the explanation it surfaced (miscalibration only matters
 when it changes which action ranks best) is what justified testing a
 second, more severe condition, where the confound-controlled positive
 result (beating a naive recency heuristic, not just doing nothing)
-actually held up. No experiment that was actually pushed on came back
-unqualified. None of the thirteen hypotheses were fully falsified, but
+actually held up. Experiment 14 caught two of its own methodological
+bugs (a single-step evaluation that couldn't measure the objective it
+claimed to; tie-breaking degeneracy in a fine action grid) before
+trusting a result that initially looked impossible (beam search
+"beating" exhaustive search by construction) — and what survived after
+fixing both was a real, quantified finding the experiment wasn't
+designed to find. No experiment that was actually pushed on came back
+unqualified. None of the fourteen hypotheses were fully falsified, but
 none survived untouched either — that's the intended
 outcome of the experimental discipline in
 [research-agenda.md](research-agenda.md) §21, not a failure of it. A
@@ -629,6 +641,47 @@ experiment resolves to a single answer.
 
 → [experiments/exp13_regime_shift_world_model/RESULTS.md](../experiments/exp13_regime_shift_world_model/RESULTS.md)
 
+## Experiment 14 — Does beam search scale `RecedingHorizonPlanner` past exhaustive search's limits, and at what cost?
+
+**The expected, small result (cheaper at a small quality cost) turned
+out not to be the real finding — investigating a result that looked
+wrong instead of reporting it surfaced something sharper.**
+`RecedingHorizonPlanner`'s exhaustive search was flagged from the start
+as not scaling past small action sets and shallow lookahead. Adding beam
+search was meant to be a routine fix.
+
+Two real methodological bugs were caught before any result could be
+trusted. First, scoring only a single executed step (not the multi-step
+rollout the search was actually optimizing for) made beam search look
+like it was "beating" exhaustive search — impossible by construction,
+since exhaustive search checks every sequence at a given depth. Fixed by
+scoring a full 5-step receding-horizon rollout with replanning at every
+step. Second, even after that fix, a fine 21-action vocabulary produced
+massive score ties (one state had 19 different 3-step sequences all
+scoring exactly optimal, with wildly different first actions), and
+exhaustive search's tie-breaking rule always favored the most extreme
+one — fixed by reusing experiment 12's original, widely-spaced 6-action
+set instead.
+
+**What remained after both fixes was real: at depth 3, exhaustive search
+converges to the target in only 2 of 15 starting states, while every
+beam width tested converges in 13-15 of 15 — using 12-22x fewer
+`transition_fn` calls.** Traced one misbehaving state step by step:
+exhaustive search's policy enters a persistent oscillation (position
+stuck away from target, forever alternating), while beam search from
+the identical starting state converges and stays at target. The
+mechanism: exhaustive search scores only the *final* simulated state
+after the full lookahead, blind to the path — it can select a sequence
+whose promised final position looks optimal while its first action (the
+only one ever executed before replanning from scratch) sets up a
+self-reinforcing overshoot cycle. Beam search scores every intermediate
+partial state during its own expansion, incidentally biasing toward
+monotonic progress that happens to avoid exactly this pathology. Beam
+search isn't just a cheaper approximation of exhaustive search here —
+it's a better match for what receding-horizon control actually needs.
+
+→ [experiments/exp14_beam_search_planning/RESULTS.md](../experiments/exp14_beam_search_planning/RESULTS.md)
+
 ## What isn't tested yet
 
 - A learned-embedding baseline that matches prior art's actual mechanism
@@ -681,14 +734,17 @@ experiment resolves to a single answer.
   exactly-correct quadratic features rather than having it discover
   them).
 - Multi-step planning beyond a 2-step lookahead and a single fixed
-  1-step-lag structure (experiment 12); a smarter search than exhaustive
-  enumeration over action sequences in `RecedingHorizonPlanner`
-  (`transintelligence/planning/`, filling the `Planner` stub after
-  experiment 12 shipped — `Simulator` remains fully unbuilt), needed
-  before this approach could scale to larger action sets or longer
-  horizons; a nonlinear or momentum-based (rather than simple
-  linear-lag) delay structure, which might show a more dramatic planning
-  advantage than experiment 12's modest ~17% one.
+  1-step-lag structure (experiment 12); a nonlinear or momentum-based
+  (rather than simple linear-lag) delay structure, which might show a
+  more dramatic planning advantage than experiment 12's modest ~17% one.
+  `RecedingHorizonPlanner`'s exhaustive-search scaling limit now has a
+  beam-search alternative (`transintelligence/planning/`, experiment
+  14), which turned out to be more robust to a receding-horizon
+  oscillation pathology, not just cheaper — but whether a smarter
+  exhaustive-search tie-breaking rule (e.g. preferring minimal-effort
+  actions among ties) would close that gap, and whether the pathology is
+  specific to this dynamics structure or general, are both untested;
+  `Simulator` remains fully unbuilt.
 - A continuous regime-shift-severity sweep, rather than experiment 13's
   two fixed severities (mild attenuation, full sign flip) — where
   adaptation's benefit actually crosses over from negligible to real is
@@ -708,4 +764,4 @@ experiment resolves to a single answer.
 - The master context's remaining later phases (agency; meta-intelligence;
   strange loops; cross-domain transfer) — all still pre-formalization,
   per `research-agenda.md`'s own sequencing. World models (Phase 6) has
-  now started (experiments 11-13).
+  now started (experiments 11-14).

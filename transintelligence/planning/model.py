@@ -25,6 +25,18 @@ itself only computes one decision (the "simulate and pick the first
 action" half); the "replan every step" half is the caller's
 responsibility (call it again next step with the newly observed state),
 exactly as experiment 12 already did.
+
+The exhaustive `actions^depth` search this class started with (still the
+default when `beam_width` is omitted) was flagged from the start as not
+scaling to larger action sets or longer horizons -- experiments 12 and
+13 never needed it to, at 6 actions and depth 2. `beam_width` adds the
+standard fix: beam search (Lowerre, *The Harpy Speech Recognition
+System*, PhD thesis, Carnegie Mellon University, 1976) keeps only the
+`beam_width` best-scoring partial sequences at each depth step instead
+of expanding every one, trading a small, measurable quality gap for a
+large, measurable reduction in `transition_fn` calls -- verified
+directly in `experiments/exp14_beam_search_planning/`, not just assumed
+from the algorithm's textbook reputation.
 """
 from __future__ import annotations
 
@@ -41,21 +53,33 @@ class RecedingHorizonPlanner:
     action of the best-scoring sequence -- the standard receding-horizon
     protocol: execute one action, observe the true outcome, call again.
 
-    `actions^depth` sequences are enumerated -- fine for the small
-    action sets and shallow lookaheads this repo's experiments use
+    `actions^depth` sequences are enumerated by default -- fine for the
+    small action sets and shallow lookaheads experiments 12 and 13 use
     (matching `CausalGraph`'s "simplicity over efficiency at this
     repo's scale" precedent), not a scalable search strategy for large
-    action spaces or long horizons."""
+    action spaces or long horizons. Pass `beam_width` to switch to beam
+    search instead, trading search completeness for a bounded, much
+    smaller number of `transition_fn` calls -- see
+    `experiments/exp14_beam_search_planning/` for exactly how much of
+    each."""
 
     actions: tuple[Hashable, ...]
 
     def choose_action(self, state: Any, transition_fn: Callable[[Any, Hashable], Any],
-                       score_fn: Callable[[Any], float], depth: int) -> Hashable:
+                       score_fn: Callable[[Any], float], depth: int,
+                       beam_width: int | None = None) -> Hashable:
         if not self.actions:
             raise ValueError("no actions to choose from")
+        depth = max(1, depth)
+        if beam_width is None:
+            return self._choose_action_exhaustive(state, transition_fn, score_fn, depth)
+        return self._choose_action_beam_search(state, transition_fn, score_fn, depth, beam_width)
+
+    def _choose_action_exhaustive(self, state: Any, transition_fn: Callable[[Any, Hashable], Any],
+                                   score_fn: Callable[[Any], float], depth: int) -> Hashable:
         best_action: Hashable | None = None
         best_score: float | None = None
-        for sequence in itertools.product(self.actions, repeat=max(1, depth)):
+        for sequence in itertools.product(self.actions, repeat=depth):
             simulated_state = state
             for action in sequence:
                 simulated_state = transition_fn(simulated_state, action)
@@ -63,4 +87,28 @@ class RecedingHorizonPlanner:
             if best_score is None or score > best_score:
                 best_score = score
                 best_action = sequence[0]
+        return best_action
+
+    def _choose_action_beam_search(self, state: Any, transition_fn: Callable[[Any, Hashable], Any],
+                                    score_fn: Callable[[Any], float], depth: int, beam_width: int) -> Hashable:
+        """Keeps only the `beam_width` best-scoring candidates after each
+        depth step, expanding every survivor by every action rather than
+        every possible sequence -- `O(depth * beam_width * len(actions))`
+        `transition_fn` calls instead of `O(len(actions)**depth)`. Each
+        beam entry tracks (current simulated state, first action taken
+        to reach it) so the eventual winner's *first* action -- the only
+        one actually executed under the receding-horizon protocol -- is
+        always available, however deep the beam has gone."""
+        if beam_width < 1:
+            raise ValueError("beam_width must be at least 1")
+        beam: list[tuple[Any, Hashable]] = [(state, None)]  # (simulated_state, first_action_or_None)
+        for _ in range(depth):
+            candidates: list[tuple[Any, Hashable]] = []
+            for simulated_state, first_action in beam:
+                for action in self.actions:
+                    next_state = transition_fn(simulated_state, action)
+                    candidates.append((next_state, action if first_action is None else first_action))
+            candidates.sort(key=lambda candidate: score_fn(candidate[0]), reverse=True)
+            beam = candidates[:beam_width]
+        _, best_action = max(beam, key=lambda candidate: score_fn(candidate[0]))
         return best_action

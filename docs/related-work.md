@@ -409,6 +409,28 @@ same "isolate the real claim from the trivial one" discipline experiment
 used, now applied to a synthesis of two Phase 4/6 primitives instead of
 a single new mechanism.**
 
+## 3h. Beam search for scalable receding-horizon planning (Experiment 14, Phase 6, continued)
+
+- Lowerre, *The Harpy Speech Recognition System*, PhD thesis, Carnegie
+  Mellon University, 1976. The origin of beam search — the established
+  mechanism `RecedingHorizonPlanner`'s `beam_width` parameter
+  (`transintelligence/planning/model.py`) implements: keep only the
+  `beam_width` best-scoring partial candidates at each expansion step
+  instead of exploring every possible sequence.
+
+**Classification: established theory in full — beam search itself is
+textbook, not novel. What experiment 14 contributes is not the expected
+"beam search approximates exhaustive search's quality more cheaply"
+result — investigating a result that looked wrong (beam search appeared
+to *beat* exhaustive search, impossible by construction) instead of
+discarding it surfaced something sharper: in a receding-horizon control
+setting where only the first planned action is ever executed before
+replanning, exhaustive search's terminal-only scoring is vulnerable to a
+genuine, quantified pathology (2/15 states converged to target at
+depth 3, vs. 13-15/15 for beam search) — a real finding about the
+mismatch between what exhaustive search optimizes and what receding-
+horizon control actually needs, not merely a speed/quality tradeoff.**
+
 ## 4. Frame-dependence / frame-invariance detection (Experiment 2)
 
 - Invariant Risk Minimization: Arjovsky, Bottou, Gulrajani, Lopez-Paz,
@@ -582,6 +604,7 @@ methods."**
 | World models for planning (Experiment 11, Phase 6) | Sutton 1990/1991 (Dyna); Ha & Schmidhuber 2018; Sutton & Barto 2018 | Established theory in full — Dyna-style planning and linear value-function approximation are both textbook; the specific comparison isolating dynamics-modeling from reward-fitting is a directly-constructed demonstration, not a new algorithm |
 | Multi-step planning (Experiment 12, Phase 6) | Richalet, Rault, Testud & Papon 1978 (MPC/receding-horizon control) | Established theory in full — the 2x2 design isolating planning-horizon from model-quality is a directly-constructed demonstration, not a new algorithm |
 | World models + regime-change detection (Experiment 13, Phase 6) | Page 1954 (CUSUM, already cited for experiment 5); no new citation — a synthesis of two already-verified primitives | Established theory in full for both components — the empirical composition test, and the severity-dependent finding it produced, are the contribution, not any mechanism |
+| Beam search for planning (Experiment 14, Phase 6) | Lowerre 1976 (beam search) | Established theory in full — the mechanism is textbook; the finding that it's more robust to a receding-horizon oscillation pathology, not just cheaper, is the contribution |
 | Frame-dependence detection | Arjovsky et al. 2019; arXiv:2010.05761; Zhou et al. 2023; Wang et al. 2022 | Established theory; current `sensitivity()` is a naive baseline against it |
 | Geometric reasoning over non-physical spaces | Bronstein et al. 2021 | Established theory, directly prior art |
 | Cross-domain structural transfer | Gentner 1983; Lake & Baroni 2018/2023 | Established distinctions; TransIntelligence's specific transfer claim is a hypothesis |
