@@ -186,6 +186,48 @@ linear abduction) that could produce a falsifiable result, explicitly not
 a claim to handle the general nonlinear/non-additive-noise case Balke &
 Pearl's methods were built for.**
 
+## 3c. Causal discovery: constraint-based structure recovery (Experiment 8, Phase 5)
+
+- Spirtes, Glymour, *An Algorithm for Fast Recovery of Sparse Causal
+  Graphs*, Social Science Computer Review 9(1), 62-72, 1991. The PC
+  algorithm — the mechanism `discover_skeleton`/`orient_colliders`
+  implement: recover an undirected skeleton by removing an edge x-y as
+  soon as some conditioning set (drawn from x's and y's neighbors) makes
+  them independent, then orient unshielded colliders (v-structures) from
+  which conditioning sets did and didn't include the middle node.
+- Fisher, *On the "Probable Error" of a Coefficient of Correlation
+  Deduced from a Small Sample*, Metron 1, 1921. The z-transform of a
+  (partial) correlation coefficient used as the conditional-independence
+  test (`fisher_z_independence_test`) — the standard test for
+  linear-Gaussian PC-algorithm implementations, chosen over a
+  permutation or kernel-based independence test for the same
+  "lightweight dependencies, no numpy/scipy" reason `ordinary_least_squares`
+  exists in this module already; `partial_correlation` computes the
+  partial correlation itself by reusing that same OLS routine for
+  residualization rather than a separate covariance-matrix inversion.
+- Meek, *Causal Inference and Causal Explanation with Background
+  Knowledge*, UAI 1995, pp. 403-410. Meek's four orientation rules can
+  direct additional edges beyond direct v-structure detection, using
+  acyclicity and no-new-collider constraints to propagate orientation
+  information through the graph. **Deliberately not implemented here** —
+  skeleton recovery plus collider orientation is the smallest mechanism
+  that can produce a falsifiable claim about structure discovery at all,
+  the same discipline that chose CUSUM over a full Bayesian changepoint
+  treatment in Phase 4. Some edges experiment 8's graphs leave undirected
+  might be orientable by Meek's rules; this was not checked.
+
+**Classification: established theory in full for all three citations —
+the PC algorithm, Fisher's z-test, and Meek's (unimplemented) further
+orientation rules are all textbook, not novel. What experiment 8
+contributes is a directly-constructed demonstration that the mechanism's
+two theoretically-predicted failure boundaries are real and not just
+footnotes: a **shielded** collider (built to mirror experiment 6's own
+graph shape) is correctly never oriented despite genuinely being a
+collider, while a **dedicated unshielded** collider is oriented
+correctly and reliably — the same "don't just show the positive case,
+show the boundary condition too" discipline experiment 6's collider
+adjustment used.**
+
 ## 4. Frame-dependence / frame-invariance detection (Experiment 2)
 
 - Invariant Risk Minimization: Arjovsky, Bottou, Gulrajani, Lopez-Paz,
@@ -353,6 +395,7 @@ methods."**
 | Causal framing of `evaluate(x,R)` | Pearl 2009 | Established theory; `evaluate()` itself still makes no causal claim |
 | Backdoor criterion / confounding bias (Experiment 6, Phase 5) | Pearl 1995; Verma & Pearl 1988; Simpson 1951; Rubin 1974 | Established theory in full — implemented and empirically verified, not novel |
 | Per-unit counterfactuals (Experiment 7, Phase 5) | Pearl, Glymour & Jewell 2016; Balke & Pearl 1994 | Established theory in full — closed-form linear special case, not the general nonlinear treatment |
+| Causal discovery (Experiment 8, Phase 5) | Spirtes & Glymour 1991; Fisher 1921; Meek 1995 (unimplemented) | Established theory in full — skeleton + collider orientation only, Meek's further propagation rules deliberately not implemented |
 | Frame-dependence detection | Arjovsky et al. 2019; arXiv:2010.05761; Zhou et al. 2023; Wang et al. 2022 | Established theory; current `sensitivity()` is a naive baseline against it |
 | Geometric reasoning over non-physical spaces | Bronstein et al. 2021 | Established theory, directly prior art |
 | Cross-domain structural transfer | Gentner 1983; Lake & Baroni 2018/2023 | Established distinctions; TransIntelligence's specific transfer claim is a hypothesis |

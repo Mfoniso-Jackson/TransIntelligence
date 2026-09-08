@@ -10,7 +10,7 @@ This repository currently implements the first milestone: typed primitives for e
 - Reference-frame model with composition and comparison.
 - Reasoning protocols plus deterministic geometric and relative baselines.
 - Temporal reasoning: regime-change detection, multi-key tracking, and dynamic time warping over `StateHistory` (`transintelligence/reasoning/temporal/`).
-- Causal reasoning: causal graphs, d-separation, and the backdoor criterion for confounding-bias correction (`transintelligence/reasoning/causal/`).
+- Causal reasoning: causal graphs, d-separation, the backdoor criterion for confounding-bias correction, and PC-style causal discovery (skeleton recovery plus collider orientation) (`transintelligence/reasoning/causal/`).
 - Counterfactual reasoning: per-unit "what would Y have been had X been different" queries via Pearl's abduction-action-prediction procedure (`transintelligence/reasoning/counterfactual/`).
 - Epistemic models: `Claim`, `Evidence`, `CounterEvidence`, `Hypothesis`, `Confidence`, `Source`.
 - In-memory episodic/semantic/strategic storage namespaces.
@@ -23,7 +23,7 @@ Predictive, simulation, planning, verification, richer memory, persistence, and 
 
 ## Research
 
-Seven falsifiable experiments from [docs/research-agenda.md](docs/research-agenda.md) have run. Short version: reference-frame conditioning helps within a bounded regime, and every result that looked clean on first pass got smaller once the control that could have killed it was actually run — except three: one whose calibration approach independently validated a fix an earlier experiment's failure had named but not built, and two (the backdoor criterion for confounding bias, and per-unit counterfactual recovery built on top of it) whose confound controls confirmed the mechanism with textbook clarity. See [docs/findings.md](docs/findings.md) for the summary, or [docs/related-work.md](docs/related-work.md) for how these claims relate to prior art.
+Eight falsifiable experiments from [docs/research-agenda.md](docs/research-agenda.md) have run. Short version: reference-frame conditioning helps within a bounded regime, and every result that looked clean on first pass got smaller once the control that could have killed it was actually run — except four: one whose calibration approach independently validated a fix an earlier experiment's failure had named but not built, two (the backdoor criterion for confounding bias, and per-unit counterfactual recovery built on top of it) whose confound controls confirmed the mechanism with textbook clarity, and one (causal discovery) whose negative control ruled out the obvious way its clean numbers could have been a statistical-power illusion. See [docs/findings.md](docs/findings.md) for the summary, or [docs/related-work.md](docs/related-work.md) for how these claims relate to prior art.
 
 ## Quick start
 

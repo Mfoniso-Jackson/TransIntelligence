@@ -1,8 +1,8 @@
 # Findings
 
-A standalone summary of what the first seven experiments in
+A standalone summary of what the first eight experiments in
 [research-agenda.md](research-agenda.md) actually established, for anyone
-who wants the result without reading seven `RESULTS.md` files and the
+who wants the result without reading eight `RESULTS.md` files and the
 incremental updates to the agenda itself. Each section below is a compressed
 version of a much more detailed writeup — follow the links for the numbers,
 the code, and the caveats a one-paragraph summary can't carry.
@@ -17,8 +17,11 @@ kernel capability then independently validated the specific fix that would
 have helped the one result that didn't hold up cleanly, a sixth showed
 that a purely graph-theoretic criterion, computed before touching any
 data, exactly predicts which statistical adjustments are safe and which
-quietly make things worse, and a seventh extended the same machinery to
-per-unit questions with an exact, not just approximately correct, answer.
+quietly make things worse, a seventh extended the same machinery to
+per-unit questions with an exact, not just approximately correct, answer,
+and an eighth showed the graph itself doesn't have to be assumed — it can
+be recovered from data, with a negative control ruling out the obvious way
+that could have been a statistical-power illusion.
 
 ## Experiment 2 — Does `sensitivity()` detect frame-dependent conclusions?
 
@@ -162,7 +165,7 @@ same session, sharpened exactly how much harder:
 
 ## The meta-finding
 
-Across the seven experiments, the same discipline applied every time: build
+Across the eight experiments, the same discipline applied every time: build
 the control that could kill the result, then run it, and don't stop at the
 first configuration that looks clean. Every single result got a real
 qualifier once that happened. Three times the headline *number* shrank —
@@ -173,17 +176,20 @@ discovery) went the other way and *confirmed* the effect — but its own
 follow-up stress tests (a noise sweep, a two-simultaneously-missing-
 regimes test) still found real, structural boundaries: a specificity
 collapse outside the calibrated noise level, and a dependence on
-behavioral rather than parametric distinctness. Experiments 6 and 7's
+behavioral rather than parametric distinctness. Experiments 6, 7, and 8's
 confound controls (adjusting for a collider instead of the true
-confounder; a naive population plug-in instead of per-unit abduction)
-both went the other way — they *confirmed*, with textbook clarity, that
-the graph-theoretic machinery is doing real work, and each surfaced a
-sharper nuance than "it works": combining a valid and an invalid
-adjustment is worse than the invalid one alone (6), and a naive
-shortcut's error is structurally immune to more data in a way the correct
-method's isn't (7). No experiment that was actually pushed on came back
-unqualified. None of the seven hypotheses were fully falsified, but none
-survived untouched either — that's the intended
+confounder; a naive population plug-in instead of per-unit abduction; a
+negative control of mutually independent variables) all went the other
+way — they *confirmed*, with textbook clarity, that the graph-theoretic
+machinery is doing real work, and each surfaced a sharper nuance than "it
+works": combining a valid and an invalid adjustment is worse than the
+invalid one alone (6), a naive shortcut's error is structurally immune to
+more data in a way the correct method's isn't (7), and a discovery
+procedure's false-edge rate shrinks rather than grows as sample size
+increases, ruling out the "just finds more structure with more
+statistical power" failure mode directly (8). No experiment that was
+actually pushed on came back unqualified. None of the eight hypotheses
+were fully falsified, but none survived untouched either — that's the intended
 outcome of the experimental discipline in
 [research-agenda.md](research-agenda.md) §21, not a failure of it. A
 result that survives its own strongest test is worth more than one that
@@ -335,6 +341,42 @@ remaining error, which does shrink with more data.
 
 → [experiments/exp07_counterfactual_queries/RESULTS.md](../experiments/exp07_counterfactual_queries/RESULTS.md)
 
+## Experiment 8 — Can causal structure be recovered from data instead of assumed?
+
+**Positive, with a negative control that specifically rules out the way
+this result could have been an illusion of statistical power.**
+Experiments 6 and 7 both assumed the graph was given. This asks the prior
+question: can constraint-based discovery (Spirtes & Glymour's PC
+algorithm, 1991 — skeleton recovery via Fisher-z partial-correlation
+independence tests, then collider/v-structure orientation for unshielded
+triples) recover it at all?
+
+A structural subtlety mattered before any code was written: experiment
+6's confounding graph has a collider `W` that's **shielded** (`X→Y` is
+also a direct edge), so v-structure orientation cannot and should not
+fire there. That graph is still valid for testing skeleton recovery
+(reused with a nonzero `X→Y` effect this time, since discovery is purely
+statistical and a true-zero coefficient would make the edge genuinely
+vanish), but a **separate, dedicated unshielded-collider graph**
+(`A→B←C`, `A` and `C` independent) was built specifically to test
+orientation — the confounding graph could never provide a positive case
+for it.
+
+Across sample sizes from 100 to 3000 (20 seeds each): skeleton precision
+on the confounding graph is ≈1.000 throughout, and recall climbs from
+0.750 (n=100) to 1.000 (n≥1000) as weaker edges become statistically
+distinguishable from noise; `W` is never falsely oriented as a collider,
+0/80 trials at any sample size. On the dedicated unshielded graph,
+skeleton recovery and correct orientation are both exact (20/20) even at
+the smallest sample size tested. **The confound control — four mutually
+independent variables, swept across the same sample sizes — shows the
+false-edge rate shrinking as N grows (0.100 mean false edges/trial at
+n=100, down to 0.000 at n=3000), not climbing the way it would if the
+positive results above were just an artifact of growing statistical
+power.**
+
+→ [experiments/exp08_causal_discovery/RESULTS.md](../experiments/exp08_causal_discovery/RESULTS.md)
+
 ## What isn't tested yet
 
 - A learned-embedding baseline that matches prior art's actual mechanism
@@ -350,11 +392,16 @@ remaining error, which does shrink with more data.
   current combination assumes independence across keys); non-i.i.d. noise
   beyond the single contaminated-Gaussian case tested; more than 5 keys
   tracked at once.
-- Causal discovery (inferring graph structure from data, rather than
-  assuming it), front-door adjustment and instrumental variables (only
-  the backdoor criterion was tested), and nonlinear structural equations
-  (both `reasoning/causal/` and `reasoning/counterfactual/` assume
-  linearity throughout).
+- Front-door adjustment and instrumental variables (only the backdoor
+  criterion was tested), and nonlinear structural equations (both
+  `reasoning/causal/` and `reasoning/counterfactual/` assume linearity
+  throughout).
+- Meek's further orientation-propagation rules (UAI 1995) for causal
+  discovery — only skeleton recovery plus direct collider orientation
+  were implemented and tested; nonlinear dependencies that produce zero
+  *linear* partial correlation would be missed entirely by the Fisher-z
+  independence test used; graphs larger than 4-5 nodes weren't tested;
+  no comparison against a score-based discovery method (e.g. GES).
 - Multi-step or sequential interventions, and a computational comparison
   against Rubin's potential-outcomes framework (noted as the alternative
   formalization, not implemented or benchmarked against).

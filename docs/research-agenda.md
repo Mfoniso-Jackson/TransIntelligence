@@ -9,9 +9,9 @@ project vision (see `docs/architecture.md`, `docs/intelligence-model.md`):
 vision motivates the program, this document constrains near-term work to
 what can actually be measured.
 
-All three experiments below have now run. For a standalone summary of what
+All eight experiments below have now run. For a standalone summary of what
 they actually established — without reading this document's incremental
-updates or three separate `RESULTS.md` files — see
+updates or eight separate `RESULTS.md` files — see
 [docs/findings.md](findings.md).
 
 Distinguish four categories throughout:
@@ -711,6 +711,73 @@ had its X been different") — Pearl's third rung of the causal hierarchy.
   against Rubin's potential-outcomes framework) in
   [experiments/exp07_counterfactual_queries/RESULTS.md](../experiments/exp07_counterfactual_queries/RESULTS.md).
 
+## 7e. Experiment 8 — Causal discovery: recovering structure instead of assuming it (Phase 5, continued)
+
+**Status: run.** Experiments 6 and 7 both assumed the causal graph and
+structural equations were given. This experiment asks the prior question:
+can that structure be recovered from data at all, using the smallest
+constraint-based mechanism (Spirtes & Glymour's PC algorithm, 1991) that
+could produce a falsifiable claim about it?
+
+- **Hypothesis:** PC-style skeleton recovery (via Fisher-z partial-
+  correlation independence tests) plus collider/v-structure orientation
+  for unshielded triples recovers the correct undirected skeleton as
+  sample size grows, correctly orients genuine unshielded colliders, and
+  correctly declines to orient shielded ones — all without ever treating
+  pure noise as structure.
+- **The confound this needed to control for, stated up front:** a
+  discovery procedure that just proposes more edges as sample size (and
+  therefore statistical power) grows would produce clean-looking positive
+  results for the wrong reason. The negative control — four mutually
+  independent variables, sample size swept the same way as the positive
+  cases — has to show a false-edge rate that stays flat or shrinks, not
+  one that grows alongside the true-positive recall in the positive
+  cases.
+- **A structural subtlety identified before writing any experiment code**:
+  experiment 6's confounding graph (`Z→X, Z→Y, X→Y, X→W, Y→W`) has a
+  collider `W` that is **shielded** — `X→Y` is also a direct edge — so
+  standard v-structure orientation cannot and should not fire there. That
+  graph is still valid for testing *skeleton* recovery (with `TRUE_EFFECT`
+  changed from experiment 6's deliberate 0.0 to a nonzero 0.5, so the
+  `X-Y` edge is real; see the module docstring in
+  `experiments/exp08_causal_discovery/run.py` for why), but a *separate*,
+  dedicated unshielded-collider graph (`A→B←C`, `A` and `C` independent)
+  was built specifically to exercise collider orientation at all.
+- **Design:** `discover_skeleton`/`orient_colliders`
+  (`transintelligence/reasoning/causal/model.py`) implement PC's skeleton
+  phase (remove an edge x-y once some conditioning set from x's/y's
+  neighbors makes them independent, via `partial_correlation` +
+  `fisher_z_independence_test`) and its collider-orientation phase.
+  Meek's further orientation-propagation rules (UAI 1995) are
+  deliberately not implemented — see
+  [related-work.md §3c](related-work.md#3c-causal-discovery-constraint-based-structure-recovery-experiment-8-phase-5).
+  **Verified against three noiseless-mechanism hand-checks before being
+  trusted for anything**: a chain (correct skeleton, correctly left
+  unoriented), an unshielded collider (correct skeleton, correctly
+  oriented), and a shielded triple mirroring experiment 6's exact shape
+  (correctly left unoriented despite `W` genuinely being a collider) —
+  all in `tests/test_causal_reasoning.py`.
+- **Result: all three qualitative predictions held at every sample size
+  tested (100 to 3000), across 20 seeds each.** On the confounding graph,
+  skeleton precision is ≈1.000 throughout and recall rises from 0.750
+  (n=100) to 1.000 (n≥1000); `W` is never falsely oriented as a collider,
+  0/80 trials across all four sample sizes. On the dedicated unshielded
+  graph, skeleton recovery and collider orientation are both exact
+  (20/20) at every sample size including the smallest. On the
+  independent-variables negative control, the false-edge rate does not
+  grow with N — it shrinks (0.100 mean false edges/trial at n=100,
+  0.000 at n=3000), ruling out the "just finds more structure with more
+  power" failure mode this experiment was specifically built to catch.
+- **Falsification:** would have been the false-edge rate climbing with N
+  in the negative control (statistical-power artifact, not real
+  discovery), `W` ever being falsely oriented (a bug in the shielded-
+  triple exclusion), or the dedicated collider graph failing to orient
+  correctly even at large N (a bug in the orientation rule itself) — none
+  happened. Full numbers and what isn't tested (Meek's rules; nonlinear
+  dependencies with zero linear partial correlation; graphs larger than
+  4-5 nodes; no comparison against score-based discovery methods) in
+  [experiments/exp08_causal_discovery/RESULTS.md](../experiments/exp08_causal_discovery/RESULTS.md).
+
 ## 8. Sequencing
 
 1. ~~Experiment 2 first~~ — **done**, see §6. Result: `sensitivity()` failed
@@ -785,6 +852,15 @@ had its X been different") — Pearl's third rung of the causal hierarchy.
    two conditions, because its error source is structurally independent
    of estimation quality. Full results in
    [experiments/exp07_counterfactual_queries/](../experiments/exp07_counterfactual_queries/RESULTS.md).
+9. ~~Experiment 8~~ — **done**, see §7e. Constraint-based causal discovery
+   (PC skeleton + collider orientation) recovers the correct skeleton as
+   sample size grows (recall 0.750→1.000 across n=100→1000), correctly
+   orients a dedicated unshielded collider exactly at every sample size
+   tested, correctly declines to orient experiment 6's shielded collider
+   at every sample size (0/80 false orientations), and a negative control
+   confirms the false-edge rate shrinks rather than grows with sample
+   size. Full results in
+   [experiments/exp08_causal_discovery/](../experiments/exp08_causal_discovery/RESULTS.md).
 
 ## 9. What would make this publishable, and what would make a reviewer skeptical
 
@@ -820,7 +896,7 @@ had its X been different") — Pearl's third rung of the causal hierarchy.
   borrows from (§8a of `related-work.md`) solves a much harder version of
   this problem than what was actually tested here, and both follow-ups
   show exactly where that gap matters.
-- **All seven experiments are now done** (§5-7d). If this program is
+- **All eight experiments are now done** (§5-7e). If this program is
   written up externally, the honest headline is: reference-frame
   conditioning helps within a bounded noise/coverage regime (experiment 1),
   a naive frame-dependence detector can fail in exactly the common case and
@@ -835,20 +911,25 @@ had its X been different") — Pearl's third rung of the causal hierarchy.
   fix experiment 4 named but didn't build (experiment 5), a purely
   graph-theoretic criterion computed with no data at all exactly predicts
   which covariate adjustments remove confounding bias and which introduce
-  a *different* bias instead (experiment 6), and the same graph-theoretic
+  a *different* bias instead (experiment 6), the same graph-theoretic
   machinery extends cleanly to exact per-unit counterfactual recovery,
   with a naive shortcut's error traced to a precise, predicted cause
-  rather than just observed to be worse (experiment 7). That's a coherent,
-  modest, defensible set of claims — resist the temptation to round any of
-  them up, experiments 4 through 7 included.
-- **Experiments 5, 6, and 7 are also the first results from this program
-  that are reusable kernel capabilities, not RL research scripts** — worth
-  leading with in any framing aimed at the "is any of this actually
-  usable" question, separate from the reference-frame-conditioning
-  experiments' own framing. Experiments 6 and 7 together are the
-  cleanest, most textbook-dramatic results of the seven: a spurious
-  effect of 0.881 where the truth is 0.0, corrected to ~0 by the
-  graph-predicted adjustment (6), and an exact per-unit counterfactual
-  recovery whose only error source (finite-sample estimation) is
-  precisely characterized (7) — worth leading with if only one or two
-  results can be shown.
+  rather than just observed to be worse (experiment 7), and that graph
+  structure itself doesn't have to be assumed — a constraint-based
+  discovery procedure recovers it from data, with a negative control
+  ruling out the obvious way that could have been an illusion of
+  statistical power (experiment 8). That's a coherent, modest, defensible
+  set of claims — resist the temptation to round any of them up,
+  experiments 4 through 8 included.
+- **Experiments 5, 6, 7, and 8 are also the first results from this
+  program that are reusable kernel capabilities, not RL research
+  scripts** — worth leading with in any framing aimed at the "is any of
+  this actually usable" question, separate from the reference-frame-
+  conditioning experiments' own framing. Experiments 6 and 7 together
+  remain the cleanest, most textbook-dramatic results: a spurious effect
+  of 0.881 where the truth is 0.0, corrected to ~0 by the graph-predicted
+  adjustment (6), and an exact per-unit counterfactual recovery whose
+  only error source (finite-sample estimation) is precisely characterized
+  (7) — worth leading with if only one or two results can be shown.
+  Experiment 8 is the one that shows the graph itself need not be a given
+  input at all.

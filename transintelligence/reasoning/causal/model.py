@@ -41,9 +41,26 @@ Treatments in Randomized and Nonrandomized Studies*, Journal of
 Educational Psychology, 1974 (the potential-outcomes framework, an
 alternative formalization of the same causal-effect question this module
 answers via graphs instead).
+
+`discover_skeleton`/`orient_colliders` add a second, later capability:
+recovering graph structure from data instead of assuming it's given, via
+the constraint-based PC algorithm (Spirtes & Glymour, *An Algorithm for
+Fast Recovery of Sparse Causal Graphs*, Social Science Computer Review
+9(1), 1991). This implementation deliberately stops after skeleton
+recovery and collider (v-structure) orientation -- it does not implement
+Meek's further orientation-propagation rules (Meek, *Causal Inference and
+Causal Explanation with Background Knowledge*, UAI 1995, pp. 403-410),
+which can orient additional edges beyond colliders under acyclicity and
+no-new-collider constraints. Skipped deliberately as the smallest
+mechanism that can produce a falsifiable result about structure
+discovery at all -- the same discipline that chose CUSUM over full
+Bayesian changepoint detection in Phase 4.
 """
 from __future__ import annotations
 
+import itertools
+import math
+import statistics
 from dataclasses import dataclass
 
 
@@ -183,3 +200,130 @@ def ordinary_least_squares(features: list[list[float]], targets: list[float]) ->
                 factor = augmented[r][col]
                 augmented[r] = [a - factor * b for a, b in zip(augmented[r], augmented[col])]
     return [augmented[i][n_cols] for i in range(n_cols)]
+
+
+def partial_correlation(data: dict[str, list[float]], x: str, y: str, z: set[str]) -> float:
+    """Pearson correlation between x and y after linearly regressing each
+    on z and taking residuals -- the standard way to test conditional
+    independence for approximately-linear-Gaussian data without a
+    multivariate-normal library. z=set() reduces to the ordinary Pearson
+    correlation of x and y directly."""
+    n = len(data[x])
+    if not z:
+        xs, ys = data[x], data[y]
+    else:
+        z_cols = sorted(z)
+        features = [[1.0] + [data[k][i] for k in z_cols] for i in range(n)]
+        beta_x = ordinary_least_squares(features, data[x])
+        beta_y = ordinary_least_squares(features, data[y])
+        xs = [data[x][i] - sum(b * f for b, f in zip(beta_x, features[i])) for i in range(n)]
+        ys = [data[y][i] - sum(b * f for b, f in zip(beta_y, features[i])) for i in range(n)]
+    mean_x, mean_y = statistics.mean(xs), statistics.mean(ys)
+    covariance = sum((a - mean_x) * (b - mean_y) for a, b in zip(xs, ys))
+    var_x = sum((a - mean_x) ** 2 for a in xs)
+    var_y = sum((b - mean_y) ** 2 for b in ys)
+    if var_x < 1e-12 or var_y < 1e-12:
+        return 0.0
+    return covariance / math.sqrt(var_x * var_y)
+
+
+def _standard_normal_cdf(x: float) -> float:
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+
+def fisher_z_independence_test(r: float, n: int, conditioning_set_size: int, alpha: float = 0.05) -> bool:
+    """True iff x and y are judged conditionally independent given a set
+    of size `conditioning_set_size`, via Fisher's z-transform of the
+    partial correlation `r` -- the independence test the PC algorithm
+    (Spirtes & Glymour 1991) uses for linear-Gaussian data. Too few
+    residual degrees of freedom to say anything (n - conditioning_set_size
+    - 3 <= 0) is treated as "cannot reject independence" rather than
+    raising, since the PC skeleton search calls this with conditioning
+    sets of growing size and needs a defined answer at every size."""
+    r = max(min(r, 1.0 - 1e-10), -1.0 + 1e-10)
+    dof = n - conditioning_set_size - 3
+    if dof <= 0:
+        return True
+    z = 0.5 * math.log((1.0 + r) / (1.0 - r)) * math.sqrt(dof)
+    p_value = 2.0 * (1.0 - _standard_normal_cdf(abs(z)))
+    return p_value > alpha
+
+
+@dataclass(frozen=True)
+class DiscoveredSkeleton:
+    """The undirected output of PC's skeleton-recovery phase: which pairs
+    remain adjacent, and, for each pair that was separated, the
+    conditioning set that made it so -- the latter is exactly what
+    `orient_colliders` needs to tell a collider from a chain/fork."""
+
+    undirected_edges: frozenset[frozenset[str]]
+    separating_sets: dict[frozenset[str], frozenset[str]]
+
+
+def discover_skeleton(data: dict[str, list[float]], alpha: float = 0.05, max_conditioning_set_size: int | None = None) -> DiscoveredSkeleton:
+    """PC-algorithm skeleton recovery (Spirtes & Glymour 1991): start from
+    a complete undirected graph and remove an edge x-y as soon as some
+    conditioning set Z, drawn from x's and y's current neighbors, makes
+    them conditionally independent -- testing growing conditioning-set
+    sizes in order, exactly as the original algorithm does, which is what
+    lets it stay a search over *neighbors* rather than all subsets of all
+    other variables. `max_conditioning_set_size` defaults to the largest
+    conditioning set that could exist (nodes - 2); this repo's graphs are
+    small enough (3-5 nodes) that this is never a real constraint."""
+    nodes = sorted(data.keys())
+    n = len(data[nodes[0]])
+    adjacency: dict[str, set[str]] = {a: set(nodes) - {a} for a in nodes}
+    separating_sets: dict[frozenset[str], frozenset[str]] = {}
+    limit = max_conditioning_set_size if max_conditioning_set_size is not None else len(nodes) - 2
+
+    conditioning_size = 0
+    while conditioning_size <= limit:
+        for x in nodes:
+            for y in sorted(adjacency[x]):
+                if y < x:
+                    continue
+                candidates = (adjacency[x] | adjacency[y]) - {x, y}
+                if len(candidates) < conditioning_size:
+                    continue
+                for z_tuple in itertools.combinations(sorted(candidates), conditioning_size):
+                    z_set = set(z_tuple)
+                    r = partial_correlation(data, x, y, z_set)
+                    if fisher_z_independence_test(r, n, conditioning_size, alpha):
+                        adjacency[x].discard(y)
+                        adjacency[y].discard(x)
+                        separating_sets[frozenset((x, y))] = frozenset(z_set)
+                        break
+        conditioning_size += 1
+
+    edges = frozenset(frozenset((a, b)) for a in nodes for b in adjacency[a])
+    return DiscoveredSkeleton(undirected_edges=edges, separating_sets=separating_sets)
+
+
+def orient_colliders(skeleton: DiscoveredSkeleton, nodes: list[str]) -> frozenset[tuple[str, str]]:
+    """For every unshielded triple x-z-y (x and y both adjacent to z, but
+    NOT adjacent to each other) where z is not in the separating set that
+    removed the x-y edge, orient both edges into z: x->z<-y (the
+    collider/v-structure orientation rule from Spirtes & Glymour 1991).
+    Shielded triples -- where x and y are also directly adjacent -- are
+    skipped entirely: a direct x-y edge makes the rule inapplicable there,
+    which is exactly why experiment 6's confounding graph (X->Y direct,
+    plus the X->W<-Y collider) cannot be used to exercise this rule -- its
+    collider is shielded, so a separate graph is needed."""
+    adjacency: dict[str, set[str]] = {node: set() for node in nodes}
+    for edge in skeleton.undirected_edges:
+        a, b = tuple(edge)
+        adjacency[a].add(b)
+        adjacency[b].add(a)
+
+    directed: set[tuple[str, str]] = set()
+    for z in nodes:
+        neighbors = sorted(adjacency[z])
+        for i, x in enumerate(neighbors):
+            for y in neighbors[i + 1:]:
+                if y in adjacency[x]:
+                    continue  # shielded triple: x and y are directly adjacent
+                sep_set = skeleton.separating_sets.get(frozenset((x, y)))
+                if sep_set is not None and z not in sep_set:
+                    directed.add((x, z))
+                    directed.add((y, z))
+    return frozenset(directed)
