@@ -3,6 +3,7 @@ from .resource_control_env import NUDGES, ResourceControlEnv, TrialInfo
 from .delayed_control_env import DelayedControlEnv, StepResult
 from .regime_shift_control_env import RegimeShiftControlEnv
 from .nonlinear_control_env import NonlinearControlEnv
+from .delayed_regime_shift_env import DelayedRegimeShiftControlEnv
 
 __all__ = [
     "FrameSwitchEnv", "StepInfo", "true_conclusion",
@@ -10,4 +11,5 @@ __all__ = [
     "DelayedControlEnv", "StepResult",
     "RegimeShiftControlEnv",
     "NonlinearControlEnv",
+    "DelayedRegimeShiftControlEnv",
 ]

@@ -1,8 +1,8 @@
 # Findings
 
-A standalone summary of what the first fifteen experiments in
+A standalone summary of what the first sixteen experiments in
 [research-agenda.md](research-agenda.md) actually established, for anyone
-who wants the result without reading fifteen `RESULTS.md` files and the
+who wants the result without reading sixteen `RESULTS.md` files and the
 incremental updates to the agenda itself. Each section below is a compressed
 version of a much more detailed writeup — follow the links for the numbers,
 the code, and the caveats a one-paragraph summary can't carry.
@@ -57,7 +57,13 @@ program's linearity theme has now traced end to end — causal effect
 estimation, single-step value estimation, and world-model dynamics
 prediction — each confirming a linear fit cannot represent a
 nonlinearity, and each needing the misspecification to be severe enough
-to actually change a decision before the gap became visible at all.
+to actually change a decision before the gap became visible at all, and
+a sixteenth, a second synthesis experiment, independently replicated the
+fourteenth's oscillation pathology in an unrelated environment before
+finding something new only visible in combination: learned multi-step
+planning persistently underperforms learned single-step planning once
+combined with regime-adaptation, with the obvious "reduced exploration"
+explanation checked directly and refuted.
 
 ## Experiment 2 — Does `sensitivity()` detect frame-dependent conclusions?
 
@@ -201,7 +207,7 @@ same session, sharpened exactly how much harder:
 
 ## The meta-finding
 
-Across the fifteen experiments, the same discipline applied every time: build
+Across the sixteen experiments, the same discipline applied every time: build
 the control that could kill the result, then run it, and don't stop at the
 first configuration that looks clean. Every single result got a real
 qualifier once that happened. Three times the headline *number* shrank —
@@ -266,9 +272,16 @@ designed to find. Experiment 15's own boundary-condition sweep (a weak
 nonlinearity, checked directly, showed no gap before a stronger one
 did) is the same discipline applied a third time to the same underlying
 theme — not assuming the expected result would appear just because the
-mechanism was technically misspecified. No experiment that was actually
-pushed on came back unqualified. None of the fifteen hypotheses were
-fully falsified, but none survived untouched either — that's the intended
+mechanism was technically misspecified. Experiment 16 pushed the
+discipline furthest yet: not content that beam search fixed the
+oscillation pathology it replicated from experiment 14, it kept
+investigating why the resulting numbers still didn't match expectations,
+directly checked and refuted its own first hypothesis (reduced
+exploration), and reported the best-supported remaining explanation as a
+hypothesis rather than dressing it up as a confirmed finding. No
+experiment that was actually pushed on came back unqualified. None of
+the sixteen hypotheses were fully falsified, but none survived untouched
+either — that's the intended
 outcome of the experimental discipline in
 [research-agenda.md](research-agenda.md) §21, not a failure of it. A
 result that survives its own strongest test is worth more than one that
@@ -718,6 +731,44 @@ same pattern experiment 11's model-free linear baseline showed.
 
 → [experiments/exp15_nonlinear_world_model/RESULTS.md](../experiments/exp15_nonlinear_world_model/RESULTS.md)
 
+## Experiment 16 — Does regime-change detection compose with multi-step planning?
+
+**Two findings, neither predictable from testing the pieces separately —
+exactly why this experiment was built.** A second synthesis experiment
+(after experiment 13): does `CUSUMTemporalReasoner`-triggered adaptation
+still work when the planner is multi-step (`RecedingHorizonPlanner`,
+experiments 12/14) instead of single-step greedy? Nothing new is
+implemented; every mechanism is reused exactly as already verified.
+
+**Finding 1, an unprompted replication.** The first run's `oracle`
+condition — given the true dynamics exactly — scored worse post-shift
+than a *learned*, adaptive greedy policy, which should be impossible for
+a true oracle. Investigated rather than accepted: the cause was exactly
+experiment 14's oscillation pathology, independently reproduced in a new
+environment built for a different purpose. Beam search fixed it the same
+way it did in experiment 14: the oracle's post-shift performance went
+from dramatically degraded to matching its pre-shift quality almost
+exactly.
+
+**Finding 2, the actual answer, and the more interesting one.** Fixing
+the search pathology did *not* make multi-step planning competitive with
+single-step planning once both used the same learned, CUSUM-adaptive
+dynamics model (post-shift reward -33.06 vs. -4.52). Traced across the
+whole post-shift window in 8 chunks: the gap never closes, even with
+hundreds of post-reset samples accumulated by the end of the run — not a
+shrinking startup transient. The natural explanation (multi-step
+planning converges to a narrow region, starving the model of diverse
+training data) was checked directly and **refuted**: the multi-step
+policy's visited positions had a *larger* spread than the single-step
+policy's, not smaller. The best-supported remaining explanation,
+reported as a hypothesis rather than a confirmed cause: multi-step
+lookahead chains two predictions from the same learned model, and the
+estimation error each one carries compounds in a way single-step
+lookahead never has to pay — a cost that doesn't shrink with more data,
+unlike a small-sample transient.
+
+→ [experiments/exp16_regime_shift_multistep_planning/RESULTS.md](../experiments/exp16_regime_shift_multistep_planning/RESULTS.md)
+
 ## What isn't tested yet
 
 - A learned-embedding baseline that matches prior art's actual mechanism
@@ -801,11 +852,20 @@ same pattern experiment 11's model-free linear baseline showed.
   only one nonlinear functional form was tested (a quadratic restoring
   force, with the correct feature handed to the agent rather than
   discovered); whether it composes with the multi-step planner
-  (experiment 12) or beam search (experiment 14) is untested; the exact
-  crossover point between "nonlinearity too weak to matter" and "matters
-  a lot" wasn't mapped, the same limitation experiment 13's severity
-  sweep had.
+  (experiment 12) or regime-adaptation (experiment 13/16) is untested;
+  the exact crossover point between "nonlinearity too weak to matter"
+  and "matters a lot" wasn't mapped, the same limitation experiment 13's
+  severity sweep had.
+- Experiment 16's compounding-estimation-error hypothesis was not
+  directly confirmed — the "reduced exploration" alternative was ruled
+  out, but the proposed mechanism itself wasn't independently tested
+  (e.g. by varying observation noise and checking whether the
+  learned-vs-oracle gap scales with it); only one lookahead depth and
+  beam width were tested; only one regime-shift severity (experiment
+  13's dramatic sign-flip, reused rather than re-derived); combining
+  regime-adaptation with the nonlinear dynamics model (experiment 15)
+  remains untested.
 - The master context's remaining later phases (agency; meta-intelligence;
   strange loops; cross-domain transfer) — all still pre-formalization,
   per `research-agenda.md`'s own sequencing. World models (Phase 6) has
-  now started (experiments 11-15).
+  now started (experiments 11-16).

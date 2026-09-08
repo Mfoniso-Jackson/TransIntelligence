@@ -453,6 +453,31 @@ produces no measurable gap, mirroring experiment 13's mild-severity
 finding exactly, before a stronger version of the same nonlinearity
 produced a clean, ~193x regret gap.**
 
+## 3j. Combining regime-change detection with multi-step planning (Experiment 16, Phase 6, continued)
+
+A second synthesis experiment (after experiment 13) — no new mechanism
+is implemented, only `CUSUMTemporalReasoner` (Page 1954, already cited
+for experiment 5), the dynamics-fitting approach from experiment 12, and
+`RecedingHorizonPlanner` (Richalet et al. 1978 / Lowerre 1976, already
+cited for experiments 12/14), combined.
+
+**Classification: established theory in full for every underlying
+mechanism — nothing here is novel. What experiment 16 contributes is two
+findings only visible by testing the actual combination.** First, an
+independent replication: exhaustive multi-step search's oscillation
+pathology (experiment 14) recurs in a new environment built for a
+different purpose, confirming it as a general property of exhaustive
+receding-horizon search under delayed dynamics, not an artifact of
+experiment 14's specific setup. Second, a genuinely new finding: even
+after fixing that pathology with beam search, combining a *learned*
+(not oracle) dynamics model with multi-step lookahead has a real,
+persistent cost — traced across the entire post-shift window, not a
+shrinking startup transient — that the same model combined with
+single-step lookahead does not pay. A "reduced exploration" explanation
+was checked directly and refuted; the best-supported remaining
+explanation (compounding estimation error across chained predictions) is
+stated as a hypothesis, not confirmed by direct manipulation.
+
 ## 4. Frame-dependence / frame-invariance detection (Experiment 2)
 
 - Invariant Risk Minimization: Arjovsky, Bottou, Gulrajani, Lopez-Paz,
@@ -628,6 +653,7 @@ methods."**
 | World models + regime-change detection (Experiment 13, Phase 6) | Page 1954 (CUSUM, already cited for experiment 5); no new citation — a synthesis of two already-verified primitives | Established theory in full for both components — the empirical composition test, and the severity-dependent finding it produced, are the contribution, not any mechanism |
 | Beam search for planning (Experiment 14, Phase 6) | Lowerre 1976 (beam search) | Established theory in full — the mechanism is textbook; the finding that it's more robust to a receding-horizon oscillation pathology, not just cheaper, is the contribution |
 | Nonlinear world-model dynamics (Experiment 15, Phase 6) | Pearl, Glymour & Jewell 2016 (already cited, §3b) | Established theory — polynomial-feature OLS is textbook; the boundary-condition finding (weak nonlinearity shows no gap, strong does) mirroring experiment 13 is the contribution |
+| Regime detection + multi-step planning (Experiment 16, Phase 6) | Page 1954; Richalet et al. 1978 / Lowerre 1976 (all already cited) — no new citation, a synthesis | Established theory in full for every component — an independent replication of experiment 14's oscillation pathology, plus a new, only-visible-in-combination finding (learned multi-step planning's persistent cost), are the contribution |
 | Frame-dependence detection | Arjovsky et al. 2019; arXiv:2010.05761; Zhou et al. 2023; Wang et al. 2022 | Established theory; current `sensitivity()` is a naive baseline against it |
 | Geometric reasoning over non-physical spaces | Bronstein et al. 2021 | Established theory, directly prior art |
 | Cross-domain structural transfer | Gentner 1983; Lake & Baroni 2018/2023 | Established distinctions; TransIntelligence's specific transfer claim is a hypothesis |

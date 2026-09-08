@@ -2,7 +2,7 @@
 
 ## Current milestone
 
-A working core that represents entities, relationships, observations, states, contexts, and reference frames, then performs basic geometric and relative reasoning with traceable results. Fifteen falsifiable experiments have run against the reference-frame-conditioning hypothesis and related claims (see `docs/research-agenda.md`, summarized in `docs/findings.md`).
+A working core that represents entities, relationships, observations, states, contexts, and reference frames, then performs basic geometric and relative reasoning with traceable results. Sixteen falsifiable experiments have run against the reference-frame-conditioning hypothesis and related claims (see `docs/research-agenda.md`, summarized in `docs/findings.md`).
 
 Temporal reasoning has also started: `transintelligence/reasoning/temporal/` implements regime-change detection, multi-key joint detection, and dynamic time warping (`CUSUMTemporalReasoner`, docs/research-agenda.md #7b) — the first reusable kernel primitive from this research program, rather than an experiment-only script.
 
@@ -20,9 +20,11 @@ Combining world models with regime-change detection has also started: experiment
 
 Nonlinear world-model dynamics have also been tested (docs/research-agenda.md #7l, experiment 15): `environments/transworld/nonlinear_control_env.py` adds a quadratic restoring force to experiment 11's dynamics. A weak version of the nonlinearity showed no gap between `LinearDynamicsModel` and a correctly-specified nonlinear dynamics model — the same doesn't-change-the-optimal-action pattern experiment 13 found for a mild regime shift — while a stronger one produced a clean ~193x regret gap, closing out a three-object arc this program's linearity theme has now traced end to end (causal effect estimation, single-step value estimation, world-model dynamics prediction).
 
+Regime-change detection has since been combined with multi-step planning too (docs/research-agenda.md #7m, experiment 16, `environments/transworld/delayed_regime_shift_env.py`) — a second synthesis experiment, surfacing two findings only visible by testing the combination: an unprompted, independent replication of experiment 14's exhaustive-search oscillation pathology in a new environment (fixed the same way, with beam search), and then, after fixing it, a genuinely new result — learned multi-step planning persistently underperforms learned single-step planning once combined with regime-adaptation (-33.06 vs. -4.52 post-shift, unchanged across the whole post-shift window), with the obvious "reduced exploration" explanation checked directly and refuted.
+
 ## Next milestone
 
-Add richer observation querying, reference-frame validation, domain adapter examples for growth and property, and structured verifier outputs. Causal reasoning's stated gaps are now all closed: backdoor adjustment, causal discovery (skeleton recovery, collider orientation, and Meek's R1-R3 edge-orientation-propagation rules -- R4 is provably inapplicable without a background-knowledge mechanism this pipeline doesn't have), instrumental variables, front-door adjustment, and nonlinear structural equations (for counterfactual abduction; linear-only effect estimation remains a known, demonstrated limit, not a gap left untested) are all implemented. `Predictor` and `Planner` are now both filled too. Phase 6's remaining gaps: extending regime-change-adaptive world models to the multi-step planner (experiment 12) or the nonlinear dynamics model (experiment 15); whether a smarter exhaustive-search tie-breaking rule (prefer minimal-effort actions among ties) would close experiment 14's gap, or whether beam search's robustness advantage is specific to this dynamics structure; whether experiment 15's nonlinear dynamics fitting (currently an experiment-local class, not a kernel primitive) should be generalized into `transintelligence/world_models/` the way `LinearDynamicsModel` is; and `Simulator`, which remains fully unbuilt.
+Add richer observation querying, reference-frame validation, domain adapter examples for growth and property, and structured verifier outputs. Causal reasoning's stated gaps are now all closed: backdoor adjustment, causal discovery (skeleton recovery, collider orientation, and Meek's R1-R3 edge-orientation-propagation rules -- R4 is provably inapplicable without a background-knowledge mechanism this pipeline doesn't have), instrumental variables, front-door adjustment, and nonlinear structural equations (for counterfactual abduction; linear-only effect estimation remains a known, demonstrated limit, not a gap left untested) are all implemented. `Predictor` and `Planner` are now both filled too. Phase 6's remaining gaps: confirming experiment 16's compounding-estimation-error hypothesis by directly manipulating observation noise (checked only indirectly so far); extending regime-adaptation to the nonlinear dynamics model (experiment 15); whether a smarter exhaustive-search tie-breaking rule (prefer minimal-effort actions among ties) would close experiment 14's gap, or whether beam search's robustness advantage is specific to this dynamics structure; whether experiment 15's nonlinear dynamics fitting (currently an experiment-local class, not a kernel primitive) should be generalized into `transintelligence/world_models/` the way `LinearDynamicsModel` is; and `Simulator`, which remains fully unbuilt.
 
 ## Later milestones
 
@@ -41,8 +43,9 @@ Add richer observation querying, reference-frame validation, domain adapter exam
   now has both exhaustive and beam-search modes (experiment 14);
   `Simulator` is still fully unbuilt.
 - ~~Non-stationary environment + regime-change detection integration.~~
-  Started — see above (experiment 13); a continuous severity sweep, a
-  longer post-shift window, and integration with the multi-step planner
-  or the nonlinear dynamics model all remain.
+  Started — see above (experiments 13, 16); a continuous severity sweep,
+  a longer post-shift window, direct confirmation of experiment 16's
+  compounding-error hypothesis, and integration with the nonlinear
+  dynamics model all remain.
 - Persistent storage adapters, eventually PostgreSQL/pgvector.
 - External model provider adapters behind interfaces.

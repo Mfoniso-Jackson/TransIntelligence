@@ -9,9 +9,9 @@ project vision (see `docs/architecture.md`, `docs/intelligence-model.md`):
 vision motivates the program, this document constrains near-term work to
 what can actually be measured.
 
-All fifteen experiments below have now run. For a standalone summary of
+All sixteen experiments below have now run. For a standalone summary of
 what they actually established — without reading this document's
-incremental updates or fifteen separate `RESULTS.md` files — see
+incremental updates or sixteen separate `RESULTS.md` files — see
 [docs/findings.md](findings.md).
 
 Distinguish four categories throughout:
@@ -1298,6 +1298,61 @@ correctly-specified nonlinear dynamics model recovers it.
   boundary-severity crossover point unmapped) in
   [experiments/exp15_nonlinear_world_model/RESULTS.md](../experiments/exp15_nonlinear_world_model/RESULTS.md).
 
+## 7m. Experiment 16 — Combining regime-change detection with multi-step planning (Phase 6, continued)
+
+**Status: run.** A second synthesis experiment (after experiment 13):
+does `CUSUMTemporalReasoner`-triggered adaptation still work when the
+planner is a multi-step `RecedingHorizonPlanner` (experiments 12/14)
+instead of experiment 13's single-step greedy lookahead? Nothing new is
+implemented — every mechanism is reused exactly as already verified.
+
+- **Hypothesis:** detection-triggered adaptation composes with
+  multi-step planning the way it composed with single-step planning in
+  experiment 13.
+- **The confound this needed to control for:** a 2×2 design (planning
+  horizon × adaptation) isolates whether multi-step planning and regime
+  detection interfere with, are independent of, or amplify each other,
+  rather than testing only "everything on."
+- **Finding 1, an unprompted replication:** the first run's `oracle`
+  condition (given the true dynamics exactly) scored -25.42 post-shift —
+  worse than the *learned*, adaptive `greedy_cusum_adapts`'s -4.52, which
+  should be impossible for a true oracle. Investigated rather than
+  accepted: the cause was exactly experiment 14's oscillation pathology,
+  independently reproduced in a new environment built for a different
+  purpose — exhaustive search's terminal-only scoring, combined with this
+  environment's delayed/pending dynamics, selects plans whose first
+  action sets up a self-reinforcing oscillation once replanned. Beam
+  search (`beam_width=2`, the value experiment 14 found most reliable)
+  fixed it directly: the oracle's post-shift reward became -0.0284,
+  matching its pre-shift performance almost exactly.
+- **Finding 2, the actual answer to the original question:** fixing the
+  search-strategy pathology did NOT make `mpc_beam_cusum_adapts` (-33.06)
+  competitive with `greedy_cusum_adapts` (-4.52), despite identical
+  adaptation and dynamics-fitting mechanisms. Traced across the whole
+  post-shift window in 8 chunks: the gap is persistent, not a shrinking
+  startup transient (chunk 7, with hundreds of post-reset samples, is no
+  better than chunk 1). A "reduced exploration" hypothesis (multi-step
+  planning converges to a narrow region, starving the model of diverse
+  training data) was checked directly and **refuted** — `mpc_beam`'s
+  visited positions post-shift had a *larger* spread than greedy's
+  (stdev 4.25 vs. 1.87). Best-supported remaining explanation, stated as
+  a hypothesis not a certainty: multi-step lookahead chains two
+  predictions from the same learned model, and the estimation error each
+  carries compounds in a way single-step lookahead never pays for — a
+  cost that need not shrink with more data, unlike a small-sample
+  transient.
+- **Falsification:** would have been the oscillation pathology failing
+  to replicate in this new environment (meaning experiment 14's finding
+  was environment-specific, not general), or `mpc_beam_cusum_adapts`
+  matching `greedy_cusum_adapts` once beam search was applied (meaning
+  the two mechanisms simply compose, no new finding) — neither happened.
+  Full numbers, the chunked trace, and what isn't tested (the
+  compounding-estimation-error mechanism wasn't directly manipulated to
+  confirm it; only one lookahead depth and beam width; only one
+  regime-shift severity; not combined with experiment 15's nonlinear
+  dynamics) in
+  [experiments/exp16_regime_shift_multistep_planning/RESULTS.md](../experiments/exp16_regime_shift_multistep_planning/RESULTS.md).
+
 ## 8. Sequencing
 
 1. ~~Experiment 2 first~~ — **done**, see §6. Result: `sensitivity()` failed
@@ -1470,6 +1525,18 @@ correctly-specified nonlinear dynamics model recovers it.
     clean, ~193x regret gap, with the correctly-specified nonlinear
     model matching the oracle ceiling almost exactly. Full results in
     [experiments/exp15_nonlinear_world_model/](../experiments/exp15_nonlinear_world_model/RESULTS.md).
+17. ~~Experiment 16~~ — **done**, see §7m. A second synthesis experiment
+    surfaced two findings only visible by testing the actual
+    combination: an unprompted, independent replication of experiment
+    14's exhaustive-search oscillation pathology in a new environment
+    (fixed by beam search, exactly as before), and a genuinely new
+    result that fixing it wasn't enough — learned multi-step planning
+    persistently underperforms learned single-step planning once
+    combined with regime-adaptation (-33.06 vs. -4.52 post-shift,
+    unchanged across the whole post-shift window), with a "reduced
+    exploration" explanation checked directly and refuted. Full results
+    in
+    [experiments/exp16_regime_shift_multistep_planning/](../experiments/exp16_regime_shift_multistep_planning/RESULTS.md).
 
 ## 9. What would make this publishable, and what would make a reviewer skeptical
 
@@ -1505,7 +1572,7 @@ correctly-specified nonlinear dynamics model recovers it.
   borrows from (§8a of `related-work.md`) solves a much harder version of
   this problem than what was actually tested here, and both follow-ups
   show exactly where that gap matters.
-- **All fifteen experiments are now done** (§5-7l). If this program is
+- **All sixteen experiments are now done** (§5-7m). If this program is
   written up externally, the honest headline is: reference-frame
   conditioning helps within a bounded noise/coverage regime (experiment 1),
   a naive frame-dependence detector can fail in exactly the common case and
@@ -1567,12 +1634,19 @@ correctly-specified nonlinear dynamics model recovers it.
   value estimation — with a directly-checked boundary condition
   mirroring experiment 13's: a weak nonlinearity that doesn't change
   which discrete action ranks best shows no gap, a strong one produces a
-  clean ~193x regret gap (experiment 15). That's a coherent, modest,
-  defensible set of claims — resist the temptation to round any of them
-  up, experiments 4 through 15 included.
-- **Experiments 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, and 15 are also the
-  first results from this program that are reusable kernel capabilities,
-  not RL research scripts** — worth leading with in any framing aimed at the "is any of
+  clean ~193x regret gap (experiment 15), and a sixteenth, a second
+  synthesis experiment, independently replicated experiment 14's
+  exhaustive-search oscillation pathology in an unrelated environment
+  and then, after fixing it, found a genuinely new result that could
+  only be found by testing the actual combination: learned multi-step
+  planning persistently underperforms learned single-step planning once
+  combined with regime-adaptation, with the obvious "reduced
+  exploration" explanation checked directly and refuted (experiment 16).
+  That's a coherent, modest, defensible set of claims — resist the
+  temptation to round any of them up, experiments 4 through 16 included.
+- **Experiments 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, and 16 are also
+  the first results from this program that are reusable kernel
+  capabilities, not RL research scripts** — worth leading with in any framing aimed at the "is any of
   this actually usable" question, separate from the reference-frame-
   conditioning experiments' own framing. Experiments 6 and 7 together
   remain the cleanest, most textbook-dramatic results: a spurious effect
@@ -1617,4 +1691,11 @@ correctly-specified nonlinear dynamics model recovers it.
   itself, each independently confirming a linear fit cannot represent a
   relationship it wasn't built to represent, and each independently
   needing the misspecification to be severe enough to change an actual
-  decision before the effect became visible at all.
+  decision before the effect became visible at all. Experiment 16 is the
+  clearest demonstration yet of why this program tests syntheses, not
+  just individual mechanisms: experiments 12 and 14 independently
+  established multi-step planning's value, and experiment 13
+  independently established regime-adaptation's value, but combining
+  them revealed a real, persistent interaction cost neither predicted —
+  the kind of finding that only exists at the seam between two
+  separately-validated capabilities, not inside either one.
