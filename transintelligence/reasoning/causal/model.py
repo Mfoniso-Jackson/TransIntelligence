@@ -42,7 +42,29 @@ Educational Psychology, 1974 (the potential-outcomes framework, an
 alternative formalization of the same causal-effect question this module
 answers via graphs instead).
 
-`discover_skeleton`/`orient_colliders` add a second, later capability:
+`two_stage_least_squares` and `front_door_adjustment` add a third
+capability: identifying a treatment's causal effect on an outcome when
+the backdoor criterion *cannot* be satisfied because a confounder is
+unobserved -- the two classic alternative identification strategies for
+exactly that situation.
+
+- Two-stage least squares (2SLS), via a valid instrument: the estimator
+  traces to Appendix B of Philip G. Wright, *The Tariff on Animal and
+  Vegetable Oils*, Macmillan, 1928 (authorship of that appendix is
+  historically disputed between Philip and his son Sewall Wright).
+- Front-door adjustment, via a fully-mediating observed variable: Pearl,
+  *Causal Diagrams for Empirical Research*, Biometrika 82(4), 1995 -- the
+  same paper already cited above for the backdoor criterion. The linear
+  specialization implemented here (multiply the treatment-to-mediator and
+  mediator-to-outcome path coefficients) is the classical path-analysis
+  result for chained linear structural equations: Wright, *The Method of
+  Path Coefficients*, Annals of Mathematical Statistics 5(3), 161-215,
+  1934 -- any correlation in a network of linear sequential relations
+  decomposes into a sum of products of coefficients along connecting
+  paths, so a two-step mediator chain's total effect is exactly the
+  product of its two path coefficients.
+
+`discover_skeleton`/`orient_colliders` add a fourth, later capability:
 recovering graph structure from data instead of assuming it's given, via
 the constraint-based PC algorithm (Spirtes & Glymour, *An Algorithm for
 Fast Recovery of Sparse Causal Graphs*, Social Science Computer Review
@@ -327,3 +349,53 @@ def orient_colliders(skeleton: DiscoveredSkeleton, nodes: list[str]) -> frozense
                     directed.add((x, z))
                     directed.add((y, z))
     return frozenset(directed)
+
+
+def two_stage_least_squares(instrument: list[float], treatment: list[float], outcome: list[float]) -> float:
+    """Two-stage least squares (Wright 1928, Appendix B): identifies a
+    treatment's causal effect on an outcome using a valid instrument --
+    a variable that (a) affects treatment, (b) has no effect on outcome
+    except through treatment, and (c) shares no common cause with
+    outcome -- even when an *unobserved* confounder makes ordinary
+    regression of outcome on treatment biased.
+
+    Stage 1: regress treatment on the instrument; take fitted values.
+    Because the instrument is assumed independent of the confounder, the
+    *variation in treatment explained by the instrument* is too --
+    isolating the confounder-free part of treatment's variation.
+    Stage 2: regress outcome on those fitted values instead of the raw
+    treatment. Returns the treatment's estimated coefficient (the causal
+    effect estimate) from stage 2."""
+    stage1_features = [[1.0, z] for z in instrument]
+    stage1_coefficients = ordinary_least_squares(stage1_features, treatment)
+    fitted_treatment = [stage1_coefficients[0] + stage1_coefficients[1] * z for z in instrument]
+    stage2_features = [[1.0, x_hat] for x_hat in fitted_treatment]
+    stage2_coefficients = ordinary_least_squares(stage2_features, outcome)
+    return stage2_coefficients[1]
+
+
+def front_door_adjustment(treatment: list[float], mediator: list[float], outcome: list[float]) -> float:
+    """Front-door adjustment (Pearl 1995): identifies a treatment's causal
+    effect on an outcome via a fully-mediating observed variable, for the
+    case where treatment and outcome share an *unobserved* confounder but
+    the confounder has no effect on the mediator -- exactly the situation
+    where the backdoor criterion cannot be satisfied (the confounder isn't
+    in the data to adjust for) but this alternative identification
+    strategy still applies.
+
+    Linear-model implementation: the treatment->mediator effect is
+    unconfounded (nothing here confounds treatment and mediator), so it's
+    just their regression coefficient. The mediator->outcome effect is
+    confounded by treatment (mediator depends on treatment, and treatment
+    shares the unobserved confounder with outcome), so it's estimated
+    adjusting for treatment -- treatment is a valid backdoor-style
+    adjustment for the mediator->outcome relationship specifically,
+    since it blocks mediator<-treatment<-confounder->outcome. The total
+    effect is the product of the two path coefficients (Wright 1934's
+    path-analysis result for chained linear relations), not their sum or
+    either one alone."""
+    xm_features = [[1.0, x] for x in treatment]
+    xm_coefficient = ordinary_least_squares(xm_features, mediator)[1]
+    my_features = [[1.0, m, x] for m, x in zip(mediator, treatment)]
+    my_coefficient = ordinary_least_squares(my_features, outcome)[1]
+    return xm_coefficient * my_coefficient

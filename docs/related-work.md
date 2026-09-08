@@ -228,6 +228,52 @@ correctly and reliably — the same "don't just show the positive case,
 show the boundary condition too" discipline experiment 6's collider
 adjustment used.**
 
+## 3d. Instrumental variables and front-door adjustment: identification under an unobserved confounder (Experiment 9, Phase 5)
+
+- Wright, P. G., *The Tariff on Animal and Vegetable Oils*, Macmillan,
+  1928, Appendix B. The origin of the instrumental-variables estimator
+  `two_stage_least_squares` implements as two-stage least squares —
+  authorship of the technical appendix is historically disputed between
+  Philip Wright and his son Sewall Wright.
+- Pearl, *Causal Diagrams for Empirical Research*, Biometrika 82(4),
+  1995. The same paper already cited in §3a for the backdoor criterion
+  also introduces the front-door criterion `front_door_adjustment`
+  implements: identification via a fully-mediating observed variable,
+  for exactly the case where a valid backdoor adjustment set doesn't
+  exist because the confounder isn't observed.
+- Wright, S., *The Method of Path Coefficients*, Annals of Mathematical
+  Statistics 5(3), 161-215, 1934. The classical result that grounds this
+  module's *linear* implementation of front-door adjustment: for chained
+  linear structural equations, the total effect along a mediating path
+  is the product of the path's individual coefficients, not their sum or
+  either one in isolation. `front_door_adjustment` computes exactly that
+  product (treatment→mediator coefficient times mediator→outcome
+  coefficient, the latter estimated adjusting for treatment).
+- Bound, Jaeger, Baker, *Problems with Instrumental Variables Estimation
+  When the Correlation between the Instruments and the Endogenous
+  Explanatory Variable is Weak*, Journal of the American Statistical
+  Association 90(430), 443-450, 1995. Predicts that IV estimates
+  degrade — becoming as biased as, or in this implementation's
+  iid-error setup, considerably *more* unstable than, naive OLS — as
+  instrument strength approaches zero. Experiment 9's instrument-strength
+  sweep tests this prediction directly rather than only showing a
+  favorable instrument-strength case.
+
+**Classification: established theory in full for all four citations —
+2SLS, the front-door criterion, path analysis, and the weak-instrument
+problem are all textbook or foundational-paper results, none of the two
+implemented mechanisms are novel. What experiment 9 contributes is two
+directly-constructed demonstrations, following the same discipline as
+experiment 6's collider-adjustment condition: 2SLS's positive result
+(bias reduced roughly 30x relative to naive OLS at strength 0.9) is
+paired with a demonstration that it doesn't degrade gracefully — below a
+strength threshold it becomes a wildly unstable, worse-than-naive
+estimator, not a smoothly weakening one — and front-door adjustment's
+positive result (near-exact recovery, bias 0.0094) is paired with a
+demonstration that violating its specific structural assumption (the
+confounder reaching the mediator) makes it nearly as biased as doing
+nothing at all.**
+
 ## 4. Frame-dependence / frame-invariance detection (Experiment 2)
 
 - Invariant Risk Minimization: Arjovsky, Bottou, Gulrajani, Lopez-Paz,
@@ -396,6 +442,7 @@ methods."**
 | Backdoor criterion / confounding bias (Experiment 6, Phase 5) | Pearl 1995; Verma & Pearl 1988; Simpson 1951; Rubin 1974 | Established theory in full — implemented and empirically verified, not novel |
 | Per-unit counterfactuals (Experiment 7, Phase 5) | Pearl, Glymour & Jewell 2016; Balke & Pearl 1994 | Established theory in full — closed-form linear special case, not the general nonlinear treatment |
 | Causal discovery (Experiment 8, Phase 5) | Spirtes & Glymour 1991; Fisher 1921; Meek 1995 (unimplemented) | Established theory in full — skeleton + collider orientation only, Meek's further propagation rules deliberately not implemented |
+| Instrumental variables & front-door adjustment (Experiment 9, Phase 5) | Wright (P.) 1928; Pearl 1995; Wright (S.) 1934; Bound, Jaeger & Baker 1995 | Established theory in full — both mechanisms implemented and empirically verified, including their theory-predicted failure modes |
 | Frame-dependence detection | Arjovsky et al. 2019; arXiv:2010.05761; Zhou et al. 2023; Wang et al. 2022 | Established theory; current `sensitivity()` is a naive baseline against it |
 | Geometric reasoning over non-physical spaces | Bronstein et al. 2021 | Established theory, directly prior art |
 | Cross-domain structural transfer | Gentner 1983; Lake & Baroni 2018/2023 | Established distinctions; TransIntelligence's specific transfer claim is a hypothesis |

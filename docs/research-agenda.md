@@ -9,9 +9,9 @@ project vision (see `docs/architecture.md`, `docs/intelligence-model.md`):
 vision motivates the program, this document constrains near-term work to
 what can actually be measured.
 
-All eight experiments below have now run. For a standalone summary of what
+All nine experiments below have now run. For a standalone summary of what
 they actually established — without reading this document's incremental
-updates or eight separate `RESULTS.md` files — see
+updates or nine separate `RESULTS.md` files — see
 [docs/findings.md](findings.md).
 
 Distinguish four categories throughout:
@@ -778,6 +778,67 @@ could produce a falsifiable claim about it?
   4-5 nodes; no comparison against score-based discovery methods) in
   [experiments/exp08_causal_discovery/RESULTS.md](../experiments/exp08_causal_discovery/RESULTS.md).
 
+## 7f. Experiment 9 — Instrumental variables and front-door adjustment: identification under an unobserved confounder (Phase 5, continued)
+
+**Status: run.** Experiments 6 and 8 both assumed (or discovered) an
+observed causal graph — every variable the backdoor criterion needed to
+adjust for was actually in the dataset. This experiment asks what
+happens when the confounder itself is never observed at all, the case
+neither the backdoor criterion nor discovery can handle, using the two
+classic alternative identification strategies.
+
+- **Hypothesis:** two-stage least squares (via a valid instrument) and
+  front-door adjustment (via a fully-mediating observed variable) both
+  recover the true effect despite a genuinely unobserved confounder — and
+  both fail in their own specific, theory-predicted ways when their
+  respective assumptions don't hold (weak instrument strength; the
+  confounder also reaching the mediator).
+- **The confound each part needed to control for, stated up front:**
+  showing 2SLS work at one comfortable instrument strength, or front-door
+  work under one assumption-satisfying setup, would each invite the
+  obvious follow-up question a skeptical reviewer would ask — what
+  happens when that isn't true? Bound, Jaeger, Baker (JASA 90(430), 1995)
+  make a specific prediction about weak instruments; Pearl's front-door
+  criterion (1995) states a specific structural precondition. Both parts
+  test the failure directly rather than only asserting it as a caveat.
+- **Design:** `two_stage_least_squares` and `front_door_adjustment`
+  (`transintelligence/reasoning/causal/model.py`) reuse
+  `ordinary_least_squares` for both stages/steps.
+  **Verified against a hand-checked simulation before being trusted for
+  anything**: both mechanisms recover close to their true effects against
+  heavily biased naive OLS baselines on data with a genuinely unobserved
+  confounder never passed to either function, in
+  `tests/test_causal_reasoning.py`.
+- **Result, part 1 (2SLS):** with a strong-to-moderate instrument
+  (strength 0.9 down to 0.2), 2SLS's bias stays under 0.10 against naive
+  OLS's 0.41-0.83 — roughly a 30x reduction at the strongest setting.
+  **Below that, 2SLS doesn't degrade gracefully — it becomes wildly
+  unstable and worse than naive**: at instrument strength 0.05,
+  individual estimates ranged from -96.3 to +29.4 (stdev 18.7, a ~390x
+  increase over the strength-0.9 case), consistent with — and a more
+  dramatic version of — the weak-instrument pathology Bound, Jaeger, and
+  Baker documented.
+- **Result, part 2 (front-door adjustment):** when its structural
+  assumption holds (the confounder doesn't reach the mediator), front-door
+  adjustment recovers the true effect almost exactly (bias 0.0094 against
+  naive's 0.8807). **When that assumption is violated — the confounder
+  given a direct effect on the mediator, using the identical adjustment
+  call — the estimate is nearly as biased as naive** (0.9304, a ~99x jump
+  from the valid condition), the same "adjusting incorrectly is worse,
+  not neutral" lesson experiment 6's collider condition established for
+  the backdoor criterion.
+- **Falsification:** would have been 2SLS remaining reliable regardless
+  of instrument strength (no weak-instrument pathology reproduced), or
+  front-door adjustment remaining approximately unbiased even when its
+  assumption was violated (meaning the "fully mediating, unconfounded
+  mediator" precondition doesn't actually matter in practice) — neither
+  happened. Full numbers and what isn't tested (only just-identified
+  2SLS; no automated weak-instrument diagnostic; only one of front-door's
+  three structural preconditions was stress-tested; linear structural
+  equations only; no comparison to sensitivity-analysis approaches like
+  Rosenbaum bounds) in
+  [experiments/exp09_iv_and_frontdoor/RESULTS.md](../experiments/exp09_iv_and_frontdoor/RESULTS.md).
+
 ## 8. Sequencing
 
 1. ~~Experiment 2 first~~ — **done**, see §6. Result: `sensitivity()` failed
@@ -861,6 +922,17 @@ could produce a falsifiable claim about it?
    confirms the false-edge rate shrinks rather than grows with sample
    size. Full results in
    [experiments/exp08_causal_discovery/](../experiments/exp08_causal_discovery/RESULTS.md).
+10. ~~Experiment 9~~ — **done**, see §7f. Two-stage least squares and
+    front-door adjustment both recover the true effect despite a
+    genuinely unobserved confounder (2SLS: bias 0.0131 vs. naive's
+    0.4118 at instrument strength 0.9; front-door: bias 0.0094 vs.
+    naive's 0.8807), and both fail in their theory-predicted ways when
+    stress-tested: 2SLS becomes wildly unstable below a weak-instrument
+    threshold (stdev grows ~390x), and front-door adjustment becomes
+    nearly as biased as naive when its "confounder doesn't reach the
+    mediator" assumption is violated (~99x bias increase). Full results
+    in
+    [experiments/exp09_iv_and_frontdoor/](../experiments/exp09_iv_and_frontdoor/RESULTS.md).
 
 ## 9. What would make this publishable, and what would make a reviewer skeptical
 
@@ -896,7 +968,7 @@ could produce a falsifiable claim about it?
   borrows from (§8a of `related-work.md`) solves a much harder version of
   this problem than what was actually tested here, and both follow-ups
   show exactly where that gap matters.
-- **All eight experiments are now done** (§5-7e). If this program is
+- **All nine experiments are now done** (§5-7f). If this program is
   written up externally, the honest headline is: reference-frame
   conditioning helps within a bounded noise/coverage regime (experiment 1),
   a naive frame-dependence detector can fail in exactly the common case and
@@ -914,14 +986,17 @@ could produce a falsifiable claim about it?
   a *different* bias instead (experiment 6), the same graph-theoretic
   machinery extends cleanly to exact per-unit counterfactual recovery,
   with a naive shortcut's error traced to a precise, predicted cause
-  rather than just observed to be worse (experiment 7), and that graph
-  structure itself doesn't have to be assumed — a constraint-based
-  discovery procedure recovers it from data, with a negative control
-  ruling out the obvious way that could have been an illusion of
-  statistical power (experiment 8). That's a coherent, modest, defensible
-  set of claims — resist the temptation to round any of them up,
-  experiments 4 through 8 included.
-- **Experiments 5, 6, 7, and 8 are also the first results from this
+  rather than just observed to be worse (experiment 7), graph structure
+  itself doesn't have to be assumed — a constraint-based discovery
+  procedure recovers it from data, with a negative control ruling out the
+  obvious way that could have been an illusion of statistical power
+  (experiment 8), and even an unobserved confounder that discovery could
+  never find doesn't block identification, given a valid instrument or
+  mediator — though both of those alternative strategies fail in their
+  own theory-predicted ways once their assumptions don't hold (experiment
+  9). That's a coherent, modest, defensible set of claims — resist the
+  temptation to round any of them up, experiments 4 through 9 included.
+- **Experiments 5, 6, 7, 8, and 9 are also the first results from this
   program that are reusable kernel capabilities, not RL research
   scripts** — worth leading with in any framing aimed at the "is any of
   this actually usable" question, separate from the reference-frame-
@@ -932,4 +1007,7 @@ could produce a falsifiable claim about it?
   only error source (finite-sample estimation) is precisely characterized
   (7) — worth leading with if only one or two results can be shown.
   Experiment 8 is the one that shows the graph itself need not be a given
-  input at all.
+  input at all, and experiment 9 is the one that shows identification
+  survives even the case discovery can't solve — a confounder that never
+  appears in the data — while still being honest that both of its
+  strategies have real, demonstrated breaking points of their own.

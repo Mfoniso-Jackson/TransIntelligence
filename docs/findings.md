@@ -1,8 +1,8 @@
 # Findings
 
-A standalone summary of what the first eight experiments in
+A standalone summary of what the first nine experiments in
 [research-agenda.md](research-agenda.md) actually established, for anyone
-who wants the result without reading eight `RESULTS.md` files and the
+who wants the result without reading nine `RESULTS.md` files and the
 incremental updates to the agenda itself. Each section below is a compressed
 version of a much more detailed writeup — follow the links for the numbers,
 the code, and the caveats a one-paragraph summary can't carry.
@@ -19,9 +19,13 @@ that a purely graph-theoretic criterion, computed before touching any
 data, exactly predicts which statistical adjustments are safe and which
 quietly make things worse, a seventh extended the same machinery to
 per-unit questions with an exact, not just approximately correct, answer,
-and an eighth showed the graph itself doesn't have to be assumed — it can
+an eighth showed the graph itself doesn't have to be assumed — it can
 be recovered from data, with a negative control ruling out the obvious way
-that could have been a statistical-power illusion.
+that could have been a statistical-power illusion — and a ninth showed
+even an unobserved confounder doesn't block identification given a valid
+instrument or mediator, while directly demonstrating both of those
+alternative strategies' own theory-predicted breaking points rather than
+just asserting them.
 
 ## Experiment 2 — Does `sensitivity()` detect frame-dependent conclusions?
 
@@ -165,7 +169,7 @@ same session, sharpened exactly how much harder:
 
 ## The meta-finding
 
-Across the eight experiments, the same discipline applied every time: build
+Across the nine experiments, the same discipline applied every time: build
 the control that could kill the result, then run it, and don't stop at the
 first configuration that looks clean. Every single result got a real
 qualifier once that happened. Three times the headline *number* shrank —
@@ -187,9 +191,17 @@ invalid one alone (6), a naive shortcut's error is structurally immune to
 more data in a way the correct method's isn't (7), and a discovery
 procedure's false-edge rate shrinks rather than grows as sample size
 increases, ruling out the "just finds more structure with more
-statistical power" failure mode directly (8). No experiment that was
-actually pushed on came back unqualified. None of the eight hypotheses
-were fully falsified, but none survived untouched either — that's the intended
+statistical power" failure mode directly (8). Experiment 9 did both at
+once, in the same experiment: its two positive results (2SLS, front-door
+adjustment, both against a genuinely unobserved confounder) held up, but
+its two matching stress tests (a weak-instrument sweep, a violated
+front-door assumption) each found a real, sharp breaking point rather
+than graceful degradation — 2SLS becomes wildly unstable, not just more
+biased, below a threshold instrument strength, and front-door adjustment
+becomes nearly as biased as doing nothing once its specific structural
+precondition fails. No experiment that was actually pushed on came back
+unqualified. None of the nine hypotheses were fully falsified, but none
+survived untouched either — that's the intended
 outcome of the experimental discipline in
 [research-agenda.md](research-agenda.md) §21, not a failure of it. A
 result that survives its own strongest test is worth more than one that
@@ -377,6 +389,38 @@ power.**
 
 → [experiments/exp08_causal_discovery/RESULTS.md](../experiments/exp08_causal_discovery/RESULTS.md)
 
+## Experiment 9 — Do IV and front-door adjustment work when a confounder is never observed, and fail how theory predicts when their assumptions don't hold?
+
+**Positive on both mechanisms, and both positives come with a matching,
+directly-demonstrated breaking point.** Experiments 6 and 8 both assumed
+or discovered a graph where every relevant variable was in the dataset.
+This asks what happens when the confounder itself is never observed at
+all — the case neither the backdoor criterion nor discovery can touch —
+using the two classic identification strategies for exactly that
+situation: two-stage least squares (via a valid instrument) and
+front-door adjustment (via a fully-mediating observed variable).
+
+With a strong instrument, 2SLS cuts bias from an unobserved confounder by
+roughly 30x relative to naive regression (0.0131 vs. 0.4118). But sweeping
+instrument strength down to near-zero found the textbook weak-instrument
+pathology in its most dramatic form: at instrument strength 0.05,
+individual-seed estimates ranged from **-96.3 to +29.4** — a ~390x
+increase in standard deviation over the strong-instrument case, and the
+mean estimate ends up *more* biased than naive, not less. 2SLS doesn't
+degrade gracefully; below a threshold it becomes actively worse and
+wildly unstable.
+
+Front-door adjustment recovers the true effect almost exactly when its
+structural assumption holds (bias 0.0094 vs. naive's 0.8807). Giving the
+confounder a direct effect on the mediator too — violating exactly the
+assumption front-door identification requires — produces bias nearly as
+bad as naive (0.9304, a ~99x jump), using the identical adjustment code
+on data that now breaks its precondition. The same "adjusting incorrectly
+is worse, not neutral" lesson experiment 6 established for the backdoor
+criterion, now confirmed for a second, structurally different mechanism.
+
+→ [experiments/exp09_iv_and_frontdoor/RESULTS.md](../experiments/exp09_iv_and_frontdoor/RESULTS.md)
+
 ## What isn't tested yet
 
 - A learned-embedding baseline that matches prior art's actual mechanism
@@ -392,16 +436,23 @@ power.**
   current combination assumes independence across keys); non-i.i.d. noise
   beyond the single contaminated-Gaussian case tested; more than 5 keys
   tracked at once.
-- Front-door adjustment and instrumental variables (only the backdoor
-  criterion was tested), and nonlinear structural equations (both
-  `reasoning/causal/` and `reasoning/counterfactual/` assume linearity
-  throughout).
+- Nonlinear structural equations (both `reasoning/causal/` and
+  `reasoning/counterfactual/` assume linearity throughout).
 - Meek's further orientation-propagation rules (UAI 1995) for causal
   discovery — only skeleton recovery plus direct collider orientation
   were implemented and tested; nonlinear dependencies that produce zero
   *linear* partial correlation would be missed entirely by the Fisher-z
   independence test used; graphs larger than 4-5 nodes weren't tested;
   no comparison against a score-based discovery method (e.g. GES).
+- Overidentified 2SLS (more instruments than endogenous regressors) and
+  overidentification tests that could detect instrument invalidity from
+  data; an automated weak-instrument diagnostic (e.g. a first-stage F
+  test); front-door adjustment's other two structural preconditions
+  (full mediation, no unblocked backdoor path from mediator to outcome
+  other than through treatment) weren't separately stress-tested, only
+  "confounder also affects the mediator" was; sensitivity-analysis
+  approaches to unobserved confounding that don't require a valid
+  instrument or mediator at all (e.g. Rosenbaum bounds).
 - Multi-step or sequential interventions, and a computational comparison
   against Rubin's potential-outcomes framework (noted as the alternative
   formalization, not implemented or benchmarked against).

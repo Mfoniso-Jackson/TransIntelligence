@@ -15,9 +15,11 @@ from transintelligence.reasoning.causal import (
     CausalGraph,
     discover_skeleton,
     fisher_z_independence_test,
+    front_door_adjustment,
     ordinary_least_squares,
     orient_colliders,
     partial_correlation,
+    two_stage_least_squares,
 )
 
 
@@ -159,6 +161,50 @@ def test_orient_colliders_finds_the_unshielded_v_structure():
     skeleton = discover_skeleton(data, alpha=0.01)
     directed = orient_colliders(skeleton, sorted(data.keys()))
     assert directed == frozenset({("A", "B"), ("C", "B")})
+
+
+def test_two_stage_least_squares_recovers_the_true_effect_despite_an_unobserved_confounder():
+    """U confounds X and Y and is never passed to two_stage_least_squares
+    at all (simulating "unobserved") -- naive OLS of Y on X must be
+    substantially biased by it, while 2SLS using the valid instrument Z
+    must land close to the true effect."""
+    rng = random.Random(10)
+    n = 4000
+    true_effect = 0.6
+    z_list, x_list, y_list = [], [], []
+    for _ in range(n):
+        u = rng.gauss(0, 1)
+        z = rng.gauss(0, 1)
+        x = 0.9 * z + 0.8 * u + rng.gauss(0, 0.3)
+        y = true_effect * x + 0.8 * u + rng.gauss(0, 0.3)
+        z_list.append(z); x_list.append(x); y_list.append(y)
+
+    naive = ordinary_least_squares([[1.0, x] for x in x_list], y_list)[1]
+    iv_estimate = two_stage_least_squares(z_list, x_list, y_list)
+    assert abs(naive - true_effect) > 0.3  # naive is substantially biased
+    assert abs(iv_estimate - true_effect) < 0.1  # 2SLS is not
+
+
+def test_front_door_adjustment_recovers_the_true_effect_despite_an_unobserved_confounder():
+    """U confounds X and Y directly but not the mediator M -- the classic
+    front-door setup where no valid backdoor adjustment set exists (U
+    isn't observed) but front-door identification still applies."""
+    rng = random.Random(11)
+    n = 4000
+    true_xm, true_my = 0.7, 0.5
+    x_list, m_list, y_list = [], [], []
+    for _ in range(n):
+        u = rng.gauss(0, 1)
+        x = 0.8 * u + rng.gauss(0, 0.3)
+        m = true_xm * x + rng.gauss(0, 0.3)
+        y = true_my * m + 0.8 * u + rng.gauss(0, 0.3)
+        x_list.append(x); m_list.append(m); y_list.append(y)
+
+    true_total_effect = true_xm * true_my
+    naive = ordinary_least_squares([[1.0, x] for x in x_list], y_list)[1]
+    fd_estimate = front_door_adjustment(x_list, m_list, y_list)
+    assert abs(naive - true_total_effect) > 0.3  # naive is substantially biased
+    assert abs(fd_estimate - true_total_effect) < 0.05  # front-door is not
 
 
 def test_orient_colliders_leaves_a_shielded_triple_unoriented():
