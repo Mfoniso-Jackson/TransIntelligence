@@ -2,7 +2,7 @@
 
 ## Current milestone
 
-A working core that represents entities, relationships, observations, states, contexts, and reference frames, then performs basic geometric and relative reasoning with traceable results. Seventeen falsifiable experiments have run against the reference-frame-conditioning hypothesis and related claims (see `docs/research-agenda.md`, summarized in `docs/findings.md`).
+A working core that represents entities, relationships, observations, states, contexts, and reference frames, then performs basic geometric and relative reasoning with traceable results. Eighteen falsifiable experiments have run against the reference-frame-conditioning hypothesis and related claims (see `docs/research-agenda.md`, summarized in `docs/findings.md`).
 
 Temporal reasoning has also started: `transintelligence/reasoning/temporal/` implements regime-change detection, multi-key joint detection, and dynamic time warping (`CUSUMTemporalReasoner`, docs/research-agenda.md #7b) — the first reusable kernel primitive from this research program, rather than an experiment-only script.
 
@@ -24,9 +24,11 @@ Regime-change detection has since been combined with multi-step planning too (do
 
 Phase 6 has since closed with its last remaining gap, `Simulator` (docs/research-agenda.md #7n, experiment 17): `transintelligence/simulation/` implements `MonteCarloSimulator`, comparing the full multi-step outcome distribution of two given candidate policies via stochastic rollouts, rather than predicting one state (`Predictor`) or searching internally for one best action (`Planner`). Rather than a fresh claim, experiment 17 validated it against experiment 16's already-established finding using a completely different methodology (short rollouts from arbitrary starting states, not full 400-episode environment averages): it independently recovered the same ranking (`greedy_cusum_adapts` beats `mpc_beam_cusum_adapts` post-shift) in 58/60 comparisons, with a built-in sensitivity control confirming the number of rollouts genuinely affects verdict reliability.
 
+`Verifier` -- the last reasoning-protocol stub from before Phase 4 left unbuilt -- has since been filled too (docs/research-agenda.md #7o, experiment 18): `transintelligence/verification/` implements `CalibrationVerifier` (Kupiec's 1995 unconditional-coverage test), alongside the earlier, separate `EvidenceVerifier`. Unlike experiment 17, this was a genuine new hypothesis test: does experiment 16's own best-supported but unconfirmed explanation (chained multi-step predictions compound a learned model's estimation error) hold up when checked directly against each agent's actual one-step model residuals, rather than only inferred from reward patterns? It does not show `mpc_beam`'s model as measurably worse-calibrated than `greedy`'s post-shift -- ruling out one plausible alternative explanation (a self-steered, degraded training distribution) and, by elimination, leaving the original chaining hypothesis the more plausible remaining one, still not directly confirmed.
+
 ## Next milestone
 
-Add richer observation querying, reference-frame validation, domain adapter examples for growth and property, and structured verifier outputs. Causal reasoning's stated gaps are now all closed: backdoor adjustment, causal discovery (skeleton recovery, collider orientation, and Meek's R1-R3 edge-orientation-propagation rules -- R4 is provably inapplicable without a background-knowledge mechanism this pipeline doesn't have), instrumental variables, front-door adjustment, and nonlinear structural equations (for counterfactual abduction; linear-only effect estimation remains a known, demonstrated limit, not a gap left untested) are all implemented. `Predictor`, `Planner`, and now `Simulator` are all filled -- `Verifier` (`transintelligence/reasoning/interfaces.py`) is the only reasoning protocol stub, of the set that predates Phase 4, still unbuilt. Remaining loose ends from Phase 6, none blocking: confirming experiment 16's compounding-estimation-error hypothesis by directly manipulating observation noise (checked only indirectly so far); extending regime-adaptation to the nonlinear dynamics model (experiment 15); whether a smarter exhaustive-search tie-breaking rule (prefer minimal-effort actions among ties) would close experiment 14's gap, or whether beam search's robustness advantage is specific to this dynamics structure; whether experiment 15's nonlinear dynamics fitting (currently an experiment-local class, not a kernel primitive) should be generalized into `transintelligence/world_models/` the way `LinearDynamicsModel` is; and whether `MonteCarloSimulator`'s rollout-count sensitivity, checked at only two values (5 and 200) in experiment 17, has a more precise reliability threshold.
+Add richer observation querying, reference-frame validation, and domain adapter examples for growth and property. Causal reasoning's stated gaps are now all closed: backdoor adjustment, causal discovery (skeleton recovery, collider orientation, and Meek's R1-R3 edge-orientation-propagation rules -- R4 is provably inapplicable without a background-knowledge mechanism this pipeline doesn't have), instrumental variables, front-door adjustment, and nonlinear structural equations (for counterfactual abduction; linear-only effect estimation remains a known, demonstrated limit, not a gap left untested) are all implemented. `Predictor`, `Planner`, `Simulator`, and now `Verifier` are all filled -- every reasoning-protocol stub from before Phase 4 now has a real implementation. Remaining loose ends from Phase 6, none blocking: directly confirming experiment 16's chained-prediction-compounding hypothesis by manipulating the planner's own multi-step-ahead prediction error (experiment 18 ruled out one alternative explanation but didn't test the chaining mechanism itself); extending regime-adaptation to the nonlinear dynamics model (experiment 15); whether a smarter exhaustive-search tie-breaking rule (prefer minimal-effort actions among ties) would close experiment 14's gap, or whether beam search's robustness advantage is specific to this dynamics structure; whether experiment 15's nonlinear dynamics fitting (currently an experiment-local class, not a kernel primitive) should be generalized into `transintelligence/world_models/` the way `LinearDynamicsModel` is; whether `MonteCarloSimulator`'s rollout-count sensitivity, checked at only two values (5 and 200) in experiment 17, has a more precise reliability threshold; and whether `CalibrationVerifier`'s coverage threshold (checked only at 1 sigma in experiment 18) changes the picture at other thresholds.
 
 ## Later milestones
 
@@ -34,11 +36,12 @@ Add richer observation querying, reference-frame validation, domain adapter exam
   reasoning remains.
 - ~~Causal and counterfactual engines.~~ Both started — see above. Every
   reasoning protocol stub that existed before Phase 4 now has a real
-  implementation except `Verifier` (`Predictor`, `Planner`, and now
-  `Simulator` are all filled, by Phase 6's `LinearDynamicsModel`,
-  `RecedingHorizonPlanner`, and `MonteCarloSimulator` — `EvidenceVerifier`
-  in `transintelligence/verification/` is a separate, earlier, unrelated
-  implementation).
+  implementation — `Predictor`, `Planner`, `Simulator`, and `Verifier`
+  are all filled, by Phase 6's `LinearDynamicsModel`,
+  `RecedingHorizonPlanner`, `MonteCarloSimulator`, and
+  `CalibrationVerifier` (`EvidenceVerifier` in
+  `transintelligence/verification/` is a separate, earlier, unrelated
+  implementation, now sharing that directory with `CalibrationVerifier`).
 - ~~World models (Phase 6).~~ Started — see above; nonlinear dynamics
   now tested (experiment 15), not yet a kernel primitive.
 - ~~Multi-step planning/rollouts.~~ Started — see above; `RecedingHorizonPlanner`
@@ -47,7 +50,8 @@ Add richer observation querying, reference-frame validation, domain adapter exam
 - ~~Non-stationary environment + regime-change detection integration.~~
   Started — see above (experiments 13, 16); a continuous severity sweep,
   a longer post-shift window, direct confirmation of experiment 16's
-  compounding-error hypothesis, and integration with the nonlinear
-  dynamics model all remain.
+  chained-prediction-compounding hypothesis (experiment 18 ruled out one
+  alternative explanation but didn't manipulate the chaining mechanism
+  itself), and integration with the nonlinear dynamics model all remain.
 - Persistent storage adapters, eventually PostgreSQL/pgvector.
 - External model provider adapters behind interfaces.

@@ -508,6 +508,44 @@ already-established result before trusting it further" pattern
 experiment 5 used for experiment 4's fixed-threshold trigger, applied
 here to a newly-built kernel primitive instead of a newly-run experiment.
 
+## 3l. `CalibrationVerifier`: testing experiment 16's compounding-estimation-error hypothesis directly (Experiment 18, Phase 6 closing / meta-intelligence opening)
+
+- Dawid, *The Well-Calibrated Bayesian*, Journal of the American
+  Statistical Association 77(379), 605-613, 1982. The general
+  definition `CalibrationVerifier`
+  (`transintelligence/verification/model.py`) operationalizes: a
+  well-calibrated forecaster's stated confidence level should equal the
+  long-run frequency with which outcomes actually fall within it.
+- Kupiec, *Techniques for Verifying the Accuracy of Risk Measurement
+  Models*, The Journal of Derivatives 3(Winter), 73-84, 1995. The
+  specific mechanism implemented: the unconditional-coverage /
+  "proportion of failures" likelihood-ratio test, originally built to
+  backtest whether a risk model's stated confidence intervals are
+  honest — is the observed hit rate consistent with the claimed one?
+  The test statistic is asymptotically chi-squared with 1 degree of
+  freedom, whose CDF has the closed form `erf(sqrt(x/2))` (chi-squared(1)
+  is the square of a standard normal), computable from `math.erf` alone
+  — no dependency beyond the standard `math` module, matching this
+  repo's lightweight-dependencies constraint.
+
+**Classification: established theory in full for both citations — the
+definition of calibration and the specific coverage test are both
+textbook / foundational, not novel. What experiment 18 contributes is a
+newly-built tool applied as a genuine hypothesis test, not a validation
+(contrast experiment 17): experiment 16's central finding came with a
+best-supported but explicitly unconfirmed explanation (chained
+multi-step predictions compound a learned model's estimation error) —
+`CalibrationVerifier`, applied to each agent's own one-step prediction
+residuals against the environment's true noise floor, tests a specific,
+falsifiable alternative directly: does the multi-step planner's own
+self-steered training distribution degrade its dynamics model's
+calibration relative to the single-step planner's? It does not — the
+two agents' one-step models are statistically indistinguishable in
+calibration, in both the pre- and post-shift windows, ruling out that
+specific alternative mechanism and, by elimination, leaving experiment
+16's original chaining hypothesis as the more plausible remaining
+explanation, still not directly confirmed.**
+
 ## 4. Frame-dependence / frame-invariance detection (Experiment 2)
 
 - Invariant Risk Minimization: Arjovsky, Bottou, Gulrajani, Lopez-Paz,
@@ -685,6 +723,7 @@ methods."**
 | Nonlinear world-model dynamics (Experiment 15, Phase 6) | Pearl, Glymour & Jewell 2016 (already cited, §3b) | Established theory — polynomial-feature OLS is textbook; the boundary-condition finding (weak nonlinearity shows no gap, strong does) mirroring experiment 13 is the contribution |
 | Regime detection + multi-step planning (Experiment 16, Phase 6) | Page 1954; Richalet et al. 1978 / Lowerre 1976 (all already cited) — no new citation, a synthesis | Established theory in full for every component — an independent replication of experiment 14's oscillation pathology, plus a new, only-visible-in-combination finding (learned multi-step planning's persistent cost), are the contribution |
 | `MonteCarloSimulator` validation (Experiment 17, Phase 6, closing) | Sutton 1990/1991 (Dyna, already cited, §3e) | Established theory in full — Monte Carlo rollout comparison is textbook; the contribution is a validation, not a new claim: independently recovering experiment 16's already-known ranking via a different methodology, with a built-in rollout-count sensitivity control |
+| `CalibrationVerifier` / testing experiment 16's compounding-error hypothesis (Experiment 18, Phase 6 closing) | Dawid 1982 (calibration); Kupiec 1995 (unconditional-coverage LR test) | Established theory in full — a new hypothesis test, not a validation: rules out a self-steered-training-distribution alternative explanation for experiment 16's persistent gap, leaving the original chaining hypothesis the more plausible remaining one, still unconfirmed |
 | Frame-dependence detection | Arjovsky et al. 2019; arXiv:2010.05761; Zhou et al. 2023; Wang et al. 2022 | Established theory; current `sensitivity()` is a naive baseline against it |
 | Geometric reasoning over non-physical spaces | Bronstein et al. 2021 | Established theory, directly prior art |
 | Cross-domain structural transfer | Gentner 1983; Lake & Baroni 2018/2023 | Established distinctions; TransIntelligence's specific transfer claim is a hypothesis |

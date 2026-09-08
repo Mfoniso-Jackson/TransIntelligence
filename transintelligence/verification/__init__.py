@@ -1,2 +1,8 @@
-from .model import EvidenceVerifier, VerificationResult, VerificationStatus
-__all__ = ["EvidenceVerifier", "VerificationResult", "VerificationStatus"]
+from .model import (
+    CalibrationResult, CalibrationStatus, CalibrationVerifier,
+    EvidenceVerifier, VerificationResult, VerificationStatus,
+)
+__all__ = [
+    "CalibrationResult", "CalibrationStatus", "CalibrationVerifier",
+    "EvidenceVerifier", "VerificationResult", "VerificationStatus",
+]

@@ -1,8 +1,8 @@
 # Findings
 
-A standalone summary of what the first seventeen experiments in
+A standalone summary of what the first eighteen experiments in
 [research-agenda.md](research-agenda.md) actually established, for anyone
-who wants the result without reading seventeen `RESULTS.md` files and the
+who wants the result without reading eighteen `RESULTS.md` files and the
 incremental updates to the agenda itself. Each section below is a compressed
 version of a much more detailed writeup — follow the links for the numbers,
 the code, and the caveats a one-paragraph summary can't carry.
@@ -68,7 +68,14 @@ Phase 6 not with a new claim but a validation: a newly-built Monte Carlo
 policy comparator, using short stochastic rollouts rather than full
 environment averages, independently recovered the sixteenth's exact
 ranking in 58 of 60 comparisons, with a built-in sensitivity control
-confirming the rollout count itself was doing real work.
+confirming the rollout count itself was doing real work, and an
+eighteenth took the sixteenth's own best-supported but unconfirmed
+explanation and tested it directly with a newly-built calibration check:
+the multi-step planner's dynamics model is not measurably worse-
+calibrated than the single-step planner's, ruling out one plausible
+alternative explanation and, by elimination, leaving the original
+chained-prediction hypothesis the more plausible remaining one, still
+not directly confirmed.
 
 ## Experiment 2 — Does `sensitivity()` detect frame-dependent conclusions?
 
@@ -212,7 +219,7 @@ same session, sharpened exactly how much harder:
 
 ## The meta-finding
 
-Across the seventeen experiments, the same discipline applied every time: build
+Across the eighteen experiments, the same discipline applied every time: build
 the control that could kill the result, then run it, and don't stop at the
 first configuration that looks clean. Every single result got a real
 qualifier once that happened. Three times the headline *number* shrank —
@@ -304,6 +311,17 @@ known in advance, so a mismatch would have been reportable either way),
 and it passed — the closest thing this program has to an external
 validity check on its own experimental machinery, not just on its
 claims.
+
+Experiment 18 goes back to being a genuine hypothesis test — its answer
+was not known in advance, unlike experiment 17's — but built on the tool
+experiment 17's sibling primitive made possible: `CalibrationVerifier`
+gave experiment 16's own best-supported-but-unconfirmed explanation a
+real chance to be *directly* checked rather than only argued from reward
+patterns, and one competing explanation for it was ruled out as a
+result, not just left unaddressed. That makes seventeen genuine
+hypothesis tests total (the sixteen above, plus 18), with experiment 17
+as the one deliberate exception — a validation rather than a claim about
+the world.
 
 Experiment 5 adds a second kind of validation to this pattern: not a
 control on its own result, but independent confirmation of a fix proposed
@@ -814,6 +832,49 @@ mismatch would have meant either a bug in the new code or a real
 limitation of experiment 16's own result.
 
 → [experiments/exp17_monte_carlo_simulator/RESULTS.md](../experiments/exp17_monte_carlo_simulator/RESULTS.md)
+
+## Experiment 18 — Does `CalibrationVerifier` find direct evidence for experiment 16's compounding-estimation-error hypothesis?
+
+**Fills `Verifier`, the last reasoning-protocol stub from before Phase 4
+left unbuilt — and, unlike experiment 17, a genuine new hypothesis test,
+not a validation against an already-known answer.** Experiment 16's
+central finding came with a best-supported but explicitly *unconfirmed*
+explanation: multi-step lookahead chains two predictions from the same
+learned dynamics model, and each carries estimation error that compounds
+in a way single-step lookahead never pays for. That was inferred from
+the pattern of final rewards, never checked against either agent's
+actual model error directly. Both agents fit the identical one-step OLS
+model — the only difference is how far ahead each searches — but each
+agent's own planning strategy steers it into different regions of state
+space (experiment 16 already measured `mpc_beam`'s wider post-shift
+position spread), feeding back into what data its own model trains on.
+`CalibrationVerifier` (Kupiec's 1995 unconditional-coverage test, applied
+to each agent's one-step residuals against the environment's true noise
+floor) asks directly: does `mpc_beam`'s model carry more excess
+estimation error than `greedy`'s, post-shift?
+
+**Result: no.** Both agents' one-step models show the same small,
+universal miscalibration (~66% observed vs. 68.27% claimed coverage) —
+present pre-shift too, identically for both agents, ruling it out as a
+regime-shift artifact (a baseline property of the fitting procedure,
+most plausibly ordinary in-sample-adjacent OLS residuals understating
+true out-of-sample variance). The gap between `greedy` and `mpc_beam`
+specifically is under 0.002 post-shift, smaller than either agent's own
+pre-to-post-shift shift (~0.007) — not a real, attributable difference.
+A robustness check restricting to only the first 500 post-shift steps
+per seed (closer to experiment 16's largest-gap window) shows the same
+pattern.
+
+**What this establishes, and what it doesn't.** The "self-steered
+training distribution differentially degrades the model" alternative
+explanation is ruled out directly — genuine new evidence, not just an
+absence of evidence. By elimination, this leaves experiment 16's
+original chained-prediction-compounding hypothesis the more plausible
+remaining explanation for the reward gap, but the chaining mechanism
+itself still was not directly manipulated — the hypothesis is narrower
+now, with one fewer competitor, not confirmed.
+
+→ [experiments/exp18_calibration_verifier/RESULTS.md](../experiments/exp18_calibration_verifier/RESULTS.md)
 
 ## What isn't tested yet
 

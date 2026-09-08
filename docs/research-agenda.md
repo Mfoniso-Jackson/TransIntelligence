@@ -1399,6 +1399,60 @@ completely different methodology.
   near-identically, not separately validated) in
   [experiments/exp17_monte_carlo_simulator/RESULTS.md](../experiments/exp17_monte_carlo_simulator/RESULTS.md).
 
+## 7o. Experiment 18 — Testing experiment 16's compounding-estimation-error hypothesis directly with `CalibrationVerifier` (Phase 6, closing / meta-intelligence, opening)
+
+**Status: run.** Fills `Verifier` (`transintelligence/reasoning/interfaces.py`),
+the last reasoning-protocol stub from before Phase 4 left unbuilt, with
+`CalibrationVerifier` (`transintelligence/verification/model.py`) —
+unlike experiment 17, this is a genuine new hypothesis test, not a
+validation against an already-known answer.
+
+- **Hypothesis:** experiment 16's central, explicitly *unconfirmed*
+  explanation — multi-step lookahead chains two predictions from the
+  same learned dynamics model, and each carries estimation error that
+  compounds in a way single-step lookahead never pays for — implies
+  `mpc_beam_cusum_adapts`'s dynamics model should show more excess
+  estimation error, beyond the environment's true noise floor
+  (`NOISE_SIGMA`), than `greedy_cusum_adapts`'s does, post-shift. Both
+  agents fit the identical one-step OLS model; the only difference is
+  how many steps ahead each searches when choosing an action — but each
+  agent's own planning strategy steers it into different regions of
+  state space, feeding back into what data its own model trains on.
+- **The confound this needed to control for:** pre-shift residuals
+  (stable data, no regime confusion) checked as a baseline in the same
+  run — if pre-shift were also miscalibrated for both agents, that would
+  point to a cause unrelated to the regime shift.
+- **Result:** both agents' one-step models are flagged `miscalibrated`
+  in every window (observed coverage ~66% vs. 68.27% claimed) — but the
+  gap between `greedy` and `mpc_beam` is under 0.002 post-shift, smaller
+  than either agent's own pre-to-post-shift shift (~0.007), and the
+  small miscalibration is present pre-shift too, identically for both
+  agents. A robustness check restricting to only the first 500
+  post-shift steps per seed shows the same pattern.
+- **What this establishes:** the "self-steered training distribution
+  differentially degrades the model" alternative explanation is **not
+  supported** — `mpc_beam`'s wider post-shift position spread
+  (established in experiment 16) does not measurably degrade its own
+  one-step model's calibration relative to `greedy`'s. The universal
+  small miscalibration is a baseline property of the fitting procedure
+  (plausibly in-sample-adjacent OLS residuals understating true
+  out-of-sample variance), not shift- or strategy-specific. By
+  elimination, this leaves experiment 16's original
+  compounding-across-chained-predictions hypothesis as the more
+  plausible remaining explanation for the reward gap, though the
+  chaining mechanism itself still was not directly manipulated — the
+  hypothesis remains unconfirmed, now with one fewer competing
+  explanation.
+- **Falsification:** would have been `mpc_beam` showing measurably worse
+  one-step calibration than `greedy` post-shift specifically (supporting
+  the self-steered-degradation alternative instead), or pre-shift being
+  well-calibrated while post-shift wasn't (implicating the shift itself
+  rather than a baseline fitting property) — neither happened. Full
+  numbers and what isn't tested (the chaining mechanism itself; only one
+  environment, severity, and lookahead depth; only one calibration
+  threshold) in
+  [experiments/exp18_calibration_verifier/RESULTS.md](../experiments/exp18_calibration_verifier/RESULTS.md).
+
 ## 8. Sequencing
 
 1. ~~Experiment 2 first~~ — **done**, see §6. Result: `sensitivity()` failed
@@ -1618,7 +1672,7 @@ completely different methodology.
   borrows from (§8a of `related-work.md`) solves a much harder version of
   this problem than what was actually tested here, and both follow-ups
   show exactly where that gap matters.
-- **All seventeen experiments are now done** (§5-7n). If this program is
+- **All eighteen experiments are now done** (§5-7o). If this program is
   written up externally, the honest headline is: reference-frame
   conditioning helps within a bounded noise/coverage regime (experiment 1),
   a naive frame-dependence detector can fail in exactly the common case and
@@ -1695,10 +1749,19 @@ completely different methodology.
   independently recovered experiment 16's exact ranking in 58/60
   comparisons, with a built-in sensitivity control confirming the number
   of rollouts genuinely mattered rather than being cosmetic (experiment
-  17). That's a coherent, modest, defensible set of claims — resist the
-  temptation to round any of them up, experiments 4 through 17 included.
-- **Experiments 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, and 17 are also
-  the first results from this program that are reusable kernel
+  17), and an eighteenth took experiment 16's own best-supported but
+  explicitly unconfirmed explanation — chained multi-step predictions
+  compound a learned model's estimation error — and tested it directly
+  with a newly-built calibration check: `mpc_beam`'s one-step dynamics
+  model is NOT measurably worse-calibrated than `greedy`'s post-shift,
+  ruling out one plausible alternative explanation (a self-steered,
+  degraded training distribution) and, by elimination, leaving the
+  original chaining hypothesis the more plausible remaining one, still
+  not directly confirmed (experiment 18). That's a coherent, modest,
+  defensible set of claims — resist the
+  temptation to round any of them up, experiments 4 through 18 included.
+- **Experiments 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, and 18 are
+  also the first results from this program that are reusable kernel
   capabilities, not RL research scripts** — worth leading with in any framing aimed at the "is any of
   this actually usable" question, separate from the reference-frame-
   conditioning experiments' own framing. Experiments 6 and 7 together

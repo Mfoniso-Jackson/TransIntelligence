@@ -38,4 +38,5 @@ class Simulator(Protocol):
 class Planner(Protocol):
     def choose_action(self, state: Any, transition_fn: Callable[[Any, Any], Any],
                        score_fn: Callable[[Any], float], depth: int) -> Any: ...
-class Verifier(Protocol): pass
+class Verifier(Protocol):
+    def verify(self, residuals: list[float], claimed_sigma: float) -> Any: ...
