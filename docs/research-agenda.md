@@ -1155,11 +1155,29 @@ an agent that never adapts loses.
   than a real, investigated mechanism — neither happened once both
   severities were tested and the discrepancy was traced to its actual
   cause. Full numbers and what isn't tested (only two severities; a
-  single fixed shift trial and post-shift window length; the elevated
-  false-positive rate reported but not addressed; only tested with the
-  linear dynamics model, not experiment 10's nonlinear generalization or
-  experiment 12's multi-step planner; a single sliding-window size) in
+  single fixed shift trial and post-shift window length; only tested
+  with the linear dynamics model, not experiment 10's nonlinear
+  generalization or experiment 12's multi-step planner; a single
+  sliding-window size) in
   [experiments/exp13_regime_shift_world_model/RESULTS.md](../experiments/exp13_regime_shift_world_model/RESULTS.md).
+
+**Follow-up: does refitting more often reduce the false-positive rate?**
+The diagnosis above makes a specific, checkable prediction — refitting
+the dynamics model more frequently should keep its residuals closer to
+the true dynamics continuously, reducing the spurious jumps a stale,
+infrequently-updated model produces. Checked directly
+(`experiments/exp13_regime_shift_world_model/refit_interval_calibration.py`),
+measuring both false-positive rate AND true-detection performance, since
+a fix that also cripples detection wouldn't be a fix. The prediction
+held (`refit_interval=10` roughly halves the false-positive rate, 4/15 →
+2/15) but it's a genuine tradeoff, not a free improvement: true detection
+under the severe shift also drops (15/15 → 13/15), though successful
+detections become far faster (23.0 → 2.5 trials latency) — a
+precision/recall-style tradeoff reported as the honest answer, not
+resolved to a single "correct" value, since which side matters more
+depends on the application. Full numbers in
+[experiments/exp13_regime_shift_world_model/RESULTS.md](../experiments/exp13_regime_shift_world_model/RESULTS.md)
+("Follow-up" section).
 
 ## 8. Sequencing
 

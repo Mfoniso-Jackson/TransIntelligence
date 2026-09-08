@@ -82,6 +82,42 @@ regime, which CUSUM can occasionally mistake for a real change. This is
 a real, reported limitation of monitoring a co-evolving model's own
 residuals, not a bug.
 
+## Follow-up: does refitting more often reduce the false-positive rate?
+
+Ran: `PYTHONPATH=. python experiments/exp13_regime_shift_world_model/refit_interval_calibration.py`.
+Same 15 seeds × 3000 trials. The diagnosis above makes a specific,
+checkable prediction: refitting the dynamics model more often should
+keep its residuals closer to the true dynamics continuously, rather than
+letting small-sample staleness build up between infrequent refits —
+reducing false positives. Checked directly, and measured against true
+detection performance too, since a fix that also cripples true detection
+wouldn't actually be a fix.
+
+| refit_interval | stationary false-positive rate | true detection rate (sign-flip) | mean detection latency |
+|---|---|---|---|
+| 10 | 2/15 | 13/15 | 2.5 trials |
+| 20 (original) | 4/15 | 15/15 | 23.0 trials |
+
+**The prediction held, but it's a genuine tradeoff, not a free fix.**
+Refitting twice as often roughly halves the false-positive rate (4/15 →
+2/15) — confirming the diagnosis was correct, not just a plausible-
+sounding story. But it also costs two missed true detections under the
+severe shift (15/15 → 13/15): more frequent refitting changes the
+residual stream's statistical character everywhere, not just during
+stationary periods, and evidently makes the signal noisier in a way that
+occasionally masks a genuine shift too. **Interestingly, when
+`refit_interval=10` does detect the shift, it does so far faster (2.5
+trials vs. 23.0)** — a smaller refit interval means the model updates
+with the new-regime data almost immediately once enough of it
+accumulates, producing a sharper, quicker residual jump when detection
+succeeds at all, at the cost of that same closer model-tracking making
+the *baseline* noise level higher, occasionally swamping smaller shifts
+entirely. This precision/recall-style tradeoff is reported as the
+answer, not resolved with a single "recommended" value — which choice is
+better depends on whether missing a real shift or false-alarming on one
+is more costly in a given application, a judgment call outside the scope
+of this experiment.
+
 ## What this establishes
 
 `CUSUMTemporalReasoner` and `LinearDynamicsModel` were each independently
@@ -104,10 +140,12 @@ has a real cost that a mild miscalibration may not repay.
   close, or whether `never_adapts` would eventually catch up given a
   much longer post-shift window (its mixed-data model keeps absorbing
   more post-shift signal over time), wasn't tested.
-- **The elevated false-positive rate (20% vs. experiment 5's ~6%) is
-  reported, not fixed** — no attempt was made to recalibrate CUSUM
-  specifically for monitoring a periodically-refit model's residuals
-  rather than a raw stationary signal.
+- **The refit-interval follow-up characterized a tradeoff, it didn't
+  resolve it** — no single "correct" refit interval was identified;
+  only two values were compared (10 and 20), not a continuous sweep, and
+  no attempt was made to recalibrate CUSUM's own `h_sigma`/`burn_in`
+  parameters specifically for this residual-monitoring context (only the
+  refit frequency was varied).
 - **Single dynamics-model architecture (`LinearDynamicsModel`)** — this
   says nothing about whether detection-triggered adaptation composes as
   well with a nonlinear dynamics model (experiment 10's generalization)

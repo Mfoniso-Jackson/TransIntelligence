@@ -619,6 +619,14 @@ understood cause (this experiment's residual stream comes from a
 periodically-refit model, whose own re-fits introduce small genuine
 jumps a stationary raw signal wouldn't have).
 
+**Follow-up confirmed the diagnosis, and found it's a tradeoff, not a
+free fix**: refitting the dynamics model twice as often roughly halved
+the false-positive rate (4/15 → 2/15), but also cost two missed true
+detections under the severe shift (15/15 → 13/15) — successful
+detections did get much faster (23.0 → 2.5 trials), but which side of
+that tradeoff is worth it depends on the application, not something this
+experiment resolves to a single answer.
+
 → [experiments/exp13_regime_shift_world_model/RESULTS.md](../experiments/exp13_regime_shift_world_model/RESULTS.md)
 
 ## What isn't tested yet
@@ -686,13 +694,17 @@ jumps a stationary raw signal wouldn't have).
   adaptation's benefit actually crosses over from negligible to real is
   unmapped; a longer post-shift window (whether `never_adapts`'s
   mixed-data model eventually catches up as more post-shift data
-  dilutes the stale pre-shift fit is untested); recalibrating CUSUM for
-  monitoring a periodically-refit model's residuals specifically, rather
-  than just reporting the resulting elevated false-positive rate;
-  combining regime-change-adaptive world models with the multi-step
-  planner (experiment 12) or a nonlinear dynamics model (experiment 10's
+  dilutes the stale pre-shift fit is untested); combining
+  regime-change-adaptive world models with the multi-step planner
+  (experiment 12) or a nonlinear dynamics model (experiment 10's
   generalization) — experiment 13 only tested the single-step, linear
-  case.
+  case. A follow-up found that refitting the dynamics model more often
+  trades false positives for missed true detections (4/15 → 2/15 false
+  positives, but 15/15 → 13/15 true-detection rate) — a genuine
+  precision/recall tradeoff, not a single "correct" refit interval;
+  recalibrating CUSUM's own `h_sigma`/`burn_in` parameters specifically
+  for this context, rather than only varying refit frequency, remains
+  untested.
 - The master context's remaining later phases (agency; meta-intelligence;
   strange loops; cross-domain transfer) — all still pre-formalization,
   per `research-agenda.md`'s own sequencing. World models (Phase 6) has

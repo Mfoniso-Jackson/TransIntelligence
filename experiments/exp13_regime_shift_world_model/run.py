@@ -103,9 +103,10 @@ class BaseAgent:
     `_training_transitions()` selects. Subclasses differ only in that
     selection, never in how they act or fit."""
 
-    def __init__(self) -> None:
+    def __init__(self, refit_interval: int = REFIT_INTERVAL) -> None:
         self.all_transitions: list[tuple[int, float, str, float]] = []  # (trial, state, action, next_state)
         self.model = LinearDynamicsModel()
+        self.refit_interval = refit_interval
 
     def _training_transitions(self) -> list[tuple[int, float, str, float]]:
         raise NotImplementedError
@@ -118,7 +119,7 @@ class BaseAgent:
 
     def observe(self, trial: int, state: float, action: str, next_state: float) -> None:
         self.all_transitions.append((trial, state, action, next_state))
-        if len(self.all_transitions) % REFIT_INTERVAL == 0:
+        if len(self.all_transitions) % self.refit_interval == 0:
             self._refit()
 
     def _refit(self) -> None:
@@ -136,8 +137,8 @@ class OracleAdaptsAgent(BaseAgent):
     isolating the cost of detection delay from the cost of adapting at
     all."""
 
-    def __init__(self, regime_shift_trial: int) -> None:
-        super().__init__()
+    def __init__(self, regime_shift_trial: int, refit_interval: int = REFIT_INTERVAL) -> None:
+        super().__init__(refit_interval=refit_interval)
         self.regime_shift_trial = regime_shift_trial
 
     def _training_transitions(self):
@@ -161,8 +162,8 @@ class CUSUMAdaptiveAgent(BaseAgent):
     shift in that series, and discards pre-detection data once found --
     the treatment condition."""
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, refit_interval: int = REFIT_INTERVAL) -> None:
+        super().__init__(refit_interval=refit_interval)
         self.residual_states: list[State] = []
         self.reset_from_trial = 0
         self.reasoner = CUSUMTemporalReasoner()  # default calibration, unchanged from experiment 5
