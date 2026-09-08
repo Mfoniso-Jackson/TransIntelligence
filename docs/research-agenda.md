@@ -9,9 +9,9 @@ project vision (see `docs/architecture.md`, `docs/intelligence-model.md`):
 vision motivates the program, this document constrains near-term work to
 what can actually be measured.
 
-All ten experiments below have now run. For a standalone summary of what
-they actually established — without reading this document's incremental
-updates or ten separate `RESULTS.md` files — see
+All eleven experiments below have now run. For a standalone summary of
+what they actually established — without reading this document's
+incremental updates or eleven separate `RESULTS.md` files — see
 [docs/findings.md](findings.md).
 
 Distinguish four categories throughout:
@@ -938,6 +938,74 @@ genuinely is nonlinear?
   given, not discovered) in
   [experiments/exp10_nonlinear_scm/RESULTS.md](../experiments/exp10_nonlinear_scm/RESULTS.md).
 
+## 7h. Experiment 11 — World models: does explicit dynamics modeling beat model-free value estimation? (Phase 6)
+
+**Status: run.** The first Phase 6 work
+(`docs/master-context.md` §13/§19: `M(S_t, A_t) → S_{t+1}`, a *transition*
+model, useful because predicted outcomes of different actions from the
+same state can be compared). `transintelligence/world_models/` was, before
+this, a directory that didn't exist at all, and `Predictor` in
+`reasoning/interfaces.py` declared no methods — the same starting point
+every other empty-stub reasoning protocol had before its phase started.
+
+- **Hypothesis:** an agent that learns a forward dynamics model online
+  and plans by simulating candidate actions' predicted next-states beats
+  a model-free baseline with the same state access but no explicit
+  dynamics model — specifically because decomposing "learn the (easy,
+  linear) transition dynamics, then apply the (known, exact) reward
+  formula" differs from directly fitting a (harder, nonlinear) value
+  function with the same linear tool.
+- **The confound this needed to control for, stated up front:** showing
+  a state-aware agent beat a state-blind one would only prove using
+  context helps at all — trivial, and not Phase 6's actual claim. A
+  second, state-aware-but-model-free baseline (`model_free_linear_q`),
+  given identical state access and the identical `ordinary_least_squares`
+  tool, isolates the real claim: does modeling *dynamics* specifically
+  (not just *using* state) matter?
+- **Design:** `environments/transworld/resource_control_env.py`'s
+  `ResourceControlEnv` — each trial draws a fresh state, the agent picks
+  a discrete "nudge" action, `reward = -(next_state - target)²`. True
+  dynamics are linear in state given the action; true reward is
+  quadratic in the resulting state — the source of the structural
+  asymmetry between the two state-aware conditions. `LinearDynamicsModel`
+  (`transintelligence/world_models/model.py`) fits a per-action linear
+  transition model via `ordinary_least_squares`, reused from Phase 5.
+  **Verified against a hand-computed exact-linear-dynamics case (two
+  actions, different known intercepts/slopes, recovered to
+  floating-point precision) before being trusted for anything**, in
+  `tests/test_world_models.py`. Four conditions: `state_blind` (floor),
+  `model_free_linear_q` (fair, identically-tooled baseline),
+  `world_model` (the treatment), `oracle_dynamics` (given the true
+  dynamics exactly, isolating cost-of-learning the way experiment 1's
+  `true_oracle` did).
+- **Result: `world_model` matched the oracle ceiling almost exactly
+  (regret -0.0002), while the identically-tooled `model_free_linear_q`
+  fell far short (regret 3.5421) — roughly 3.5x further from optimal
+  despite seeing the same states and using the same regression tool.**
+  `state_blind` had the worst regret (6.8280), as expected. Investigated
+  *why* the fair baseline still underperformed substantially, rather than
+  reporting the gap and moving on: each action's true reward is a
+  downward parabola in state, peaking where that action lands the state
+  exactly on target — a linear fit is forced to be monotonic, so it can
+  track the parabola's rising side but has no way to represent the
+  peak-then-decline, systematically misranking actions past their
+  optimal zone. **The same lesson experiment 10 established for effect
+  estimation — a linear coefficient cannot represent a relationship that
+  depends on where a unit starts — reappears here in a planning setting**:
+  the value surface isn't just nonlinear, it's non-monotonic, which no
+  amount of data lets a linear fit represent, while `world_model` never
+  has to fit that curvature at all — it fits the (truly linear)
+  transition and applies the exact known reward formula to the result.
+- **Falsification:** would have been `model_free_linear_q` matching
+  `world_model`'s performance (meaning the dynamics/reward decomposition
+  doesn't actually matter, just state access does), or `world_model`
+  failing to reach the oracle ceiling despite ample data (a bug in the
+  learned-dynamics mechanism) — neither happened. Full numbers and what
+  isn't tested (single-step lookahead only, not multi-step planning;
+  genuinely linear dynamics; discrete small action set; no nonlinear
+  model-free comparison; stationary environment) in
+  [experiments/exp11_world_model_planning/RESULTS.md](../experiments/exp11_world_model_planning/RESULTS.md).
+
 ## 8. Sequencing
 
 1. ~~Experiment 2 first~~ — **done**, see §6. Result: `sensitivity()` failed
@@ -1050,6 +1118,16 @@ genuinely is nonlinear?
     model predicted the same constant number at every one of them. Full
     results in
     [experiments/exp10_nonlinear_scm/](../experiments/exp10_nonlinear_scm/RESULTS.md).
+12. ~~Experiment 11~~ — **done**, see §7h. The first Phase 6 (World
+    Models) work. An agent that learns forward dynamics and plans by
+    simulating candidate actions matches the true oracle's performance
+    ceiling almost exactly (regret -0.0002), while an identically-tooled,
+    equally state-aware model-free baseline that fits reward directly
+    falls far short (regret 3.5421) — because the true reward is a
+    non-monotonic function of state a linear value fit cannot represent,
+    while the true dynamics are linear and therefore exactly learnable.
+    Full results in
+    [experiments/exp11_world_model_planning/](../experiments/exp11_world_model_planning/RESULTS.md).
 
 ## 9. What would make this publishable, and what would make a reviewer skeptical
 
@@ -1085,7 +1163,7 @@ genuinely is nonlinear?
   borrows from (§8a of `related-work.md`) solves a much harder version of
   this problem than what was actually tested here, and both follow-ups
   show exactly where that gap matters.
-- **All ten experiments are now done** (§5-7g). If this program is
+- **All eleven experiments are now done** (§5-7h). If this program is
   written up externally, the honest headline is: reference-frame
   conditioning helps within a bounded noise/coverage regime (experiment 1),
   a naive frame-dependence detector can fail in exactly the common case and
@@ -1116,11 +1194,18 @@ genuinely is nonlinear?
   exactly the way it should: abduction stays exact under nonlinearity
   with no code changes needed, while linear effect estimation is
   substantially biased there, unable to represent an effect that
-  genuinely depends on where a unit starts (experiment 10). That's a
-  coherent, modest, defensible set of claims — resist the temptation to
-  round any of them up, experiments 4 through 10 included.
-- **Experiments 5, 6, 7, 8, 9, and 10 are also the first results from this
-  program that are reusable kernel capabilities, not RL research
+  genuinely depends on where a unit starts (experiment 10), and the
+  first Phase 6 result shows that decomposing "learn the dynamics, apply
+  the known reward formula" beats directly fitting a value function with
+  the identical tool and identical state access — not because context
+  helps (trivial), but because the value surface is non-monotonic in
+  state in a way no linear fit can represent, echoing experiment 10's
+  lesson in a planning setting instead of an effect-estimation one
+  (experiment 11). That's a coherent, modest, defensible set of claims —
+  resist the temptation to round any of them up, experiments 4 through
+  11 included.
+- **Experiments 5, 6, 7, 8, 9, 10, and 11 are also the first results from
+  this program that are reusable kernel capabilities, not RL research
   scripts** — worth leading with in any framing aimed at the "is any of
   this actually usable" question, separate from the reference-frame-
   conditioning experiments' own framing. Experiments 6 and 7 together
@@ -1137,4 +1222,9 @@ genuinely is nonlinear?
   Experiment 10 closes out Phase 5's stated gaps by showing precisely
   where the linearity simplification the whole phase made from the start
   does and doesn't matter: not at all for counterfactual abduction, a
-  great deal for effect estimation.
+  great deal for effect estimation. Experiment 11 opens Phase 6 by
+  showing that same lesson recurs in a genuinely different setting
+  (planning, not estimation) — not a coincidence so much as the same
+  underlying mathematical fact (a linear function cannot represent a
+  relationship with a peak) showing up wherever it's structurally
+  relevant.

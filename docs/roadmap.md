@@ -2,7 +2,7 @@
 
 ## Current milestone
 
-A working core that represents entities, relationships, observations, states, contexts, and reference frames, then performs basic geometric and relative reasoning with traceable results. Ten falsifiable experiments have run against the reference-frame-conditioning hypothesis and related claims (see `docs/research-agenda.md`, summarized in `docs/findings.md`).
+A working core that represents entities, relationships, observations, states, contexts, and reference frames, then performs basic geometric and relative reasoning with traceable results. Eleven falsifiable experiments have run against the reference-frame-conditioning hypothesis and related claims (see `docs/research-agenda.md`, summarized in `docs/findings.md`).
 
 Temporal reasoning has also started: `transintelligence/reasoning/temporal/` implements regime-change detection, multi-key joint detection, and dynamic time warping (`CUSUMTemporalReasoner`, docs/research-agenda.md #7b) — the first reusable kernel primitive from this research program, rather than an experiment-only script.
 
@@ -10,9 +10,11 @@ Causal reasoning has also started: `transintelligence/reasoning/causal/` impleme
 
 Counterfactual reasoning has also started: `transintelligence/reasoning/counterfactual/` implements Pearl's abduction-action-prediction procedure (`StructuralCausalModel`, docs/research-agenda.md #7d) for per-unit "what would Y have been had X been different" queries, for linear or nonlinear structural equations (`StructuralEquation.nonlinear_fn`, docs/research-agenda.md #7g). Experiment 7 found exact per-unit recovery with true coefficients and a ~9x advantage over a naive plug-in shortcut with estimated ones — the third reusable kernel primitive, and the last previously-empty reasoning protocol stub now filled. Experiment 10 confirmed abduction stays exact under nonlinearity with no code changes to `abduct()`/`counterfactual()` at all, while `reasoning/causal/`'s linear effect estimation is substantially biased there and cannot represent a heterogeneous (unit-dependent) effect at all.
 
+Phase 6 (World Models, `docs/master-context.md` §13/§19) has now started: `transintelligence/world_models/` implements `LinearDynamicsModel`, a learned per-action forward dynamics model (docs/research-agenda.md #7h), filling the `Predictor` protocol stub. `environments/transworld/resource_control_env.py` is the first environment with genuine state→action→consequence dynamics (`FrameSwitchEnv`, used through experiment 4, is a stateless bandit — the agent's choice never changes a persistent world state). Experiment 11 found a world-model-planning agent matches an oracle's performance ceiling almost exactly, while an equally state-aware, identically-tooled model-free baseline falls far short — the same "a linear fit can't represent a relationship with a peak" lesson experiment 10 found for effect estimation, now shown in a planning setting — the fourth reusable kernel primitive from this research program's causal/world-model family (fifth counting `CUSUMTemporalReasoner`).
+
 ## Next milestone
 
-Add richer observation querying, reference-frame validation, domain adapter examples for growth and property, and structured verifier outputs. Causal reasoning's stated gaps are now all closed: backdoor adjustment, causal discovery (skeleton recovery, collider orientation, and Meek's R1-R3 edge-orientation-propagation rules -- R4 is provably inapplicable without a background-knowledge mechanism this pipeline doesn't have), instrumental variables, front-door adjustment, and nonlinear structural equations (for counterfactual abduction; linear-only effect estimation remains a known, demonstrated limit, not a gap left untested) are all implemented.
+Add richer observation querying, reference-frame validation, domain adapter examples for growth and property, and structured verifier outputs. Causal reasoning's stated gaps are now all closed: backdoor adjustment, causal discovery (skeleton recovery, collider orientation, and Meek's R1-R3 edge-orientation-propagation rules -- R4 is provably inapplicable without a background-knowledge mechanism this pipeline doesn't have), instrumental variables, front-door adjustment, and nonlinear structural equations (for counterfactual abduction; linear-only effect estimation remains a known, demonstrated limit, not a gap left untested) are all implemented. Phase 6's own remaining gaps: multi-step planning/rollouts (`Simulator`, `Planner` remain empty stubs — experiment 11 is single-step lookahead only), nonlinear dynamics, and a non-stationary environment (combining world models with the existing regime-change-detection machinery from Phase 4 is untested).
 
 ## Later milestones
 
@@ -20,9 +22,13 @@ Add richer observation querying, reference-frame validation, domain adapter exam
   reasoning remains.
 - ~~Causal and counterfactual engines.~~ Both started — see above. Every
   reasoning protocol stub that existed before Phase 4 now has a real
-  implementation except `Predictor`, `Simulator`, `Planner`, `Verifier`
-  (`EvidenceVerifier` in `transintelligence/verification/` is a separate,
+  implementation except `Simulator`, `Planner`, `Verifier` (`Predictor`
+  is now filled too, by Phase 6's `LinearDynamicsModel` —
+  `EvidenceVerifier` in `transintelligence/verification/` is a separate,
   earlier, unrelated implementation).
-- Predictor, simulator, and planner implementations.
+- ~~World models (Phase 6).~~ Started — see above; multi-step
+  planning/simulation and nonlinear dynamics remain.
+- Simulator and planner implementations (multi-step rollouts/planning on
+  top of Phase 6's 1-step dynamics model).
 - Persistent storage adapters, eventually PostgreSQL/pgvector.
 - External model provider adapters behind interfaces.

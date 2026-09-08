@@ -1,8 +1,8 @@
 # Findings
 
-A standalone summary of what the first ten experiments in
+A standalone summary of what the first eleven experiments in
 [research-agenda.md](research-agenda.md) actually established, for anyone
-who wants the result without reading ten `RESULTS.md` files and the
+who wants the result without reading eleven `RESULTS.md` files and the
 incremental updates to the agenda itself. Each section below is a compressed
 version of a much more detailed writeup — follow the links for the numbers,
 the code, and the caveats a one-paragraph summary can't carry.
@@ -29,7 +29,14 @@ just asserting them, and a tenth closed out the linearity question every
 one of the causal/counterfactual mechanisms had left open: exact for
 counterfactual abduction under a nonlinear structural equation, but
 substantially biased — and structurally unable to represent a
-heterogeneous effect at all — for linear effect estimation under one.
+heterogeneous effect at all — for linear effect estimation under one,
+and an eleventh (opening Phase 6, world models) found the same lesson
+recurring in a genuinely different setting: an agent that learns forward
+dynamics and plans by simulating actions matches an oracle's performance
+ceiling almost exactly, while an equally state-aware, identically-tooled
+model-free baseline falls far short, because the true value surface has
+a peak that no linear fit can represent, no matter how much data it
+gets.
 
 ## Experiment 2 — Does `sensitivity()` detect frame-dependent conclusions?
 
@@ -173,7 +180,7 @@ same session, sharpened exactly how much harder:
 
 ## The meta-finding
 
-Across the ten experiments, the same discipline applied every time: build
+Across the eleven experiments, the same discipline applied every time: build
 the control that could kill the result, then run it, and don't stop at the
 first configuration that looks clean. Every single result got a real
 qualifier once that happened. Three times the headline *number* shrank —
@@ -207,9 +214,17 @@ precondition fails. Experiment 10's control condition (a genuinely linear
 truth) confirmed its own setup was sound before the nonlinear condition's
 bias could be trusted as evidence of anything — the same discipline
 applied to a mechanism-generalization result rather than a treatment-
-vs-control one. No experiment that was actually pushed on came back
-unqualified. None of the ten hypotheses were fully falsified, but none
-survived untouched either — that's the intended
+vs-control one. Experiment 11's confound control (an equally
+state-aware, identically-tooled model-free baseline, not just a
+state-blind floor) is what turned "the world-model agent scored higher"
+into a specific, mechanistic claim rather than a demonstration that
+context helps at all — and the follow-up investigation into *why* the
+fair baseline still fell short (rather than reporting the gap and moving
+on) is what surfaced the actual reason: a non-monotonic value surface a
+linear fit can never represent, not a fixable data problem. No
+experiment that was actually pushed on came back unqualified. None of
+the eleven hypotheses were fully falsified, but none survived untouched
+either — that's the intended
 outcome of the experimental discipline in
 [research-agenda.md](research-agenda.md) §21, not a failure of it. A
 result that survives its own strongest test is worth more than one that
@@ -477,6 +492,41 @@ where a unit starts.
 
 → [experiments/exp10_nonlinear_scm/RESULTS.md](../experiments/exp10_nonlinear_scm/RESULTS.md)
 
+## Experiment 11 — Does explicit dynamics modeling beat model-free value estimation? (Phase 6, the first world-models result)
+
+**Positive, and the same lesson experiment 10 found for effect
+estimation reappears here in a planning setting instead.** The master
+context formalizes a world model as `M(S_t, A_t) → S_{t+1}` — a
+*transition* model, useful because predicted outcomes of different
+actions from the same state can be compared. This is Phase 6's first
+result, filling the `Predictor` protocol stub that had been empty since
+Phase 1.
+
+Showing a state-aware agent beat a state-blind one would only prove
+using context helps at all — trivial. The real test needed a second,
+equally state-aware baseline that uses the identical regression tool but
+never models the transition: `model_free_linear_q` fits reward directly
+as a linear function of state per action, while `world_model` fits the
+(truly linear) state *transition* per action and applies the known
+(quadratic) reward formula to the result.
+
+`world_model` matched the oracle's true performance ceiling almost
+exactly (regret **-0.0002**), while the identically-tooled
+`model_free_linear_q` fell far short (regret **3.5421**) — roughly 3.5x
+further from optimal despite seeing the same states and using the same
+tool. Investigated *why*, not just reported: each action's true reward
+is a downward parabola in state, peaking exactly where that action lands
+the state on target. A linear fit is forced to be monotonic — it tracks
+the parabola's rising side but has no way to represent the
+peak-then-decline, so it systematically misranks actions once the state
+passes an action's optimal zone. **The value surface isn't just
+nonlinear, it's non-monotonic — which no amount of data lets a linear
+model represent, the exact structural reason experiment 10 found a
+linear coefficient can't capture an effect that depends on where a unit
+starts.**
+
+→ [experiments/exp11_world_model_planning/RESULTS.md](../experiments/exp11_world_model_planning/RESULTS.md)
+
 ## What isn't tested yet
 
 - A learned-embedding baseline that matches prior art's actual mechanism
@@ -521,6 +571,16 @@ where a unit starts.
 - Multi-step or sequential interventions, and a computational comparison
   against Rubin's potential-outcomes framework (noted as the alternative
   formalization, not implemented or benchmarked against).
-- The master context's remaining later phases (world models; agency;
-  meta-intelligence) — all still pre-formalization, per
-  `research-agenda.md`'s own sequencing.
+- Multi-step planning/simulation on top of Phase 6's 1-step
+  `LinearDynamicsModel` (`Simulator`, `Planner` remain empty stubs);
+  nonlinear dynamics (the world-model's advantage in experiment 11 rests
+  specifically on the true transition being exactly linear); a
+  non-stationary version of the environment (combining a learned world
+  model with the existing regime-change-detection machinery from Phase 4
+  is untested); a nonlinear model-free baseline (e.g. quadratic-feature
+  regression) that could in principle represent the true reward surface
+  and close the gap experiment 11 found.
+- The master context's remaining later phases (agency; meta-intelligence;
+  strange loops; cross-domain transfer) — all still pre-formalization,
+  per `research-agenda.md`'s own sequencing. World models (Phase 6) has
+  now started (experiment 11).

@@ -304,6 +304,46 @@ demonstration that violating its specific structural assumption (the
 confounder reaching the mediator) makes it nearly as biased as doing
 nothing at all.**
 
+## 3e. World models: learned dynamics for planning (Experiment 11, Phase 6)
+
+- Sutton, *Integrated Architectures for Learning, Planning, and Reacting
+  Based on Approximating Dynamic Programming*, ICML 1990; Sutton, *Dyna,
+  an Integrated Architecture for Learning, Planning, and Reacting*,
+  SIGART Bulletin, 1991. The Dyna architecture — the established
+  mechanism `LinearDynamicsModel`
+  (`transintelligence/world_models/model.py`) implements the smallest
+  version of: plan by simulating candidate actions through a learned
+  model of the environment's transition dynamics, rather than only
+  acting on cached historical value.
+- Ha, Schmidhuber, *World Models*, arXiv:1803.10122, 2018. The paper that
+  popularized the term "world model" for this class of methods, using a
+  much heavier generative/recurrent neural architecture than anything
+  implemented here — cited for the term and the "learn M, then act
+  inside it" framing the master context's own Phase 6 description
+  (`docs/master-context.md` §13) is written in, not as the mechanism
+  this experiment implements.
+- Sutton, Barto, *Reinforcement Learning: An Introduction*, 2nd ed., MIT
+  Press, 2018 — standard reference for linear function approximation of
+  a value function, the mechanism `model_free_linear_q`
+  (`experiments/exp11_world_model_planning/run.py`) uses as the fair,
+  identically-tooled comparison condition.
+
+**Classification: established theory in full for all three citations —
+Dyna-style model-based planning, the "World Models" framing, and linear
+value-function approximation are all textbook or foundational-paper
+results, none of the mechanisms implemented are novel. What experiment
+11 contributes is a directly-constructed demonstration that isolates the
+*specific* claim (decomposing dynamics-modeling from reward computation)
+from the trivial claim (using state helps at all): a state-aware
+model-free baseline, given identical state access and the identical
+linear-regression tool, is shown to be quantitatively worse than the
+world-model agent for a mechanistically specific reason — the true
+reward is a non-monotonic (quadratic) function of state that a linear
+value fit cannot represent regardless of data, while the true
+*transition* is linear and therefore exactly learnable, the same
+linear-cannot-represent-curvature lesson experiment 10 established for
+effect estimation, now shown in a planning setting instead.**
+
 ## 4. Frame-dependence / frame-invariance detection (Experiment 2)
 
 - Invariant Risk Minimization: Arjovsky, Bottou, Gulrajani, Lopez-Paz,
@@ -474,6 +514,7 @@ methods."**
 | Causal discovery (Experiment 8, Phase 5) | Spirtes & Glymour 1991; Fisher 1921; Meek 1995 (R1-R3); Perkovic et al. 2017 | Established theory in full — skeleton, collider orientation, and Meek's R1-R3 propagation rules implemented; R4 provably inapplicable without background knowledge |
 | Instrumental variables & front-door adjustment (Experiment 9, Phase 5) | Wright (P.) 1928; Pearl 1995; Wright (S.) 1934; Bound, Jaeger & Baker 1995 | Established theory in full — both mechanisms implemented and empirically verified, including their theory-predicted failure modes |
 | Nonlinear structural equations (Experiment 10, Phase 5) | Pearl, Glymour & Jewell 2016 (abduction only needs additive noise, not linearity) | Established theory — abduction confirmed exact for a nonlinear case; linear OLS-based effect estimation confirmed biased under nonlinearity by construction, not a new finding about OLS itself |
+| World models for planning (Experiment 11, Phase 6) | Sutton 1990/1991 (Dyna); Ha & Schmidhuber 2018; Sutton & Barto 2018 | Established theory in full — Dyna-style planning and linear value-function approximation are both textbook; the specific comparison isolating dynamics-modeling from reward-fitting is a directly-constructed demonstration, not a new algorithm |
 | Frame-dependence detection | Arjovsky et al. 2019; arXiv:2010.05761; Zhou et al. 2023; Wang et al. 2022 | Established theory; current `sensitivity()` is a naive baseline against it |
 | Geometric reasoning over non-physical spaces | Bronstein et al. 2021 | Established theory, directly prior art |
 | Cross-domain structural transfer | Gentner 1983; Lake & Baroni 2018/2023 | Established distinctions; TransIntelligence's specific transfer claim is a hypothesis |

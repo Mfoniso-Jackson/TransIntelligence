@@ -25,7 +25,8 @@ class CausalReasoner(Protocol):
 class CounterfactualReasoner(Protocol):
     def abduct(self, observed: dict[str, float]) -> dict[str, float]: ...
     def counterfactual(self, observed: dict[str, float], intervention: dict[str, float]) -> dict[str, float]: ...
-class Predictor(Protocol): pass
+class Predictor(Protocol):
+    def predict(self, state: Any, action: Any) -> Any: ...
 class Simulator(Protocol): pass
 class Planner(Protocol): pass
 class Verifier(Protocol): pass
