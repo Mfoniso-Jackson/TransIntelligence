@@ -91,6 +91,35 @@ post-shift window.
   it — so the hypothesis remains unconfirmed, now with one fewer
   competing explanation.
 
+## Follow-up: does the finding hold at other coverage thresholds?
+
+Ran: `PYTHONPATH=. python experiments/exp18_calibration_verifier/threshold_sweep.py`.
+Same 12 seeds and post-shift residuals as above, `CalibrationVerifier`
+re-applied at six thresholds (`threshold_sigmas` 0.5 through 3.0) instead
+of only 1.0 — central and tail coverage are genuinely different
+questions, and chained multi-step predictions could plausibly have
+"fatter tails" (occasional much-larger errors) even while looking
+well-calibrated near the center.
+
+| threshold_sigmas | greedy observed coverage | mpc observed coverage | coverage gap |
+|---|---|---|---|
+| 0.5 | 0.3642 | 0.3630 | 0.0012 |
+| 1.0 | 0.6656 | 0.6637 | 0.0019 |
+| 1.5 | 0.8447 | 0.8399 | 0.0048 |
+| 2.0 | 0.9326 | 0.9293 | 0.0032 |
+| 2.5 | 0.9670 | 0.9637 | 0.0033 |
+| 3.0 | 0.9792 | 0.9764 | 0.0028 |
+
+**The gap stays tiny (0.001–0.005) at every threshold tested, from
+central to tail coverage** — no evidence of a tail-specific calibration
+difference the original 1-sigma check could have missed. Both agents
+remain flagged `miscalibrated` throughout (the same small, universal
+overconfidence found before, present at every threshold), but the
+*difference between the two agents* specifically stays negligible across
+the whole range. This robustifies the original finding rather than
+revealing anything new: the "no measurable calibration difference"
+conclusion is not an artifact of the one threshold originally tested.
+
 ## What this does not establish
 
 - **The compounding-across-chained-predictions mechanism itself was
@@ -98,9 +127,8 @@ post-shift window.
   residual quality, which is necessarily identical in kind regardless of
   how many steps a planner chains at decision time; a direct test would
   need to compare the *planner's own* multi-step-ahead prediction error
-  (not just the one-step model's residual) against reality.
+  (not just the one-step model's residual) against reality. (Experiment
+  20 later did test this, directly, by manipulating the environment's
+  own noise level.)
 - **Only one environment, one regime-shift severity, one lookahead depth
   (LOOKAHEAD=2) were tested** — as in experiment 16.
-- **`CalibrationVerifier` was applied at only one threshold
-  (`threshold_sigmas=1.0`)** — whether a different threshold changes the
-  picture (e.g. tail-focused calibration at 2-3 sigma) is untested.
