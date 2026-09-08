@@ -1,8 +1,8 @@
 # Findings
 
-A standalone summary of what the first five experiments in
+A standalone summary of what the first six experiments in
 [research-agenda.md](research-agenda.md) actually established, for anyone
-who wants the result without reading five `RESULTS.md` files and the
+who wants the result without reading six `RESULTS.md` files and the
 incremental updates to the agenda itself. Each section below is a compressed
 version of a much more detailed writeup — follow the links for the numbers,
 the code, and the caveats a one-paragraph summary can't carry.
@@ -12,9 +12,12 @@ the code, and the caveats a one-paragraph summary can't carry.
 Reference-frame conditioning works, but only within a bounded regime; every
 positive result that looked clean on first pass got smaller once the
 control built to potentially kill it actually ran — except one, where the
-control confirmed the effect instead, and a fifth experiment on an
-unrelated kernel capability then independently validated the specific fix
-that would have helped the one result that didn't hold up cleanly.
+control confirmed the effect instead, a fifth experiment on an unrelated
+kernel capability then independently validated the specific fix that would
+have helped the one result that didn't hold up cleanly, and a sixth showed
+that a purely graph-theoretic criterion, computed before touching any
+data, exactly predicts which statistical adjustments are safe and which
+quietly make things worse.
 
 ## Experiment 2 — Does `sensitivity()` detect frame-dependent conclusions?
 
@@ -158,7 +161,7 @@ same session, sharpened exactly how much harder:
 
 ## The meta-finding
 
-Across the five experiments, the same discipline applied every time: build
+Across the six experiments, the same discipline applied every time: build
 the control that could kill the result, then run it, and don't stop at the
 first configuration that looks clean. Every single result got a real
 qualifier once that happened. Three times the headline *number* shrank —
@@ -169,9 +172,14 @@ discovery) went the other way and *confirmed* the effect — but its own
 follow-up stress tests (a noise sweep, a two-simultaneously-missing-
 regimes test) still found real, structural boundaries: a specificity
 collapse outside the calibrated noise level, and a dependence on
-behavioral rather than parametric distinctness. No experiment that was
-actually pushed on came back unqualified. None of the five hypotheses were
-fully falsified, but none survived untouched either — that's the intended
+behavioral rather than parametric distinctness. Experiment 6's confound
+control (adjusting for a collider instead of the true confounder) also
+went the other way — it *confirmed*, with textbook clarity, that the
+graph-theoretic validity check is doing real work, and further found that
+combining a valid and an invalid adjustment is worse than the invalid one
+alone. No experiment that was actually pushed on came back unqualified.
+None of the six hypotheses were fully falsified, but none survived
+untouched either — that's the intended
 outcome of the experimental discipline in
 [research-agenda.md](research-agenda.md) §21, not a failure of it. A
 result that survives its own strongest test is worth more than one that
@@ -261,6 +269,36 @@ rather than quietly filing it as confirmed.
 
 → [experiments/exp05_regime_change_detection/RESULTS.md](../experiments/exp05_regime_change_detection/RESULTS.md)
 
+## Experiment 6 — Does the backdoor criterion correctly predict which adjustments remove confounding bias?
+
+**Positive, and the cleanest, most textbook-dramatic result of the six.**
+The first work on Phase 5 (causal reasoning): `transintelligence/reasoning/causal/`
+was an empty stub, same starting point as `temporal/` before Phase 4.
+Built `CausalGraph` (d-separation via path enumeration, verified against
+the three canonical structures — chain, fork, collider — before trusting
+it for anything) and the backdoor criterion (Pearl, 1995) on top of it,
+plus a small linear-regression utility for effect estimation.
+
+Constructed the classic "correlation is not causation" demonstration
+directly, the same way Experiment 5 built DTW's motivating case: a
+confounder `Z` drives both a treatment `X` and an outcome `Y`, `X`'s true
+causal effect on `Y` is fixed at exactly zero, and a fourth variable `W`
+is a *collider* — a common effect of `X` and `Y`, not a cause of either.
+
+The graph-theoretic prediction, computed with no data at all, matched the
+empirical result exactly: naive regression finds a large, entirely
+spurious effect (0.881, when the truth is 0.0) from confounding alone;
+adjusting for `Z` — the only backdoor-valid set — recovers ~0 (0.0065);
+adjusting for the collider `W` instead produces its own distinct bias
+(0.281). The sharpest finding: **adding `W` on top of the already-correct
+`{Z}` adjustment makes the estimate worse, not neutral** (bias rises from
+0.031 to 0.191, even flipping sign) — the same lesson experiments 3-5
+already established with completely different mechanisms: including more
+or any extra information is not a safe default, and the graph-theoretic
+validity check is doing real, load-bearing work.
+
+→ [experiments/exp06_confounding_bias/RESULTS.md](../experiments/exp06_confounding_bias/RESULTS.md)
+
 ## What isn't tested yet
 
 - A learned-embedding baseline that matches prior art's actual mechanism
@@ -276,6 +314,11 @@ rather than quietly filing it as confirmed.
   current combination assumes independence across keys); non-i.i.d. noise
   beyond the single contaminated-Gaussian case tested; more than 5 keys
   tracked at once.
-- The master context's remaining later phases (causal, counterfactual
-  reasoning; world models; agency; meta-intelligence) — all still
-  pre-formalization, per `research-agenda.md`'s own sequencing.
+- Causal discovery (inferring graph structure from data, rather than
+  assuming it), front-door adjustment and instrumental variables (only
+  the backdoor criterion was tested), nonlinear structural equations, and
+  per-unit counterfactual queries (`CounterfactualReasoner`, still an
+  empty stub) — the natural next Phase 5 experiment.
+- The master context's remaining later phases (world models; agency;
+  meta-intelligence) — all still pre-formalization, per
+  `research-agenda.md`'s own sequencing.

@@ -110,9 +110,53 @@ baseline.**
   described as one — it's descriptive/associational scoring dressed as
   "reasoning." Flag this explicitly in any external write-up.
 
-**Classification: established theory. TransIntelligence's causal reasoning
-module doesn't exist yet (`transintelligence/reasoning/causal/__init__.py`
-is an empty stub) — nothing to classify as novel until it's built.**
+**Classification: established theory. This was true when written, and
+`transintelligence/reasoning/causal/` has since been built (Phase 5,
+`docs/research-agenda.md` #7c, grounded in §11a below) — `evaluate(x, R)`
+itself still makes no causal claim, but the codebase now has a real
+place to make one, separate from the relative-reasoning module.**
+
+## 3a. The backdoor criterion and confounding bias (Experiment 6, Phase 5)
+
+- Pearl, *Causal Diagrams for Empirical Research*, Biometrika 82(4),
+  669-688, 1995. The backdoor criterion — the graphical test
+  `CausalGraph.satisfies_backdoor_criterion()` implements, for whether a
+  candidate covariate set is valid for estimating a causal effect from
+  observational data.
+- Verma, Pearl, *Causal Networks: Semantics and Expressiveness*, UAI
+  1988, pp. 69-78. D-separation — the soundness result the backdoor
+  criterion's path-blocking logic rests on, implemented directly via path
+  enumeration in `CausalGraph.d_separated()` rather than the equivalent
+  moralized-ancestral-graph reformulation, verified against the three
+  canonical structures (chain, fork, collider) before being trusted for
+  anything built on top of it.
+- Simpson, *The Interpretation of Interaction in Contingency Tables*,
+  JRSS-B 13(2), 238-241, 1951. The classic confounding-reversal
+  phenomenon — worth noting precisely rather than overclaiming Simpson
+  "discovered" it: the underlying effect was already pointed out by
+  Pearson (1899) and Yule (1903); Simpson's paper is the one that gave
+  the phenomenon its common name. Experiment 6's synthetic SCM
+  constructs a version of this directly (naive regression finds a
+  spurious 0.881 effect where the truth is 0.0) rather than citing the
+  paradox from authority.
+- Rubin, *Estimating Causal Effects of Treatments in Randomized and
+  Nonrandomized Studies*, Journal of Educational Psychology, 1974. The
+  potential-outcomes framework — an alternative formalization of the same
+  causal-effect question Experiment 6 answers via graphs (Pearl's
+  structural/graphical tradition) instead of counterfactual random
+  variables (Rubin's tradition). Not implemented here; the natural
+  framework to reach for if per-unit counterfactual queries (rather than
+  population-average adjustment) become the next Phase 5 experiment.
+
+**Classification: established theory in full for all four citations —
+the backdoor criterion, d-separation, Simpson's paradox, and potential
+outcomes are all textbook, decades old, and none of the three
+implemented mechanisms (d-separation, the backdoor criterion, linear
+adjustment via OLS) are novel. What Experiment 6 contributes is a
+directly-constructed demonstration (a collider adjustment that makes an
+already-correct model *worse*, not just "less good") rather than citing
+the standard confounding warning from authority — the same discipline
+Experiment 5's DTW comparison used.**
 
 ## 4. Frame-dependence / frame-invariance detection (Experiment 2)
 
@@ -278,7 +322,8 @@ methods."**
 |---|---|---|
 | Reference frame as conditioning context | Li et al. 2010; Kaelbling et al. 1998; Schaul et al. 2015; arXiv:2102.06177; Duan et al. 2016; Finn et al. 2017 | Established theory — mechanism is old, explicit/legible representation is an engineering choice |
 | RNN encoder-decoder condition-B attempt (vanishing gradients) | Bengio, Simard & Frasconi 1994; Williams & Peng 1990; Hochreiter & Schmidhuber 1997 | Established theory in full — the failure mode, the training method, and the fix (unimplemented) are all textbook |
-| Causal framing of `evaluate(x,R)` | Pearl 2009 | Established theory; not yet implemented here |
+| Causal framing of `evaluate(x,R)` | Pearl 2009 | Established theory; `evaluate()` itself still makes no causal claim |
+| Backdoor criterion / confounding bias (Experiment 6, Phase 5) | Pearl 1995; Verma & Pearl 1988; Simpson 1951; Rubin 1974 | Established theory in full — implemented and empirically verified, not novel |
 | Frame-dependence detection | Arjovsky et al. 2019; arXiv:2010.05761; Zhou et al. 2023; Wang et al. 2022 | Established theory; current `sensitivity()` is a naive baseline against it |
 | Geometric reasoning over non-physical spaces | Bronstein et al. 2021 | Established theory, directly prior art |
 | Cross-domain structural transfer | Gentner 1983; Lake & Baroni 2018/2023 | Established distinctions; TransIntelligence's specific transfer claim is a hypothesis |

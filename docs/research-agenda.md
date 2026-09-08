@@ -586,6 +586,68 @@ this go through."
   statistic, which the current independence assumption ignores) in
   [experiments/exp05_regime_change_detection/RESULTS.md](../experiments/exp05_regime_change_detection/RESULTS.md).
 
+## 7c. Experiment 6 — Confounding bias and the backdoor criterion (Phase 5)
+
+**Status: run.** The first work on the master context's Phase 5 ("Causal
++ Counterfactual Intelligence": causal graphs, hypotheses, interventions,
+counterfactual simulations). Like Phase 4, this fills a genuine, previously-
+empty kernel stub: `transintelligence/reasoning/causal/` was a one-line
+docstring, `CausalReasoner` in `reasoning/interfaces.py` declared zero
+methods, and grepping the whole repo for "intervention" returned zero
+hits anywhere.
+
+- **Hypothesis:** Pearl's backdoor criterion (1995), computed purely from
+  graph structure with no data, correctly predicts which covariate
+  adjustment sets remove confounding bias and which don't — including a
+  *specific negative case* (adjusting for a collider) that the graph
+  should flag as invalid and that should empirically show real bias, not
+  just "less good than the valid case."
+- **Design:** `CausalGraph` (`transintelligence/reasoning/causal/model.py`)
+  implements d-separation via explicit path enumeration (Verma & Pearl,
+  *Causal Networks: Semantics and Expressiveness*, UAI 1988) and the
+  backdoor criterion (Pearl, *Causal Diagrams for Empirical Research*,
+  Biometrika 82(4), 1995) on top of it, plus a small `ordinary_least_squares`
+  utility for linear effect estimation. **Both were verified for
+  correctness independently before being trusted for anything**: d-separation
+  against the three canonical structures (chain, fork, collider, plus a
+  collider-with-conditioned-descendant case) in
+  `tests/test_causal_reasoning.py`, OLS against closed-form linear
+  relationships recovered to floating-point precision — the same
+  discipline Phase 4 used for DTW (verify the mechanism on textbook cases
+  *before* building an experiment on top of it, not after).
+- **The experiment, constructed directly rather than cited from
+  authority** (the same approach as experiment 5's DTW motivating case):
+  a linear SCM with confounder `Z→X, Z→Y`, a **true causal effect of X on
+  Y fixed at exactly 0.0**, and a collider `W` (a common *effect* of X and
+  Y, `X→W, Y→W`) — not a cause of either, and therefore graph-invalid as
+  an adjustment set. Four regression conditions: naive (no adjustment),
+  adjusted (condition on `Z`), collider (condition on `W`), and both.
+- **Result: as clean as a falsifiable result gets — the graph's
+  prediction matches the empirical bias exactly, with a genuinely
+  important extra nuance.** Naive regression finds a large, entirely
+  spurious effect (0.881, true value 0.0) from confounding alone.
+  Adjusting for `Z` (the only backdoor-valid set) recovers ~0 (0.0065).
+  Adjusting for the collider `W` instead — correctly flagged invalid by
+  the graph, since `W` is a descendant of `X` — produces its own
+  substantial bias (0.281), a genuinely different failure mode from
+  naive, not just "less effective." **Most importantly: adding `W` on
+  top of the already-correct `{Z}` adjustment makes the estimate *worse*
+  (bias rises from 0.031 to 0.191, even flipping sign) — the same lesson
+  experiments 3-5 already established with different mechanisms (a
+  confound control, a random-discovery control, a union-of-detectors
+  control): "more/any extra information" is not a safe default, and the
+  graph-theoretic validity check is doing real work, not formal
+  decoration.
+- **Falsification:** would have been the graph's valid/invalid
+  predictions failing to line up with which conditions were empirically
+  unbiased, or the collider adjustment showing no worse bias than the
+  valid one — neither happened. Full numbers, what isn't tested (only
+  linear SCMs; only the backdoor criterion, not front-door adjustment or
+  instrumental variables; no causal discovery; no per-unit counterfactual
+  queries, which is `CounterfactualReasoner`, still an empty stub and the
+  natural next experiment) in
+  [experiments/exp06_confounding_bias/RESULTS.md](../experiments/exp06_confounding_bias/RESULTS.md).
+
 ## 8. Sequencing
 
 1. ~~Experiment 2 first~~ — **done**, see §6. Result: `sensitivity()` failed
@@ -639,6 +701,16 @@ this go through."
    fine despite a specific, reasoned hypothesis that it wouldn't. Full
    results in
    [experiments/exp05_regime_change_detection/](../experiments/exp05_regime_change_detection/RESULTS.md).
+7. ~~Experiment 6~~ — **done**, see §7c. First Phase 5 work, and the
+   second genuinely reusable kernel primitive from this research program
+   (`transintelligence/reasoning/causal/`, previously an empty stub).
+   The backdoor criterion, computed from graph structure alone with no
+   data, exactly predicts which adjustment sets are unbiased — naive
+   regression finds a spurious effect of 0.881 where the truth is 0.0,
+   the valid adjustment recovers ~0, and adjusting for a collider instead
+   produces its own distinct bias that gets *worse*, not neutral, when
+   layered onto an otherwise-correct model. Full results in
+   [experiments/exp06_confounding_bias/](../experiments/exp06_confounding_bias/RESULTS.md).
 
 ## 9. What would make this publishable, and what would make a reviewer skeptical
 
@@ -674,7 +746,7 @@ this go through."
   borrows from (§8a of `related-work.md`) solves a much harder version of
   this problem than what was actually tested here, and both follow-ups
   show exactly where that gap matters.
-- **All five experiments are now done** (§5-7b). If this program is
+- **All six experiments are now done** (§5-7c). If this program is
   written up externally, the honest headline is: reference-frame
   conditioning helps within a bounded noise/coverage regime (experiment 1),
   a naive frame-dependence detector can fail in exactly the common case and
@@ -683,14 +755,20 @@ this go through."
   is applied (experiment 3), a genuinely novel regime outside the known
   candidate set — the specific failure mode experiment 1 found — can be
   detected and largely recovered from by a deliberately crude heuristic
-  (experiment 4), and a properly self-calibrated detector (built for an
+  (experiment 4), a properly self-calibrated detector (built for an
   unrelated Phase 4 kernel capability) degrades far more gracefully than
   experiment 4's fixed-threshold trigger did, retroactively validating the
-  fix experiment 4 named but didn't build (experiment 5). That's a
-  coherent, modest, defensible set of claims — resist the temptation to
-  round any of them up, experiment 4 and 5 included.
-- **Experiment 5 is also the first result from this program that is a
-  reusable kernel capability, not an RL research script** — worth leading
-  with in any framing aimed at the "is any of this actually usable"
-  question, separate from the reference-frame-conditioning experiments'
-  own framing.
+  fix experiment 4 named but didn't build (experiment 5), and a purely
+  graph-theoretic criterion computed with no data at all exactly predicts
+  which covariate adjustments remove confounding bias and which introduce
+  a *different* bias instead (experiment 6). That's a coherent, modest,
+  defensible set of claims — resist the temptation to round any of them
+  up, experiment 4, 5, and 6 included.
+- **Experiments 5 and 6 are also the first results from this program that
+  are reusable kernel capabilities, not RL research scripts** — worth
+  leading with in any framing aimed at the "is any of this actually
+  usable" question, separate from the reference-frame-conditioning
+  experiments' own framing. Experiment 6 in particular is the cleanest,
+  most textbook-dramatic result of the six — a spurious effect of 0.881
+  where the truth is 0.0, corrected to ~0 by the graph-predicted
+  adjustment — worth leading with if only one result can be shown.
