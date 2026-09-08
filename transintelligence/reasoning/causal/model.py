@@ -68,15 +68,28 @@ exactly that situation.
 recovering graph structure from data instead of assuming it's given, via
 the constraint-based PC algorithm (Spirtes & Glymour, *An Algorithm for
 Fast Recovery of Sparse Causal Graphs*, Social Science Computer Review
-9(1), 1991). This implementation deliberately stops after skeleton
-recovery and collider (v-structure) orientation -- it does not implement
-Meek's further orientation-propagation rules (Meek, *Causal Inference and
-Causal Explanation with Background Knowledge*, UAI 1995, pp. 403-410),
-which can orient additional edges beyond colliders under acyclicity and
-no-new-collider constraints. Skipped deliberately as the smallest
-mechanism that can produce a falsifiable result about structure
-discovery at all -- the same discipline that chose CUSUM over full
-Bayesian changepoint detection in Phase 4.
+9(1), 1991).
+
+`apply_meek_rules` extends that with a fifth capability: orienting
+additional edges beyond direct v-structures, via three of Meek's four
+orientation-propagation rules (Meek, *Causal Inference and Causal
+Explanation with Background Knowledge*, UAI 1995, pp. 403-410) --
+R1 (avoid creating a new, undetected collider), R2 (avoid creating a
+directed cycle), and R3 (the "double triangle" case, also avoiding a new
+collider). **Meek's fourth rule is deliberately not implemented, and not
+merely as a smallest-mechanism simplification: R4 only orients edges
+using background knowledge (directed edges supplied from outside the
+data, not derived from independence tests) that a later rule application
+needs to propagate further -- with the no-background-knowledge PC
+pipeline this module implements, there is no such externally-supplied
+edge for R4 to ever act on, so it would provably never fire here.**
+Repeatedly applying R1-R3 to a PDAG (the skeleton plus whatever
+v-structures `orient_colliders` found) until no more edges change is a
+well-established result (see e.g. Perkovic et al., *Interpreting and
+Using CPDAGs with Background Knowledge*, UAI 2017) to be complete for
+recovering the CPDAG (the maximally-oriented representation of the whole
+Markov equivalence class) in exactly the no-background-knowledge setting
+this module operates in.
 """
 from __future__ import annotations
 
@@ -348,6 +361,83 @@ def orient_colliders(skeleton: DiscoveredSkeleton, nodes: list[str]) -> frozense
                 if sep_set is not None and z not in sep_set:
                     directed.add((x, z))
                     directed.add((y, z))
+    return frozenset(directed)
+
+
+def apply_meek_rules(skeleton: DiscoveredSkeleton, colliders: frozenset[tuple[str, str]], nodes: list[str]) -> frozenset[tuple[str, str]]:
+    """Extends `colliders` (the v-structures `orient_colliders` found)
+    with every additional edge orientation forced by Meek's rules R1-R3
+    (Meek 1995) -- applied repeatedly to a fixed point, since orienting
+    one edge can create the pattern that lets another rule fire. R4 is
+    not implemented; see the module docstring for why it provably cannot
+    fire in this no-background-knowledge pipeline. Returns the full set
+    of directed edges (colliders plus every edge R1-R3 additionally
+    oriented); any edge in `skeleton.undirected_edges` not present in
+    either direction in the result remains genuinely undetermined by the
+    data -- both orientations are equally consistent with everything
+    observed, which is the correct, honest answer for those edges, not a
+    gap in the implementation.
+
+    - R1 (avoid an undetected new collider): if a->b is already directed
+      and b-c is undirected, and a,c are NOT adjacent at all, orient
+      b->c. Orienting c->b instead would create a new unshielded
+      collider a->b<-c that the independence tests never flagged.
+    - R2 (avoid a directed cycle): if a->c->b is already directed and
+      a-b is undirected, orient a->b. Orienting b->a instead would close
+      the cycle a->c->b->a.
+    - R3 (avoid a new collider, "double triangle"): if a-b, a-c, a-d are
+      all undirected, c->b and d->b are already directed, and c,d are
+      NOT adjacent, orient a->b."""
+    skeleton_adjacency: dict[str, set[str]] = {node: set() for node in nodes}
+    for edge in skeleton.undirected_edges:
+        a, b = tuple(edge)
+        skeleton_adjacency[a].add(b)
+        skeleton_adjacency[b].add(a)
+
+    directed: set[tuple[str, str]] = set(colliders)
+    undirected: set[frozenset[str]] = {
+        edge for edge in skeleton.undirected_edges
+        if tuple(edge) not in directed and tuple(reversed(tuple(edge))) not in directed
+    }
+
+    def undirected_neighbors(node: str) -> set[str]:
+        return {other for edge in undirected for other in edge if node in edge and other != node}
+
+    changed = True
+    while changed:
+        changed = False
+        for edge in sorted(undirected, key=lambda e: sorted(e)):
+            x, y = tuple(edge)
+            for a, b in [(x, y), (y, x)]:
+                oriented = False
+                # R1: a<-p (p->a directed) with p,b nonadjacent => a->b
+                for p, q in directed:
+                    if q == a and b not in skeleton_adjacency[p] and p != b:
+                        oriented = True
+                        break
+                # R2: a->c->b already directed => a->b
+                if not oriented:
+                    a_children = {c for p, c in directed if p == a}
+                    if a_children & {p for p, c in directed if c == b}:
+                        oriented = True
+                # R3: a-c, a-d undirected, c->b, d->b directed, c,d nonadjacent => a->b
+                if not oriented:
+                    candidates = undirected_neighbors(a) & {p for p, c in directed if c == b}
+                    candidates_list = sorted(candidates)
+                    for i in range(len(candidates_list)):
+                        for j in range(i + 1, len(candidates_list)):
+                            c, d = candidates_list[i], candidates_list[j]
+                            if d not in skeleton_adjacency[c]:
+                                oriented = True
+                                break
+                        if oriented:
+                            break
+                if oriented:
+                    directed.add((a, b))
+                    undirected.discard(edge)
+                    changed = True
+                    break
+
     return frozenset(directed)
 
 

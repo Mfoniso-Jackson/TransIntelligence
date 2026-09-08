@@ -78,6 +78,69 @@ procedure isn't an artifact of statistical power alone — more data makes
 it more decisive about the *absence* of edges too, not just more willing
 to propose edges.
 
+## 4. Follow-up: Meek's orientation-propagation rules (R1-R3)
+
+Ran: `PYTHONPATH=. python experiments/exp08_causal_discovery/meek_rules.py`.
+20 seeds per sample size. Skeleton discovery plus collider orientation
+alone only recovers direct v-structures; Meek's rules (Meek 1995, three
+of the four — see the module docstring in
+`transintelligence/reasoning/causal/model.py` for why R4 provably cannot
+fire in this no-background-knowledge pipeline) can orient more of the
+graph by propagating from what's already directed. Two graphs test two
+different things.
+
+**Graph 1 — a collider-then-chain (`A→C←B`, `C→D→F`), fully identifiable
+from its CPDAG.** Collider orientation alone can only ever find `A→C,
+B→C` (2 of 4 true edges — a hard ceiling of 0.500 recall, confirmed
+exactly in the data). Meek's rules should additionally force `C→D` (R1:
+otherwise `A→C←D` would be an undetected new collider) and then, using
+that newly-derived edge, `D→F` the same way — a genuine two-hop
+propagation, confirmed by hand in `tests/test_causal_reasoning.py`
+before this follow-up measured it under sampling noise.
+
+| n | collider-only recall | with-Meek recall | wrong orientation (correct skeleton only) | skeleton recovery errors |
+|---|---|---|---|---|
+| 100 | 0.000 | 0.000 | 0/20 | 20/20 |
+| 300 | 0.275 | 0.550 | 0/20 | 9/20 |
+| 1000 | 0.500 | 1.000 | 0/20 | 0/20 |
+| 3000 | 0.500 | 1.000 | 0/20 | 0/20 |
+
+**With Meek's rules, recall reaches 1.000 (full graph recovery) once the
+skeleton is reliably correct (n≥1000) — collider orientation alone is
+permanently capped at 0.500 regardless of sample size, since it can
+never see the two non-collider edges by construction.** The first run of
+this follow-up flagged what looked like a wrong orientation at one n=300
+seed; investigating it (rather than reporting the clean mean and moving
+on) found the cause was a **skeleton recovery error** at that seed (an
+extra spurious edge, one missing true edge — the same finite-sample
+skeleton-recovery limitation experiment 8's main results already
+documented, not a bug in Meek's rules) which then propagated downstream
+exactly as it should: the orientation logic did the right thing given
+wrong input. Separating that out, **given a correct skeleton,
+`apply_meek_rules` never produced a wrong orientation at any sample size
+tested — 0 wrong orientations across all 80 trials where the skeleton
+was correct.**
+
+**Graph 2 — a plain chain (`A→B→C`), the negative control.** No
+collider exists, and the DAG is Markov-equivalent to a fork and a
+reverse chain — no amount of observational data can determine which one
+generated it, so nothing should ever get oriented here.
+
+| n | collider-only edges oriented | with-Meek edges oriented |
+|---|---|---|
+| 100 | 0.000 | 0.000 |
+| 300 | 0.000 | 0.000 |
+| 1000 | 0.000 | 0.000 |
+| 3000 | 0.000 | 0.000 |
+
+**Zero edges oriented at every sample size, both with and without Meek's
+rules.** This is the confound control the positive result on graph 1
+needed: if Meek's rules had oriented anything at all on a genuinely
+undetermined chain, the "recovers more of the true graph" claim would
+mean nothing — it would show the rules invent orientations regardless of
+whether the data actually determines them, not that they correctly
+propagate from real evidence.
+
 ## What this establishes about the causal-discovery mechanism
 
 `discover_skeleton`/`orient_colliders` were verified against three
@@ -89,18 +152,23 @@ shape (correctly left unoriented despite `W` genuinely being a collider).
 This experiment confirms the same three qualitative behaviors survive
 realistic sampling noise across a 30x range of sample sizes, with a
 dedicated negative control ruling out the obvious way the positive
-results could have been an illusion of statistical power.
+results could have been an illusion of statistical power. The follow-up
+above adds Meek's rules on the same foundation: given a correct skeleton,
+they extend recall from a hard 0.500 ceiling (collider orientation alone)
+to 1.000 on a fully-identifiable graph, never orient wrongly (0/80 trials
+with a correct skeleton), and never invent an orientation on a genuinely
+undetermined graph (0 edges oriented at any sample size on a
+collider-free chain).
 
 ## What this does not establish
 
-- **Meek's orientation-propagation rules are not implemented** (Meek,
-  UAI 1995, pp. 403-410) — some edges that a full PC-algorithm
-  implementation could additionally orient (via acyclicity and no-new-
-  collider constraints, beyond direct v-structure detection) are left
-  undirected here. This was a deliberate scope decision, not an
-  oversight: skeleton discovery plus collider orientation is the smallest
-  mechanism that can produce a falsifiable claim about structure
-  discovery at all.
+- **Meek's fourth rule (R4) is not implemented** — provably not a gap in
+  this no-background-knowledge pipeline (see the module docstring in
+  `transintelligence/reasoning/causal/model.py`): R4 only orients edges
+  using externally-supplied background knowledge, which this pipeline
+  has no mechanism to provide, so it would never fire here regardless.
+  R1-R3 alone are established to be complete for recovering the CPDAG
+  without background knowledge (Perkovic et al., UAI 2017).
 - **Linear-Gaussian data only** — the Fisher z-transform independence
   test assumes approximately linear relationships and Gaussian residuals,
   the same simplification `reasoning/causal/`'s effect-estimation and

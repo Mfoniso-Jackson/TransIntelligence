@@ -227,24 +227,36 @@ one part of Balke & Pearl's general theory still not attempted here.**
   Knowledge*, UAI 1995, pp. 403-410. Meek's four orientation rules can
   direct additional edges beyond direct v-structure detection, using
   acyclicity and no-new-collider constraints to propagate orientation
-  information through the graph. **Deliberately not implemented here** —
-  skeleton recovery plus collider orientation is the smallest mechanism
-  that can produce a falsifiable claim about structure discovery at all,
-  the same discipline that chose CUSUM over a full Bayesian changepoint
-  treatment in Phase 4. Some edges experiment 8's graphs leave undirected
-  might be orientable by Meek's rules; this was not checked.
+  information through the graph. **Three of the four (R1-R3) are now
+  implemented, as `apply_meek_rules`** (Phase 5 follow-up to experiment
+  8, `experiments/exp08_causal_discovery/RESULTS.md` §4) — the fourth,
+  R4, is not, and provably could never fire in this pipeline: R4 only
+  orients edges by propagating externally-supplied *background
+  knowledge*, and this implementation has no mechanism to inject any.
+  Perkovic, Textor, Kalisch, Maathuis, *Interpreting and Using CPDAGs
+  with Background Knowledge*, UAI 2017, confirms R1-R3 alone are
+  established to be complete for recovering the CPDAG (the
+  maximally-oriented representation of a DAG's whole Markov equivalence
+  class) in exactly the no-background-knowledge setting this module
+  operates in — R4 only matters once background knowledge is added.
 
-**Classification: established theory in full for all three citations —
-the PC algorithm, Fisher's z-test, and Meek's (unimplemented) further
-orientation rules are all textbook, not novel. What experiment 8
-contributes is a directly-constructed demonstration that the mechanism's
-two theoretically-predicted failure boundaries are real and not just
+**Classification: established theory in full for all four citations —
+the PC algorithm, Fisher's z-test, Meek's orientation rules, and the
+completeness result for the no-background-knowledge case are all
+textbook or a well-established paper result, not novel. What experiment 8
+contributes is a set of directly-constructed demonstrations that the
+mechanism's theoretically-predicted boundaries are real, not just
 footnotes: a **shielded** collider (built to mirror experiment 6's own
 graph shape) is correctly never oriented despite genuinely being a
-collider, while a **dedicated unshielded** collider is oriented
-correctly and reliably — the same "don't just show the positive case,
-show the boundary condition too" discipline experiment 6's collider
-adjustment used.**
+collider, a **dedicated unshielded** collider is oriented correctly and
+reliably, Meek's rules extend a hard 0.500 recall ceiling (collider
+orientation alone) to 1.000 on a fully-identifiable graph while never
+producing a wrong orientation given a correct skeleton, and a
+collider-free chain (Markov-equivalent to a fork and a reverse chain)
+gets zero edges oriented at any sample size, confirming the rules
+propagate from real evidence rather than inventing orientations — the
+same "don't just show the positive case, show the boundary condition
+too" discipline experiment 6's collider adjustment used.**
 
 ## 3d. Instrumental variables and front-door adjustment: identification under an unobserved confounder (Experiment 9, Phase 5)
 
@@ -459,7 +471,7 @@ methods."**
 | Causal framing of `evaluate(x,R)` | Pearl 2009 | Established theory; `evaluate()` itself still makes no causal claim |
 | Backdoor criterion / confounding bias (Experiment 6, Phase 5) | Pearl 1995; Verma & Pearl 1988; Simpson 1951; Rubin 1974 | Established theory in full — implemented and empirically verified, not novel |
 | Per-unit counterfactuals (Experiment 7, Phase 5) | Pearl, Glymour & Jewell 2016; Balke & Pearl 1994 | Established theory in full — closed-form abduction, now confirmed exact for nonlinear (not just linear) additive-noise structural equations too (Experiment 10) |
-| Causal discovery (Experiment 8, Phase 5) | Spirtes & Glymour 1991; Fisher 1921; Meek 1995 (unimplemented) | Established theory in full — skeleton + collider orientation only, Meek's further propagation rules deliberately not implemented |
+| Causal discovery (Experiment 8, Phase 5) | Spirtes & Glymour 1991; Fisher 1921; Meek 1995 (R1-R3); Perkovic et al. 2017 | Established theory in full — skeleton, collider orientation, and Meek's R1-R3 propagation rules implemented; R4 provably inapplicable without background knowledge |
 | Instrumental variables & front-door adjustment (Experiment 9, Phase 5) | Wright (P.) 1928; Pearl 1995; Wright (S.) 1934; Bound, Jaeger & Baker 1995 | Established theory in full — both mechanisms implemented and empirically verified, including their theory-predicted failure modes |
 | Nonlinear structural equations (Experiment 10, Phase 5) | Pearl, Glymour & Jewell 2016 (abduction only needs additive noise, not linearity) | Established theory — abduction confirmed exact for a nonlinear case; linear OLS-based effect estimation confirmed biased under nonlinearity by construction, not a new finding about OLS itself |
 | Frame-dependence detection | Arjovsky et al. 2019; arXiv:2010.05761; Zhou et al. 2023; Wang et al. 2022 | Established theory; current `sensitivity()` is a naive baseline against it |

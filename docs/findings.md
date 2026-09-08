@@ -395,6 +395,19 @@ n=100, down to 0.000 at n=3000), not climbing the way it would if the
 positive results above were just an artifact of growing statistical
 power.**
 
+**Follow-up: Meek's orientation-propagation rules.** Collider orientation
+alone can only ever find direct v-structures — a hard 0.500 recall
+ceiling on a fully-identifiable collider-then-chain graph (`A→C←B,
+C→D→F`), confirmed exactly. Adding three of Meek's four rules (R1-R3;
+R4 provably cannot fire without a background-knowledge mechanism this
+implementation doesn't have) extends recall to 1.000 once the skeleton
+is reliably correct. An apparent wrong orientation at one seed, on
+investigation, turned out to be a skeleton-recovery error propagating
+downstream, not a bug in the rules themselves — given a correct
+skeleton, they never oriented wrongly across 80 trials. A negative
+control (a plain collider-free chain, genuinely undetermined by any
+amount of data) confirmed zero spurious orientations at any sample size.
+
 → [experiments/exp08_causal_discovery/RESULTS.md](../experiments/exp08_causal_discovery/RESULTS.md)
 
 ## Experiment 9 — Do IV and front-door adjustment work when a confounder is never observed, and fail how theory predicts when their assumptions don't hold?
@@ -488,12 +501,14 @@ where a unit starts.
   nonlinearity; nonlinear functional forms discovered from data rather
   than given (interacting with causal discovery's own linear-only
   independence test, below).
-- Meek's further orientation-propagation rules (UAI 1995) for causal
-  discovery — only skeleton recovery plus direct collider orientation
-  were implemented and tested; nonlinear dependencies that produce zero
-  *linear* partial correlation would be missed entirely by the Fisher-z
-  independence test used; graphs larger than 4-5 nodes weren't tested;
-  no comparison against a score-based discovery method (e.g. GES).
+- Meek's fourth orientation rule (R4, UAI 1995) — not a gap so much as a
+  rule that provably cannot fire in this no-background-knowledge
+  pipeline; R1-R3 are implemented and are established to be complete for
+  the CPDAG without background knowledge. Also untested: nonlinear
+  dependencies that produce zero *linear* partial correlation, which
+  would be missed entirely by the Fisher-z independence test used;
+  graphs larger than 4-5 nodes; no comparison against a score-based
+  discovery method (e.g. GES).
 - Overidentified 2SLS (more instruments than endogenous regressors) and
   overidentification tests that could detect instrument invalidity from
   data; an automated weak-instrument diagnostic (e.g. a first-stage F

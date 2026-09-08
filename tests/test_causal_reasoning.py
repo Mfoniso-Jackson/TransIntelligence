@@ -13,6 +13,8 @@ import pytest
 
 from transintelligence.reasoning.causal import (
     CausalGraph,
+    DiscoveredSkeleton,
+    apply_meek_rules,
     discover_skeleton,
     fisher_z_independence_test,
     front_door_adjustment,
@@ -161,6 +163,65 @@ def test_orient_colliders_finds_the_unshielded_v_structure():
     skeleton = discover_skeleton(data, alpha=0.01)
     directed = orient_colliders(skeleton, sorted(data.keys()))
     assert directed == frozenset({("A", "B"), ("C", "B")})
+
+
+def test_meek_rule1_orients_away_from_an_undetected_new_collider():
+    """a->b already directed, b-c undirected, a and c NOT adjacent =>
+    must orient b->c. Orienting c->b instead would create a new
+    unshielded collider a->b<-c the independence tests never flagged."""
+    skeleton = DiscoveredSkeleton(
+        undirected_edges=frozenset({frozenset({"a", "b"}), frozenset({"b", "c"})}),
+        separating_sets={},
+    )
+    result = apply_meek_rules(skeleton, frozenset({("a", "b")}), ["a", "b", "c"])
+    assert result == frozenset({("a", "b"), ("b", "c")})
+
+
+def test_meek_rule2_orients_to_avoid_a_directed_cycle():
+    """a->c->b already directed, a-b undirected => must orient a->b.
+    Orienting b->a instead would close the cycle a->c->b->a."""
+    skeleton = DiscoveredSkeleton(
+        undirected_edges=frozenset({frozenset({"a", "c"}), frozenset({"c", "b"}), frozenset({"a", "b"})}),
+        separating_sets={},
+    )
+    result = apply_meek_rules(skeleton, frozenset({("a", "c"), ("c", "b")}), ["a", "b", "c"])
+    assert result == frozenset({("a", "c"), ("c", "b"), ("a", "b")})
+
+
+def test_meek_rule3_double_triangle_orients_the_shared_edge_only():
+    """a-b, a-c, a-d undirected; c->b, d->b already directed; c,d NOT
+    adjacent => must orient a->b, but a-c and a-d stay genuinely
+    undetermined -- neither rule fires on them, which is the correct
+    answer for this pattern, not a gap."""
+    skeleton = DiscoveredSkeleton(
+        undirected_edges=frozenset({
+            frozenset({"a", "b"}), frozenset({"a", "c"}), frozenset({"a", "d"}),
+            frozenset({"c", "b"}), frozenset({"d", "b"}),
+        }),
+        separating_sets={},
+    )
+    result = apply_meek_rules(skeleton, frozenset({("c", "b"), ("d", "b")}), ["a", "b", "c", "d"])
+    assert result == frozenset({("c", "b"), ("d", "b"), ("a", "b")})
+
+
+def test_meek_rules_propagate_through_the_full_discovery_pipeline():
+    """A->C<-B (collider), C->D, A and D not adjacent -- R1 must force
+    C->D on real simulated data flowing through discover_skeleton and
+    orient_colliders first, not just on a hand-built skeleton."""
+    rng = random.Random(20)
+    n = 3000
+    a_list, b_list, c_list, d_list = [], [], [], []
+    for _ in range(n):
+        a = rng.gauss(0, 1)
+        b = rng.gauss(0, 1)
+        c = a + b + rng.gauss(0, 0.3)
+        d = c + rng.gauss(0, 0.3)
+        a_list.append(a); b_list.append(b); c_list.append(c); d_list.append(d)
+    data = {"A": a_list, "B": b_list, "C": c_list, "D": d_list}
+    skeleton = discover_skeleton(data, alpha=0.01)
+    colliders = orient_colliders(skeleton, sorted(data.keys()))
+    full = apply_meek_rules(skeleton, colliders, sorted(data.keys()))
+    assert full == frozenset({("A", "C"), ("B", "C"), ("C", "D")})
 
 
 def test_two_stage_least_squares_recovers_the_true_effect_despite_an_unobserved_confounder():

@@ -748,8 +748,8 @@ could produce a falsifiable claim about it?
   phase (remove an edge x-y once some conditioning set from x's/y's
   neighbors makes them independent, via `partial_correlation` +
   `fisher_z_independence_test`) and its collider-orientation phase.
-  Meek's further orientation-propagation rules (UAI 1995) are
-  deliberately not implemented — see
+  Three of Meek's four orientation-propagation rules (UAI 1995) are
+  implemented as a follow-up, below; see
   [related-work.md §3c](related-work.md#3c-causal-discovery-constraint-based-structure-recovery-experiment-8-phase-5).
   **Verified against three noiseless-mechanism hand-checks before being
   trusted for anything**: a chain (correct skeleton, correctly left
@@ -773,10 +773,42 @@ could produce a falsifiable claim about it?
   discovery), `W` ever being falsely oriented (a bug in the shielded-
   triple exclusion), or the dedicated collider graph failing to orient
   correctly even at large N (a bug in the orientation rule itself) — none
-  happened. Full numbers and what isn't tested (Meek's rules; nonlinear
-  dependencies with zero linear partial correlation; graphs larger than
-  4-5 nodes; no comparison against score-based discovery methods) in
+  happened. Full numbers and what isn't tested (nonlinear dependencies
+  with zero linear partial correlation; graphs larger than 4-5 nodes; no
+  comparison against score-based discovery methods) in
   [experiments/exp08_causal_discovery/RESULTS.md](../experiments/exp08_causal_discovery/RESULTS.md).
+
+**Follow-up: Meek's orientation-propagation rules (R1-R3).** Collider
+orientation alone can only ever find direct v-structures — some graphs
+are fully identifiable from their CPDAG but need edge-orientation
+*propagation* to recover completely. `apply_meek_rules`
+(`transintelligence/reasoning/causal/model.py`) implements three of
+Meek's four rules; R4 is not implemented, and provably could not fire in
+this pipeline at all — it only propagates externally-supplied background
+knowledge, which this implementation has no mechanism to provide (R1-R3
+alone are established to be complete for the no-background-knowledge
+case: Perkovic, Textor, Kalisch, Maathuis, UAI 2017). Verified against
+three hand-computed cases (R1, R2, R3 each in isolation) plus a
+two-hop-propagation case confirmed via real simulated data through the
+full `discover_skeleton`→`orient_colliders`→`apply_meek_rules` pipeline,
+all in `tests/test_causal_reasoning.py`, before the follow-up experiment
+(`experiments/exp08_causal_discovery/meek_rules.py`) measured it under
+sampling noise. On a fully-identifiable collider-then-chain graph
+(`A→C←B, C→D→F`), collider orientation alone is capped at exactly 0.500
+recall (2 of 4 true edges, the hard ceiling from only ever finding
+v-structures); with Meek's rules, recall reaches 1.000 once the skeleton
+is reliably correct (n≥1000). Investigating an apparent "wrong
+orientation" at one n=300 seed (rather than reporting the clean mean and
+moving on) found the actual cause was a skeleton-recovery error at that
+seed propagating downstream, not a bug in the orientation logic — given a
+correct skeleton, `apply_meek_rules` never produced a wrong orientation
+across all 80 trials tested. A negative control (a plain collider-free
+chain, Markov-equivalent to a fork and a reverse chain, genuinely
+undetermined by any amount of data) confirmed zero edges get oriented at
+any sample size — Meek's rules propagate from real evidence, they don't
+invent orientations. Full numbers in
+[experiments/exp08_causal_discovery/RESULTS.md](../experiments/exp08_causal_discovery/RESULTS.md)
+§4.
 
 ## 7f. Experiment 9 — Instrumental variables and front-door adjustment: identification under an unobserved confounder (Phase 5, continued)
 
@@ -987,7 +1019,12 @@ genuinely is nonlinear?
    tested, correctly declines to orient experiment 6's shielded collider
    at every sample size (0/80 false orientations), and a negative control
    confirms the false-edge rate shrinks rather than grows with sample
-   size. Full results in
+   size. A follow-up added three of Meek's four orientation-propagation
+   rules (R1-R3, R4 provably inapplicable without background knowledge),
+   extending recall from a hard 0.500 ceiling to 1.000 on a
+   fully-identifiable graph with zero wrong orientations given a correct
+   skeleton, and zero spurious orientations on a genuinely undetermined
+   negative-control chain. Full results in
    [experiments/exp08_causal_discovery/](../experiments/exp08_causal_discovery/RESULTS.md).
 10. ~~Experiment 9~~ — **done**, see §7f. Two-stage least squares and
     front-door adjustment both recover the true effect despite a

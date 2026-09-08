@@ -10,7 +10,7 @@ This repository currently implements the first milestone: typed primitives for e
 - Reference-frame model with composition and comparison.
 - Reasoning protocols plus deterministic geometric and relative baselines.
 - Temporal reasoning: regime-change detection, multi-key tracking, and dynamic time warping over `StateHistory` (`transintelligence/reasoning/temporal/`).
-- Causal reasoning: causal graphs, d-separation, the backdoor criterion for confounding-bias correction, PC-style causal discovery (skeleton recovery plus collider orientation), and identification under an unobserved confounder via two-stage least squares or front-door adjustment (`transintelligence/reasoning/causal/`).
+- Causal reasoning: causal graphs, d-separation, the backdoor criterion for confounding-bias correction, PC-style causal discovery (skeleton recovery, collider orientation, and Meek's R1-R3 edge-orientation-propagation rules), and identification under an unobserved confounder via two-stage least squares or front-door adjustment (`transintelligence/reasoning/causal/`).
 - Counterfactual reasoning: per-unit "what would Y have been had X been different" queries via Pearl's abduction-action-prediction procedure, for linear or nonlinear structural equations (`transintelligence/reasoning/counterfactual/`).
 - Epistemic models: `Claim`, `Evidence`, `CounterEvidence`, `Hypothesis`, `Confidence`, `Source`.
 - In-memory episodic/semantic/strategic storage namespaces.
