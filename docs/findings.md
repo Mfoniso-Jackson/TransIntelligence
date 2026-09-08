@@ -1,8 +1,8 @@
 # Findings
 
-A standalone summary of what the first eleven experiments in
+A standalone summary of what the first twelve experiments in
 [research-agenda.md](research-agenda.md) actually established, for anyone
-who wants the result without reading eleven `RESULTS.md` files and the
+who wants the result without reading twelve `RESULTS.md` files and the
 incremental updates to the agenda itself. Each section below is a compressed
 version of a much more detailed writeup — follow the links for the numbers,
 the code, and the caveats a one-paragraph summary can't carry.
@@ -30,13 +30,19 @@ one of the causal/counterfactual mechanisms had left open: exact for
 counterfactual abduction under a nonlinear structural equation, but
 substantially biased — and structurally unable to represent a
 heterogeneous effect at all — for linear effect estimation under one,
-and an eleventh (opening Phase 6, world models) found the same lesson
+an eleventh (opening Phase 6, world models) found the same lesson
 recurring in a genuinely different setting: an agent that learns forward
 dynamics and plans by simulating actions matches an oracle's performance
 ceiling almost exactly, while an equally state-aware, identically-tooled
 model-free baseline falls far short, because the true value surface has
 a peak that no linear fit can represent, no matter how much data it
-gets.
+gets — confirmed directly by a follow-up showing a correctly-specified
+nonlinear baseline closes almost the entire gap — and a twelfth found
+that planning further ahead (not just having a model at all) gives a
+real, consistent, but honestly modest advantage over greedy single-step
+lookahead, with a 2×2 design confirming the advantage is specifically
+about how far ahead the agent looks, not an accidental difference in
+model quality.
 
 ## Experiment 2 — Does `sensitivity()` detect frame-dependent conclusions?
 
@@ -180,7 +186,7 @@ same session, sharpened exactly how much harder:
 
 ## The meta-finding
 
-Across the eleven experiments, the same discipline applied every time: build
+Across the twelve experiments, the same discipline applied every time: build
 the control that could kill the result, then run it, and don't stop at the
 first configuration that looks clean. Every single result got a real
 qualifier once that happened. Three times the headline *number* shrank —
@@ -221,10 +227,16 @@ into a specific, mechanistic claim rather than a demonstration that
 context helps at all — and the follow-up investigation into *why* the
 fair baseline still fell short (rather than reporting the gap and moving
 on) is what surfaced the actual reason: a non-monotonic value surface a
-linear fit can never represent, not a fixable data problem. No
-experiment that was actually pushed on came back unqualified. None of
-the eleven hypotheses were fully falsified, but none survived untouched
-either — that's the intended
+linear fit can never represent, not a fixable data problem. Experiment
+12's 2×2 factorial design (planning horizon × model source) is its own
+confound control, built in rather than added after: without it, "the
+multi-step planner scored higher" could have meant either "planning
+ahead helps" or "this run's learned model happened to be better," and
+the design makes those two possibilities separable rather than
+conflated — the near-identical gap size in the learned and oracle pairs
+is what makes the horizon claim trustworthy. No experiment that was
+actually pushed on came back unqualified. None of the twelve hypotheses
+were fully falsified, but none survived untouched either — that's the intended
 outcome of the experimental discipline in
 [research-agenda.md](research-agenda.md) §21, not a failure of it. A
 result that survives its own strongest test is worth more than one that
@@ -527,6 +539,39 @@ starts.**
 
 → [experiments/exp11_world_model_planning/RESULTS.md](../experiments/exp11_world_model_planning/RESULTS.md)
 
+**Follow-up confirmed the mechanism directly**: giving the model-free
+baseline a quadratic (correctly-specified) feature set — a function
+class that *can* represent the true parabola — closed almost the entire
+gap (regret 3.5421 → 0.0144, landing at essentially `world_model`'s
+level). This rules out an unaccounted-for confound between the two
+conditions as the real explanation.
+
+## Experiment 12 — Does multi-step planning beat greedy lookahead, and is the advantage really about horizon?
+
+**Positive, real, consistent — and honestly modest, not talked up.**
+Experiment 11's environment has no delayed effects, so greedy 1-step
+lookahead was already optimal there; nothing to test multi-step planning
+against. This experiment builds the smallest environment where that
+stops being true: each action's effect splits between landing
+immediately and landing one step later, and episodes now persist across
+steps with reward only at the end — a genuine multi-step
+credit-assignment problem.
+
+A 2×2 factorial design (greedy vs. multi-step receding-horizon planning,
+crossed with learned vs. oracle dynamics) is what makes the result
+trustworthy: multi-step planning beat greedy lookahead by almost
+exactly the same margin whether the dynamics model was learned (0.0246 →
+0.0204) or known exactly (0.0241 → 0.0200) — confirming the advantage is
+really about how far ahead the agent looks, not an accident of one
+condition's model happening to be better. The effect held in 14 of 15
+seeds. **The size of the effect (~17% relative reduction in error) is
+reported honestly, not inflated**: because every step gives the agent
+full feedback and lets it replan, a myopic policy already self-corrects
+fairly well over several free steps — multi-step planning's real
+advantage here is efficiency, not preventing catastrophic mistakes.
+
+→ [experiments/exp12_multistep_planning/RESULTS.md](../experiments/exp12_multistep_planning/RESULTS.md)
+
 ## What isn't tested yet
 
 - A learned-embedding baseline that matches prior art's actual mechanism
@@ -571,21 +616,26 @@ starts.**
 - Multi-step or sequential interventions, and a computational comparison
   against Rubin's potential-outcomes framework (noted as the alternative
   formalization, not implemented or benchmarked against).
-- Multi-step planning/simulation on top of Phase 6's 1-step
-  `LinearDynamicsModel` (`Simulator`, `Planner` remain empty stubs);
-  nonlinear dynamics (the world-model's advantage in experiment 11 rests
+- Nonlinear dynamics (the world-model's advantage in experiment 11 rests
   specifically on the true transition being exactly linear); a
   non-stationary version of the environment (combining a learned world
   model with the existing regime-change-detection machinery from Phase 4
-  is untested). A follow-up to experiment 11 tested whether a nonlinear
-  (quadratic-feature) model-free baseline could represent the true
-  reward surface and close the gap — it did (regret dropped from 3.5421
-  to 0.0144, matching the world-model agent), confirming the original
-  explanation (linear cannot represent a peak) was the real cause, using
-  the exactly-correct feature set — whether model-free methods find that
-  feature set unprompted, in a real environment where the reward's
-  functional form isn't known in advance, remains untested.
+  is untested); whether model-free methods find the right feature set
+  unprompted, in a real environment where the reward's functional form
+  isn't known in advance (experiment 11's follow-up handed the model-free
+  baseline the exactly-correct quadratic features rather than having it
+  discover them).
+- Multi-step planning beyond a 2-step lookahead and a single fixed
+  1-step-lag structure (experiment 12); a real `Planner` kernel
+  primitive generalizing experiment 12's environment-specific
+  `choose_action` logic (`transintelligence/planning/` doesn't exist
+  yet, `Simulator` remains fully unbuilt); a smarter search than
+  exhaustive enumeration over action sequences, needed before this
+  approach could scale to larger action sets or longer horizons; a
+  nonlinear or momentum-based (rather than simple linear-lag) delay
+  structure, which might show a more dramatic planning advantage than
+  experiment 12's modest ~17% one.
 - The master context's remaining later phases (agency; meta-intelligence;
   strange loops; cross-domain transfer) — all still pre-formalization,
   per `research-agenda.md`'s own sequencing. World models (Phase 6) has
-  now started (experiment 11).
+  now started (experiments 11-12).

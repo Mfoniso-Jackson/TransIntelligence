@@ -342,7 +342,39 @@ reward is a non-monotonic (quadratic) function of state that a linear
 value fit cannot represent regardless of data, while the true
 *transition* is linear and therefore exactly learnable, the same
 linear-cannot-represent-curvature lesson experiment 10 established for
-effect estimation, now shown in a planning setting instead.**
+effect estimation, now shown in a planning setting instead. A follow-up
+confirmed the mechanism directly: giving the model-free baseline a
+quadratic (correctly-specified) feature set closed almost the entire
+gap, ruling out an unaccounted-for confound as the real explanation.**
+
+## 3f. Multi-step planning: receding-horizon control (Experiment 12, Phase 6, continued)
+
+- Richalet, Rault, Testud, Papon, *Model Predictive Heuristic Control:
+  Applications to Industrial Processes*, Automatica 14(5), 429-445,
+  1978. The founding paper for what's now called Model Predictive
+  Control / receding-horizon control — the established mechanism
+  `choose_action`'s multi-step branch
+  (`experiments/exp12_multistep_planning/run.py`) implements the
+  smallest version of: simulate several steps ahead using a learned
+  model, execute only the first action, then replan from the newly
+  observed state at every step. Experiment 11's Dyna citation (Sutton
+  1990/1991, above) already covers "plan via simulated rollouts through
+  a learned model" in the single-step case; this is the direct
+  multi-step generalization of the same idea, from a different but
+  closely related literature.
+
+**Classification: established theory in full — receding-horizon control
+is foundational, decades-old control theory, not a novel mechanism.
+What experiment 12 contributes is a 2×2 factorial design (planning
+horizon × model source) that isolates the specific claim (does horizon
+matter) from a confound (does model quality happen to differ between
+conditions): a multi-step planner beats greedy 1-step lookahead by
+almost exactly the same margin whether using a learned or an oracle
+dynamics model, confirming the advantage is genuinely about horizon.
+The effect is real, consistent across 14 of 15 seeds, and reported at
+its actual (modest, ~17% relative) size rather than overstated — smaller
+than experiment 11's dynamics-vs-reward-modeling result, for a
+structural reason stated plainly in the results, not glossed over.**
 
 ## 4. Frame-dependence / frame-invariance detection (Experiment 2)
 
@@ -515,6 +547,7 @@ methods."**
 | Instrumental variables & front-door adjustment (Experiment 9, Phase 5) | Wright (P.) 1928; Pearl 1995; Wright (S.) 1934; Bound, Jaeger & Baker 1995 | Established theory in full — both mechanisms implemented and empirically verified, including their theory-predicted failure modes |
 | Nonlinear structural equations (Experiment 10, Phase 5) | Pearl, Glymour & Jewell 2016 (abduction only needs additive noise, not linearity) | Established theory — abduction confirmed exact for a nonlinear case; linear OLS-based effect estimation confirmed biased under nonlinearity by construction, not a new finding about OLS itself |
 | World models for planning (Experiment 11, Phase 6) | Sutton 1990/1991 (Dyna); Ha & Schmidhuber 2018; Sutton & Barto 2018 | Established theory in full — Dyna-style planning and linear value-function approximation are both textbook; the specific comparison isolating dynamics-modeling from reward-fitting is a directly-constructed demonstration, not a new algorithm |
+| Multi-step planning (Experiment 12, Phase 6) | Richalet, Rault, Testud & Papon 1978 (MPC/receding-horizon control) | Established theory in full — the 2x2 design isolating planning-horizon from model-quality is a directly-constructed demonstration, not a new algorithm |
 | Frame-dependence detection | Arjovsky et al. 2019; arXiv:2010.05761; Zhou et al. 2023; Wang et al. 2022 | Established theory; current `sensitivity()` is a naive baseline against it |
 | Geometric reasoning over non-physical spaces | Bronstein et al. 2021 | Established theory, directly prior art |
 | Cross-domain structural transfer | Gentner 1983; Lake & Baroni 2018/2023 | Established distinctions; TransIntelligence's specific transfer claim is a hypothesis |

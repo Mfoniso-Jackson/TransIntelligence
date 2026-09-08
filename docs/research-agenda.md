@@ -9,9 +9,9 @@ project vision (see `docs/architecture.md`, `docs/intelligence-model.md`):
 vision motivates the program, this document constrains near-term work to
 what can actually be measured.
 
-All eleven experiments below have now run. For a standalone summary of
+All twelve experiments below have now run. For a standalone summary of
 what they actually established — without reading this document's
-incremental updates or eleven separate `RESULTS.md` files — see
+incremental updates or twelve separate `RESULTS.md` files — see
 [docs/findings.md](findings.md).
 
 Distinguish four categories throughout:
@@ -1024,6 +1024,67 @@ right feature set. Full numbers in
 [experiments/exp11_world_model_planning/RESULTS.md](../experiments/exp11_world_model_planning/RESULTS.md)
 ("Follow-up" section).
 
+## 7i. Experiment 12 — Multi-step planning: does receding-horizon control beat greedy lookahead? (Phase 6, continued)
+
+**Status: run.** Experiment 11's environment (`ResourceControlEnv`) has
+pure translation dynamics with no delayed effects, so greedy 1-step
+lookahead is already globally optimal there — nothing for multi-step
+planning to improve on. This experiment builds the smallest environment
+where that stops being true.
+
+- **Hypothesis:** a receding-horizon planner (simulate several steps
+  ahead using the learned dynamics model, execute only the first action,
+  replan every step — Richalet et al.'s Model Predictive Heuristic
+  Control, 1978) beats greedy 1-step lookahead specifically when actions
+  have a delayed effect a 1-step model is structurally blind to.
+- **The confound this needed to control for, stated up front:** a
+  planning-horizon comparison could get conflated with a model-quality
+  difference if the two conditions happen to learn dynamics of different
+  quality. A 2×2 factorial design (`greedy`/`mpc` × `learned`/`oracle`)
+  isolates the two questions: does horizon matter, and does model
+  quality matter, checked independently rather than bundled into one
+  number.
+- **Design:** `environments/transworld/delayed_control_env.py`'s
+  `DelayedControlEnv` — each nudge splits between an immediate effect
+  (`lag_weight=0.5`) and a delayed one landing on the position after
+  next; episodes persist for `HORIZON=5` steps with reward only at the
+  final step. `choose_action`
+  (`experiments/exp12_multistep_planning/run.py`) enumerates action
+  sequences of depth `min(lookahead, remaining_steps)` and scores each
+  by simulated final-position distance. **Verified by hand before being
+  trusted for anything**: given known dynamics and a specific starting
+  point, both `lookahead=1` and `lookahead=2` were checked against a
+  hand-computed optimal first action, and capping lookahead at the
+  episode's remaining steps was confirmed to make `mpc` reduce to
+  exactly `greedy`'s choice at the final step, in
+  `tests/test_exp12_multistep_planning.py`.
+- **Result: `mpc` beat `greedy` by almost exactly the same margin in
+  both the learned pair (0.0246→0.0204, gap 0.0042) and the oracle pair
+  (0.0241→0.0200, gap 0.0041) — confirming the advantage is about
+  planning horizon, not an accident of model quality differing between
+  conditions.** `mpc_learned` beat `greedy_learned` in 14 of 15 seeds,
+  a consistent effect. Learned and oracle dynamics performed almost
+  identically within each horizon pair, consistent with experiment 11's
+  finding that `LinearDynamicsModel`-style linear dynamics are recovered
+  almost exactly given enough data. **The effect size is real but
+  modest (~17% relative reduction in mean squared final-distance), and
+  reported at that size rather than inflated**: because every step gives
+  full state feedback and lets the agent replan, a myopic policy already
+  self-corrects reasonably well over several free steps — multi-step
+  planning's advantage here is in efficiency, not in avoiding
+  catastrophic, uncorrectable mistakes.
+- **Falsification:** would have been `mpc` failing to beat `greedy`
+  despite the delayed-effect structure (meaning the mechanism doesn't
+  actually help, or the environment doesn't actually require lookahead),
+  or the learned/oracle gap differing substantially between the greedy
+  and mpc pairs (meaning the comparison was contaminated by a
+  model-quality confound rather than isolating planning horizon) —
+  neither happened. Full numbers and what isn't tested (only a 2-step
+  lookahead; a single fixed lag structure; exhaustive search over action
+  sequences, not scalable to larger action sets; no nonlinear/momentum-
+  based delay structure; stationary environment) in
+  [experiments/exp12_multistep_planning/RESULTS.md](../experiments/exp12_multistep_planning/RESULTS.md).
+
 ## 8. Sequencing
 
 1. ~~Experiment 2 first~~ — **done**, see §6. Result: `sensitivity()` failed
@@ -1146,6 +1207,19 @@ right feature set. Full numbers in
     while the true dynamics are linear and therefore exactly learnable.
     Full results in
     [experiments/exp11_world_model_planning/](../experiments/exp11_world_model_planning/RESULTS.md).
+    A follow-up confirmed the mechanism directly: a quadratic (correctly-
+    specified) model-free baseline closed almost the entire gap (regret
+    3.5421 → 0.0144), matching `world_model`'s -0.0002.
+13. ~~Experiment 12~~ — **done**, see §7i. A 2×2 factorial design
+    (`greedy`/`mpc` × `learned`/`oracle`) isolates planning-horizon from
+    model-quality on `DelayedControlEnv`, a genuine multi-step
+    credit-assignment environment (unlike experiment 11's fresh-state-
+    per-trial design). Multi-step (receding-horizon) planning beat greedy
+    1-step lookahead by almost exactly the same margin in both the
+    learned and oracle pairs, confirming the effect is about horizon, not
+    model quality — a real, consistent (14/15 seeds), but modest (~17%
+    relative) effect, reported at its actual size. Full results in
+    [experiments/exp12_multistep_planning/](../experiments/exp12_multistep_planning/RESULTS.md).
 
 ## 9. What would make this publishable, and what would make a reviewer skeptical
 
@@ -1181,7 +1255,7 @@ right feature set. Full numbers in
   borrows from (§8a of `related-work.md`) solves a much harder version of
   this problem than what was actually tested here, and both follow-ups
   show exactly where that gap matters.
-- **All eleven experiments are now done** (§5-7h). If this program is
+- **All twelve experiments are now done** (§5-7i). If this program is
   written up externally, the honest headline is: reference-frame
   conditioning helps within a bounded noise/coverage regime (experiment 1),
   a naive frame-dependence detector can fail in exactly the common case and
@@ -1219,12 +1293,17 @@ right feature set. Full numbers in
   helps (trivial), but because the value surface is non-monotonic in
   state in a way no linear fit can represent, echoing experiment 10's
   lesson in a planning setting instead of an effect-estimation one
-  (experiment 11). That's a coherent, modest, defensible set of claims —
-  resist the temptation to round any of them up, experiments 4 through
-  11 included.
-- **Experiments 5, 6, 7, 8, 9, 10, and 11 are also the first results from
-  this program that are reusable kernel capabilities, not RL research
-  scripts** — worth leading with in any framing aimed at the "is any of
+  (experiment 11) — a follow-up confirmed the mechanism directly by
+  showing a correctly-specified (quadratic) model-free baseline closes
+  almost the entire gap — and multi-step planning beats greedy 1-step
+  lookahead by a real, consistent, but honestly modest margin, with a
+  2x2 design confirming the advantage is specifically about planning
+  horizon rather than an accidental model-quality difference (experiment
+  12). That's a coherent, modest, defensible set of claims — resist the
+  temptation to round any of them up, experiments 4 through 12 included.
+- **Experiments 5, 6, 7, 8, 9, 10, 11, and 12 are also the first results
+  from this program that are reusable kernel capabilities, not RL
+  research scripts** — worth leading with in any framing aimed at the "is any of
   this actually usable" question, separate from the reference-frame-
   conditioning experiments' own framing. Experiments 6 and 7 together
   remain the cleanest, most textbook-dramatic results: a spurious effect
@@ -1245,4 +1324,8 @@ right feature set. Full numbers in
   (planning, not estimation) — not a coincidence so much as the same
   underlying mathematical fact (a linear function cannot represent a
   relationship with a peak) showing up wherever it's structurally
-  relevant.
+  relevant. Experiment 12 is the first Phase 6 result that isn't a
+  variation on that theme — it tests a structurally different question
+  (planning horizon, not function-class mismatch) with its own dedicated
+  2x2 confound-isolation design, and reports a genuinely modest effect
+  size honestly rather than reaching for a more dramatic-sounding number.
