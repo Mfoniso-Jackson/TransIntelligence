@@ -11,6 +11,7 @@ This repository currently implements the first milestone: typed primitives for e
 - Reasoning protocols plus deterministic geometric and relative baselines.
 - Temporal reasoning: regime-change detection, multi-key tracking, and dynamic time warping over `StateHistory` (`transintelligence/reasoning/temporal/`).
 - Causal reasoning: causal graphs, d-separation, and the backdoor criterion for confounding-bias correction (`transintelligence/reasoning/causal/`).
+- Counterfactual reasoning: per-unit "what would Y have been had X been different" queries via Pearl's abduction-action-prediction procedure (`transintelligence/reasoning/counterfactual/`).
 - Epistemic models: `Claim`, `Evidence`, `CounterEvidence`, `Hypothesis`, `Confidence`, `Source`.
 - In-memory episodic/semantic/strategic storage namespaces.
 - Minimal `KernelAgent` loop that stores simulated steps.
@@ -18,11 +19,11 @@ This repository currently implements the first milestone: typed primitives for e
 
 ## Planned
 
-Counterfactual reasoning, predictive, simulation, planning, verification, richer memory, persistence, and production domain adapters are intentionally left behind replaceable interfaces.
+Predictive, simulation, planning, verification, richer memory, persistence, and production domain adapters are intentionally left behind replaceable interfaces.
 
 ## Research
 
-Six falsifiable experiments from [docs/research-agenda.md](docs/research-agenda.md) have run. Short version: reference-frame conditioning helps within a bounded regime, and every result that looked clean on first pass got smaller once the control that could have killed it was actually run — except two: one whose calibration approach independently validated a fix an earlier experiment's failure had named but not built, and one (the backdoor criterion for confounding bias) whose confound control confirmed the mechanism with textbook clarity. See [docs/findings.md](docs/findings.md) for the summary, or [docs/related-work.md](docs/related-work.md) for how these claims relate to prior art.
+Seven falsifiable experiments from [docs/research-agenda.md](docs/research-agenda.md) have run. Short version: reference-frame conditioning helps within a bounded regime, and every result that looked clean on first pass got smaller once the control that could have killed it was actually run — except three: one whose calibration approach independently validated a fix an earlier experiment's failure had named but not built, and two (the backdoor criterion for confounding bias, and per-unit counterfactual recovery built on top of it) whose confound controls confirmed the mechanism with textbook clarity. See [docs/findings.md](docs/findings.md) for the summary, or [docs/related-work.md](docs/related-work.md) for how these claims relate to prior art.
 
 ## Quick start
 

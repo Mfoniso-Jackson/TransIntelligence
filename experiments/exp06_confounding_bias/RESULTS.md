@@ -2,7 +2,7 @@
 
 Ran: `PYTHONPATH=. python experiments/exp06_confounding_bias/run.py`.
 50 seeds × 500 samples per trial. See `docs/research-agenda.md` #7c for
-the hypothesis and `docs/related-work.md` §11a for the established
+the hypothesis and `docs/related-work.md` §3a for the established
 theory this implements and tests against.
 
 Ground-truth linear structural causal model, deliberately constructed

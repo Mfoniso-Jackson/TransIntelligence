@@ -112,7 +112,7 @@ baseline.**
 
 **Classification: established theory. This was true when written, and
 `transintelligence/reasoning/causal/` has since been built (Phase 5,
-`docs/research-agenda.md` #7c, grounded in §11a below) — `evaluate(x, R)`
+`docs/research-agenda.md` #7c, grounded in §3a below) — `evaluate(x, R)`
 itself still makes no causal claim, but the codebase now has a real
 place to make one, separate from the relative-reasoning module.**
 
@@ -144,9 +144,10 @@ place to make one, separate from the relative-reasoning module.**
   potential-outcomes framework — an alternative formalization of the same
   causal-effect question Experiment 6 answers via graphs (Pearl's
   structural/graphical tradition) instead of counterfactual random
-  variables (Rubin's tradition). Not implemented here; the natural
-  framework to reach for if per-unit counterfactual queries (rather than
-  population-average adjustment) become the next Phase 5 experiment.
+  variables (Rubin's tradition). Experiment 7 later implements per-unit
+  counterfactual queries via Pearl's tradition specifically (see §3b) —
+  Rubin's potential-outcomes framework remains the road not taken, not
+  computationally compared against.
 
 **Classification: established theory in full for all four citations —
 the backdoor criterion, d-separation, Simpson's paradox, and potential
@@ -157,6 +158,33 @@ directly-constructed demonstration (a collider adjustment that makes an
 already-correct model *worse*, not just "less good") rather than citing
 the standard confounding warning from authority — the same discipline
 Experiment 5's DTW comparison used.**
+
+## 3b. Per-unit counterfactuals: abduction-action-prediction (Experiment 7, Phase 5)
+
+- Pearl, Glymour, Jewell, *Causal Inference in Statistics: A Primer*,
+  Wiley, 2016. The standard pedagogical source for the three-step
+  abduction-action-prediction procedure `StructuralCausalModel.counterfactual()`
+  implements: infer a unit's exogenous noise from its observed values,
+  fix the intervened variables, recompute everything else using that
+  unit's own inferred noise.
+- Balke, Pearl, *Counterfactual Probabilities: Computational Methods,
+  Bounds and Applications*, UAI 1994, pp. 46-54. The earlier computational
+  treatment the 2016 primer's pedagogical version builds on — relevant
+  here mainly for the general (non-linear, non-deterministic) case this
+  implementation deliberately does not attempt: `abduct()`'s closed-form
+  residual only works because the structural equations are linear with
+  additive noise; Balke & Pearl's methods (and the general theory) handle
+  cases where abduction requires solving for a distribution over exogenous
+  variables rather than reading off an exact value.
+
+**Classification: established theory in full — the three-step procedure
+and its computational grounding are both textbook, not novel.
+`StructuralCausalModel`'s contribution is the same kind of engineering
+simplification as `CUSUMTemporalReasoner` and `reasoning/causal/`'s OLS
+adjustment: the smallest version of the established mechanism (closed-form
+linear abduction) that could produce a falsifiable result, explicitly not
+a claim to handle the general nonlinear/non-additive-noise case Balke &
+Pearl's methods were built for.**
 
 ## 4. Frame-dependence / frame-invariance detection (Experiment 2)
 
@@ -324,6 +352,7 @@ methods."**
 | RNN encoder-decoder condition-B attempt (vanishing gradients) | Bengio, Simard & Frasconi 1994; Williams & Peng 1990; Hochreiter & Schmidhuber 1997 | Established theory in full — the failure mode, the training method, and the fix (unimplemented) are all textbook |
 | Causal framing of `evaluate(x,R)` | Pearl 2009 | Established theory; `evaluate()` itself still makes no causal claim |
 | Backdoor criterion / confounding bias (Experiment 6, Phase 5) | Pearl 1995; Verma & Pearl 1988; Simpson 1951; Rubin 1974 | Established theory in full — implemented and empirically verified, not novel |
+| Per-unit counterfactuals (Experiment 7, Phase 5) | Pearl, Glymour & Jewell 2016; Balke & Pearl 1994 | Established theory in full — closed-form linear special case, not the general nonlinear treatment |
 | Frame-dependence detection | Arjovsky et al. 2019; arXiv:2010.05761; Zhou et al. 2023; Wang et al. 2022 | Established theory; current `sensitivity()` is a naive baseline against it |
 | Geometric reasoning over non-physical spaces | Bronstein et al. 2021 | Established theory, directly prior art |
 | Cross-domain structural transfer | Gentner 1983; Lake & Baroni 2018/2023 | Established distinctions; TransIntelligence's specific transfer claim is a hypothesis |

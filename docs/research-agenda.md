@@ -648,6 +648,69 @@ hits anywhere.
   natural next experiment) in
   [experiments/exp06_confounding_bias/RESULTS.md](../experiments/exp06_confounding_bias/RESULTS.md).
 
+## 7d. Experiment 7 — Per-unit counterfactual queries (Phase 5, continued)
+
+**Status: run.** Fills `CounterfactualReasoner`
+(`transintelligence/reasoning/counterfactual/`), the last remaining empty
+stub among the reasoning protocols that had one before Phase 4 started
+(`TemporalReasoner`, `CausalReasoner`, now `CounterfactualReasoner` all
+have real implementations; `Predictor`, `Simulator`, `Planner`, `Verifier`
+remain unbuilt). Experiment 6 answered a *population* question ("does X
+affect Y on average, adjusting for confounders"); this answers a
+genuinely different *per-unit* one ("what would THIS unit's Y have been,
+had its X been different") — Pearl's third rung of the causal hierarchy.
+
+- **Hypothesis:** Pearl's abduction-action-prediction procedure (Pearl,
+  Glymour, Jewell, *Causal Inference in Statistics: A Primer*, Wiley,
+  2016; computational treatment in Balke, Pearl, *Counterfactual
+  Probabilities: Computational Methods, Bounds and Applications*, UAI
+  1994), specialized to a linear+additive-noise SCM, correctly recovers a
+  specific unit's counterfactual outcome — and does so by genuinely
+  preserving that unit's own idiosyncratic noise, not just reproducing
+  the population-average prediction at the new treatment value.
+- **The confound this needed to control for, stated up front rather than
+  discovered after a misleadingly clean number**: the "naive" alternative
+  (plug the new treatment value into the fitted population regression,
+  skip abduction entirely) is an *unbiased estimator of the average
+  effect* — so a comparison that only checks average accuracy across many
+  units risks naive looking "close enough." The real test is per-unit
+  accuracy for units with nonzero residuals specifically.
+- **Design:** `StructuralCausalModel` (`transintelligence/reasoning/counterfactual/model.py`)
+  implements `abduct()` (closed-form residual per node) and
+  `counterfactual()` (fix intervened nodes, recompute everything else
+  using each node's own inferred noise). Verified against hand-computed
+  cases in `tests/test_counterfactual_reasoning.py` *before* the
+  experiment was built (a simple two-node chain with an exact expected
+  residual and counterfactual value; two units with identical observed
+  treatment but different outcomes correctly getting different
+  counterfactual predictions) — the same discipline as verifying
+  d-separation on canonical structures before experiment 6.
+- **Result: as clean as experiment 6's, for the same reason — the
+  mechanism is exact by construction, not approximately right.** With the
+  *true* structural coefficients, abduction's mean absolute error is
+  **0.0000** (exact recovery to floating-point precision) while the naive
+  plug-in's error is 0.2413 — which matches the theoretical mean absolute
+  value of the simulated exogenous noise (`0.3·√(2/π) ≈ 0.239`) almost
+  exactly, confirming *why* naive is wrong: its error literally equals
+  the unit-specific residual it silently discards. With *estimated*
+  (OLS-fit) coefficients — the realistic case — abduction still wins
+  roughly 9x (0.0284 vs. 0.2440), and **naive's error barely moves at
+  all between the two conditions**, because its error source (discarding
+  a unit's own residual) is structurally independent of how well the
+  population parameters are estimated — no amount of additional
+  observational data would ever close that gap, whereas abduction's small
+  remaining error is pure finite-sample noise that does shrink with more
+  data (checked directly).
+- **Falsification:** would have been naive performing comparably to
+  abducted (showing the "unbiased on average" property was enough in
+  practice), or abducted's error with true coefficients being
+  meaningfully nonzero (a bug in the closed-form residual logic) — neither
+  happened. Full numbers and what isn't tested (nonlinear/non-additive-
+  noise SCMs; structure/coefficients assumed known or estimated, not
+  discovered; single intervention point only; no computational comparison
+  against Rubin's potential-outcomes framework) in
+  [experiments/exp07_counterfactual_queries/RESULTS.md](../experiments/exp07_counterfactual_queries/RESULTS.md).
+
 ## 8. Sequencing
 
 1. ~~Experiment 2 first~~ — **done**, see §6. Result: `sensitivity()` failed
@@ -711,6 +774,17 @@ hits anywhere.
    produces its own distinct bias that gets *worse*, not neutral, when
    layered onto an otherwise-correct model. Full results in
    [experiments/exp06_confounding_bias/](../experiments/exp06_confounding_bias/RESULTS.md).
+8. ~~Experiment 7~~ — **done**, see §7d. Fills `CounterfactualReasoner`,
+   the last previously-empty reasoning stub before Phase 4 started. With
+   true coefficients, per-unit counterfactual recovery is exact (error
+   0.0000) while the naive population-plug-in shortcut's error (0.2413)
+   matches the theoretical mean absolute exogenous noise almost exactly —
+   confirming it's wrong for the precise reason expected: it silently
+   discards each unit's own residual. With estimated coefficients,
+   abduction still wins ~9x, and naive's error barely moves between the
+   two conditions, because its error source is structurally independent
+   of estimation quality. Full results in
+   [experiments/exp07_counterfactual_queries/](../experiments/exp07_counterfactual_queries/RESULTS.md).
 
 ## 9. What would make this publishable, and what would make a reviewer skeptical
 
@@ -746,7 +820,7 @@ hits anywhere.
   borrows from (§8a of `related-work.md`) solves a much harder version of
   this problem than what was actually tested here, and both follow-ups
   show exactly where that gap matters.
-- **All six experiments are now done** (§5-7c). If this program is
+- **All seven experiments are now done** (§5-7d). If this program is
   written up externally, the honest headline is: reference-frame
   conditioning helps within a bounded noise/coverage regime (experiment 1),
   a naive frame-dependence detector can fail in exactly the common case and
@@ -758,17 +832,23 @@ hits anywhere.
   (experiment 4), a properly self-calibrated detector (built for an
   unrelated Phase 4 kernel capability) degrades far more gracefully than
   experiment 4's fixed-threshold trigger did, retroactively validating the
-  fix experiment 4 named but didn't build (experiment 5), and a purely
+  fix experiment 4 named but didn't build (experiment 5), a purely
   graph-theoretic criterion computed with no data at all exactly predicts
   which covariate adjustments remove confounding bias and which introduce
-  a *different* bias instead (experiment 6). That's a coherent, modest,
-  defensible set of claims — resist the temptation to round any of them
-  up, experiment 4, 5, and 6 included.
-- **Experiments 5 and 6 are also the first results from this program that
-  are reusable kernel capabilities, not RL research scripts** — worth
+  a *different* bias instead (experiment 6), and the same graph-theoretic
+  machinery extends cleanly to exact per-unit counterfactual recovery,
+  with a naive shortcut's error traced to a precise, predicted cause
+  rather than just observed to be worse (experiment 7). That's a coherent,
+  modest, defensible set of claims — resist the temptation to round any of
+  them up, experiments 4 through 7 included.
+- **Experiments 5, 6, and 7 are also the first results from this program
+  that are reusable kernel capabilities, not RL research scripts** — worth
   leading with in any framing aimed at the "is any of this actually
   usable" question, separate from the reference-frame-conditioning
-  experiments' own framing. Experiment 6 in particular is the cleanest,
-  most textbook-dramatic result of the six — a spurious effect of 0.881
-  where the truth is 0.0, corrected to ~0 by the graph-predicted
-  adjustment — worth leading with if only one result can be shown.
+  experiments' own framing. Experiments 6 and 7 together are the
+  cleanest, most textbook-dramatic results of the seven: a spurious
+  effect of 0.881 where the truth is 0.0, corrected to ~0 by the
+  graph-predicted adjustment (6), and an exact per-unit counterfactual
+  recovery whose only error source (finite-sample estimation) is
+  precisely characterized (7) — worth leading with if only one or two
+  results can be shown.

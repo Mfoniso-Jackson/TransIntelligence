@@ -1,8 +1,8 @@
 # Findings
 
-A standalone summary of what the first six experiments in
+A standalone summary of what the first seven experiments in
 [research-agenda.md](research-agenda.md) actually established, for anyone
-who wants the result without reading six `RESULTS.md` files and the
+who wants the result without reading seven `RESULTS.md` files and the
 incremental updates to the agenda itself. Each section below is a compressed
 version of a much more detailed writeup — follow the links for the numbers,
 the code, and the caveats a one-paragraph summary can't carry.
@@ -14,10 +14,11 @@ positive result that looked clean on first pass got smaller once the
 control built to potentially kill it actually ran — except one, where the
 control confirmed the effect instead, a fifth experiment on an unrelated
 kernel capability then independently validated the specific fix that would
-have helped the one result that didn't hold up cleanly, and a sixth showed
+have helped the one result that didn't hold up cleanly, a sixth showed
 that a purely graph-theoretic criterion, computed before touching any
 data, exactly predicts which statistical adjustments are safe and which
-quietly make things worse.
+quietly make things worse, and a seventh extended the same machinery to
+per-unit questions with an exact, not just approximately correct, answer.
 
 ## Experiment 2 — Does `sensitivity()` detect frame-dependent conclusions?
 
@@ -161,7 +162,7 @@ same session, sharpened exactly how much harder:
 
 ## The meta-finding
 
-Across the six experiments, the same discipline applied every time: build
+Across the seven experiments, the same discipline applied every time: build
 the control that could kill the result, then run it, and don't stop at the
 first configuration that looks clean. Every single result got a real
 qualifier once that happened. Three times the headline *number* shrank —
@@ -172,14 +173,17 @@ discovery) went the other way and *confirmed* the effect — but its own
 follow-up stress tests (a noise sweep, a two-simultaneously-missing-
 regimes test) still found real, structural boundaries: a specificity
 collapse outside the calibrated noise level, and a dependence on
-behavioral rather than parametric distinctness. Experiment 6's confound
-control (adjusting for a collider instead of the true confounder) also
-went the other way — it *confirmed*, with textbook clarity, that the
-graph-theoretic validity check is doing real work, and further found that
-combining a valid and an invalid adjustment is worse than the invalid one
-alone. No experiment that was actually pushed on came back unqualified.
-None of the six hypotheses were fully falsified, but none survived
-untouched either — that's the intended
+behavioral rather than parametric distinctness. Experiments 6 and 7's
+confound controls (adjusting for a collider instead of the true
+confounder; a naive population plug-in instead of per-unit abduction)
+both went the other way — they *confirmed*, with textbook clarity, that
+the graph-theoretic machinery is doing real work, and each surfaced a
+sharper nuance than "it works": combining a valid and an invalid
+adjustment is worse than the invalid one alone (6), and a naive
+shortcut's error is structurally immune to more data in a way the correct
+method's isn't (7). No experiment that was actually pushed on came back
+unqualified. None of the seven hypotheses were fully falsified, but none
+survived untouched either — that's the intended
 outcome of the experimental discipline in
 [research-agenda.md](research-agenda.md) §21, not a failure of it. A
 result that survives its own strongest test is worth more than one that
@@ -299,6 +303,38 @@ validity check is doing real, load-bearing work.
 
 → [experiments/exp06_confounding_bias/RESULTS.md](../experiments/exp06_confounding_bias/RESULTS.md)
 
+## Experiment 7 — Can a per-unit counterfactual be recovered exactly, not just on average?
+
+**Positive, and mechanically exact — the same clean pattern as experiment
+6, extended from a population question to a per-unit one.** Experiment 6
+asked "does X affect Y on average, adjusting for confounders." This asks
+a genuinely different question: "what would *this specific unit's* Y have
+been, had its X been different." Filled `CounterfactualReasoner`, the
+last reasoning protocol stub that predated Phase 4 — `Predictor`,
+`Simulator`, `Planner`, `Verifier` remain unbuilt.
+
+`StructuralCausalModel` implements Pearl's three-step abduction-action-
+prediction procedure: infer a unit's own exogenous noise from what was
+observed, fix the intervened variable, recompute everything else using
+that *same* unit-specific noise — not the population average. The
+obvious shortcut (skip abduction, just plug the new treatment value into
+the fitted population regression) is an unbiased estimator of the
+*average* effect, so the real test had to be per-unit accuracy, not
+average accuracy, or the naive shortcut could look deceptively fine.
+
+With the true structural coefficients, abduction recovers the exact
+per-unit counterfactual (error 0.0000) while the naive shortcut's error
+(0.2413) matches the theoretical average magnitude of the simulated
+noise almost exactly — confirming precisely *why* it's wrong: its error
+literally equals the residual it silently assumes is zero for every unit.
+With estimated (not true) coefficients — the realistic case — abduction
+still wins by roughly 9x, and the naive error barely moves between the
+two conditions, because discarding a unit's own residual is a structural
+problem no amount of additional data can fix, unlike abduction's small
+remaining error, which does shrink with more data.
+
+→ [experiments/exp07_counterfactual_queries/RESULTS.md](../experiments/exp07_counterfactual_queries/RESULTS.md)
+
 ## What isn't tested yet
 
 - A learned-embedding baseline that matches prior art's actual mechanism
@@ -316,9 +352,12 @@ validity check is doing real, load-bearing work.
   tracked at once.
 - Causal discovery (inferring graph structure from data, rather than
   assuming it), front-door adjustment and instrumental variables (only
-  the backdoor criterion was tested), nonlinear structural equations, and
-  per-unit counterfactual queries (`CounterfactualReasoner`, still an
-  empty stub) — the natural next Phase 5 experiment.
+  the backdoor criterion was tested), and nonlinear structural equations
+  (both `reasoning/causal/` and `reasoning/counterfactual/` assume
+  linearity throughout).
+- Multi-step or sequential interventions, and a computational comparison
+  against Rubin's potential-outcomes framework (noted as the alternative
+  formalization, not implemented or benchmarked against).
 - The master context's remaining later phases (world models; agency;
   meta-intelligence) — all still pre-formalization, per
   `research-agenda.md`'s own sequencing.
