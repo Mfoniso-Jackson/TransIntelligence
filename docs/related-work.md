@@ -431,6 +431,28 @@ depth 3, vs. 13-15/15 for beam search) — a real finding about the
 mismatch between what exhaustive search optimizes and what receding-
 horizon control actually needs, not merely a speed/quality tradeoff.**
 
+## 3i. Nonlinear world-model dynamics (Experiment 15, Phase 6, continued)
+
+- Pearl, Glymour, Jewell, *Causal Inference in Statistics: A Primer*,
+  Wiley, 2016. Already cited in §3b for the claim that abduction only
+  needs additive noise, not linearity — the same underlying principle
+  (a nonlinear functional form is fine as long as it's correctly
+  specified and fit) motivates `NonlinearWorldModelAgent`'s quadratic
+  feature here, no new citation needed for the mechanism itself (plain
+  polynomial-feature OLS, already used in experiment 11's quadratic
+  follow-up for a value function rather than a transition model).
+
+**Classification: established theory — polynomial-feature regression is
+textbook, not novel. What experiment 15 contributes is the same
+"linear-cannot-represent-a-nonlinearity" demonstration experiments 10
+and 11 already made, now for a third distinct object (world-model
+dynamics prediction, after causal effect estimation and single-step
+value estimation) — and a directly-checked boundary condition: a weak
+nonlinearity that doesn't change which discrete action ranks best
+produces no measurable gap, mirroring experiment 13's mild-severity
+finding exactly, before a stronger version of the same nonlinearity
+produced a clean, ~193x regret gap.**
+
 ## 4. Frame-dependence / frame-invariance detection (Experiment 2)
 
 - Invariant Risk Minimization: Arjovsky, Bottou, Gulrajani, Lopez-Paz,
@@ -605,6 +627,7 @@ methods."**
 | Multi-step planning (Experiment 12, Phase 6) | Richalet, Rault, Testud & Papon 1978 (MPC/receding-horizon control) | Established theory in full — the 2x2 design isolating planning-horizon from model-quality is a directly-constructed demonstration, not a new algorithm |
 | World models + regime-change detection (Experiment 13, Phase 6) | Page 1954 (CUSUM, already cited for experiment 5); no new citation — a synthesis of two already-verified primitives | Established theory in full for both components — the empirical composition test, and the severity-dependent finding it produced, are the contribution, not any mechanism |
 | Beam search for planning (Experiment 14, Phase 6) | Lowerre 1976 (beam search) | Established theory in full — the mechanism is textbook; the finding that it's more robust to a receding-horizon oscillation pathology, not just cheaper, is the contribution |
+| Nonlinear world-model dynamics (Experiment 15, Phase 6) | Pearl, Glymour & Jewell 2016 (already cited, §3b) | Established theory — polynomial-feature OLS is textbook; the boundary-condition finding (weak nonlinearity shows no gap, strong does) mirroring experiment 13 is the contribution |
 | Frame-dependence detection | Arjovsky et al. 2019; arXiv:2010.05761; Zhou et al. 2023; Wang et al. 2022 | Established theory; current `sensitivity()` is a naive baseline against it |
 | Geometric reasoning over non-physical spaces | Bronstein et al. 2021 | Established theory, directly prior art |
 | Cross-domain structural transfer | Gentner 1983; Lake & Baroni 2018/2023 | Established distinctions; TransIntelligence's specific transfer claim is a hypothesis |

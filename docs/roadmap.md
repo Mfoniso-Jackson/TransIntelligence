@@ -2,7 +2,7 @@
 
 ## Current milestone
 
-A working core that represents entities, relationships, observations, states, contexts, and reference frames, then performs basic geometric and relative reasoning with traceable results. Fourteen falsifiable experiments have run against the reference-frame-conditioning hypothesis and related claims (see `docs/research-agenda.md`, summarized in `docs/findings.md`).
+A working core that represents entities, relationships, observations, states, contexts, and reference frames, then performs basic geometric and relative reasoning with traceable results. Fifteen falsifiable experiments have run against the reference-frame-conditioning hypothesis and related claims (see `docs/research-agenda.md`, summarized in `docs/findings.md`).
 
 Temporal reasoning has also started: `transintelligence/reasoning/temporal/` implements regime-change detection, multi-key joint detection, and dynamic time warping (`CUSUMTemporalReasoner`, docs/research-agenda.md #7b) — the first reusable kernel primitive from this research program, rather than an experiment-only script.
 
@@ -18,9 +18,11 @@ Combining world models with regime-change detection has also started: experiment
 
 `RecedingHorizonPlanner`'s exhaustive search has since gained a `beam_width` option (docs/research-agenda.md #7k, experiment 14) — set out to test whether beam search approximates exhaustive search's quality more cheaply (the expected result), and instead found, by investigating a result that looked wrong rather than reporting it, that beam search is measurably *more robust* to a genuine receding-horizon oscillation pathology exhaustive search's terminal-only scoring is vulnerable to (2/15 states converged to target under exhaustive search at depth 3, vs. 13-15/15 for beam search, at 12-22x fewer `transition_fn` calls) — not just a speed/quality tradeoff.
 
+Nonlinear world-model dynamics have also been tested (docs/research-agenda.md #7l, experiment 15): `environments/transworld/nonlinear_control_env.py` adds a quadratic restoring force to experiment 11's dynamics. A weak version of the nonlinearity showed no gap between `LinearDynamicsModel` and a correctly-specified nonlinear dynamics model — the same doesn't-change-the-optimal-action pattern experiment 13 found for a mild regime shift — while a stronger one produced a clean ~193x regret gap, closing out a three-object arc this program's linearity theme has now traced end to end (causal effect estimation, single-step value estimation, world-model dynamics prediction).
+
 ## Next milestone
 
-Add richer observation querying, reference-frame validation, domain adapter examples for growth and property, and structured verifier outputs. Causal reasoning's stated gaps are now all closed: backdoor adjustment, causal discovery (skeleton recovery, collider orientation, and Meek's R1-R3 edge-orientation-propagation rules -- R4 is provably inapplicable without a background-knowledge mechanism this pipeline doesn't have), instrumental variables, front-door adjustment, and nonlinear structural equations (for counterfactual abduction; linear-only effect estimation remains a known, demonstrated limit, not a gap left untested) are all implemented. `Predictor` and `Planner` are now both filled too. Phase 6's remaining gaps: nonlinear dynamics; extending regime-change-adaptive world models to the multi-step planner (experiment 12) or a nonlinear dynamics model (experiment 10's generalization); whether a smarter exhaustive-search tie-breaking rule (prefer minimal-effort actions among ties) would close experiment 14's gap, or whether beam search's robustness advantage is specific to this dynamics structure; and `Simulator`, which remains fully unbuilt.
+Add richer observation querying, reference-frame validation, domain adapter examples for growth and property, and structured verifier outputs. Causal reasoning's stated gaps are now all closed: backdoor adjustment, causal discovery (skeleton recovery, collider orientation, and Meek's R1-R3 edge-orientation-propagation rules -- R4 is provably inapplicable without a background-knowledge mechanism this pipeline doesn't have), instrumental variables, front-door adjustment, and nonlinear structural equations (for counterfactual abduction; linear-only effect estimation remains a known, demonstrated limit, not a gap left untested) are all implemented. `Predictor` and `Planner` are now both filled too. Phase 6's remaining gaps: extending regime-change-adaptive world models to the multi-step planner (experiment 12) or the nonlinear dynamics model (experiment 15); whether a smarter exhaustive-search tie-breaking rule (prefer minimal-effort actions among ties) would close experiment 14's gap, or whether beam search's robustness advantage is specific to this dynamics structure; whether experiment 15's nonlinear dynamics fitting (currently an experiment-local class, not a kernel primitive) should be generalized into `transintelligence/world_models/` the way `LinearDynamicsModel` is; and `Simulator`, which remains fully unbuilt.
 
 ## Later milestones
 
@@ -34,13 +36,13 @@ Add richer observation querying, reference-frame validation, domain adapter exam
   `transintelligence/verification/` is a separate, earlier, unrelated
   implementation).
 - ~~World models (Phase 6).~~ Started — see above; nonlinear dynamics
-  remains.
+  now tested (experiment 15), not yet a kernel primitive.
 - ~~Multi-step planning/rollouts.~~ Started — see above; `RecedingHorizonPlanner`
   now has both exhaustive and beam-search modes (experiment 14);
   `Simulator` is still fully unbuilt.
 - ~~Non-stationary environment + regime-change detection integration.~~
   Started — see above (experiment 13); a continuous severity sweep, a
   longer post-shift window, and integration with the multi-step planner
-  or a nonlinear dynamics model all remain.
+  or the nonlinear dynamics model all remain.
 - Persistent storage adapters, eventually PostgreSQL/pgvector.
 - External model provider adapters behind interfaces.

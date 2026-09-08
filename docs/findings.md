@@ -1,8 +1,8 @@
 # Findings
 
-A standalone summary of what the first fourteen experiments in
+A standalone summary of what the first fifteen experiments in
 [research-agenda.md](research-agenda.md) actually established, for anyone
-who wants the result without reading fourteen `RESULTS.md` files and the
+who wants the result without reading fifteen `RESULTS.md` files and the
 incremental updates to the agenda itself. Each section below is a compressed
 version of a much more detailed writeup — follow the links for the numbers,
 the code, and the caveats a one-paragraph summary can't carry.
@@ -52,7 +52,12 @@ search for the planner) and found something sharper by investigating a
 result that looked wrong rather than reporting it: beam search isn't
 just cheaper, it's measurably more robust to a genuine receding-horizon
 oscillation pathology exhaustive search's terminal-only scoring is
-vulnerable to.
+vulnerable to, and a fifteenth closed out a three-object arc this
+program's linearity theme has now traced end to end — causal effect
+estimation, single-step value estimation, and world-model dynamics
+prediction — each confirming a linear fit cannot represent a
+nonlinearity, and each needing the misspecification to be severe enough
+to actually change a decision before the gap became visible at all.
 
 ## Experiment 2 — Does `sensitivity()` detect frame-dependent conclusions?
 
@@ -196,7 +201,7 @@ same session, sharpened exactly how much harder:
 
 ## The meta-finding
 
-Across the fourteen experiments, the same discipline applied every time: build
+Across the fifteen experiments, the same discipline applied every time: build
 the control that could kill the result, then run it, and don't stop at the
 first configuration that looks clean. Every single result got a real
 qualifier once that happened. Three times the headline *number* shrank —
@@ -257,9 +262,13 @@ claimed to; tie-breaking degeneracy in a fine action grid) before
 trusting a result that initially looked impossible (beam search
 "beating" exhaustive search by construction) — and what survived after
 fixing both was a real, quantified finding the experiment wasn't
-designed to find. No experiment that was actually pushed on came back
-unqualified. None of the fourteen hypotheses were fully falsified, but
-none survived untouched either — that's the intended
+designed to find. Experiment 15's own boundary-condition sweep (a weak
+nonlinearity, checked directly, showed no gap before a stronger one
+did) is the same discipline applied a third time to the same underlying
+theme — not assuming the expected result would appear just because the
+mechanism was technically misspecified. No experiment that was actually
+pushed on came back unqualified. None of the fifteen hypotheses were
+fully falsified, but none survived untouched either — that's the intended
 outcome of the experimental discipline in
 [research-agenda.md](research-agenda.md) §21, not a failure of it. A
 result that survives its own strongest test is worth more than one that
@@ -682,6 +691,33 @@ it's a better match for what receding-horizon control actually needs.
 
 → [experiments/exp14_beam_search_planning/RESULTS.md](../experiments/exp14_beam_search_planning/RESULTS.md)
 
+## Experiment 15 — Does a linear world model fail under genuine nonlinearity, and does a correctly-specified nonlinear one recover it?
+
+**Positive, with the same boundary-condition discipline experiment 13
+established, applied a third time to the same underlying theme.**
+Every world model in this program (`LinearDynamicsModel`, experiments
+11-14) assumes linear dynamics. This tests the cost of that assumption
+for a third distinct object — after causal effect estimation (experiment
+10) and single-step value estimation (experiment 11) — for world-model
+dynamics prediction itself.
+
+A weak version of a quadratic restoring-force nonlinearity showed almost
+no gap between the linear and a correctly-specified nonlinear dynamics
+model — checked directly, not assumed, and matching the exact pattern
+experiment 13 found for a mild regime shift: a nonlinearity too small to
+change which discrete action ranks best doesn't produce a measurable
+gap. Swept the nonlinearity's strength up rather than stopping at the
+null result. A stronger version produced a clean, dramatic gap: the
+correctly-specified nonlinear model matched the oracle ceiling almost
+exactly (regret 0.0036 vs. the oracle's 0.0014), while the linear
+model's regret (0.6933) was roughly **193x larger** — despite identical
+state access and the identical `ordinary_least_squares` tool, differing
+only in which features were fit. The linear model still meaningfully
+beat ignoring state entirely, though — wrong, but not worthless, the
+same pattern experiment 11's model-free linear baseline showed.
+
+→ [experiments/exp15_nonlinear_world_model/RESULTS.md](../experiments/exp15_nonlinear_world_model/RESULTS.md)
+
 ## What isn't tested yet
 
 - A learned-embedding baseline that matches prior art's actual mechanism
@@ -752,16 +788,24 @@ it's a better match for what receding-horizon control actually needs.
   mixed-data model eventually catches up as more post-shift data
   dilutes the stale pre-shift fit is untested); combining
   regime-change-adaptive world models with the multi-step planner
-  (experiment 12) or a nonlinear dynamics model (experiment 10's
-  generalization) — experiment 13 only tested the single-step, linear
-  case. A follow-up found that refitting the dynamics model more often
-  trades false positives for missed true detections (4/15 → 2/15 false
-  positives, but 15/15 → 13/15 true-detection rate) — a genuine
-  precision/recall tradeoff, not a single "correct" refit interval;
-  recalibrating CUSUM's own `h_sigma`/`burn_in` parameters specifically
-  for this context, rather than only varying refit frequency, remains
-  untested.
+  (experiment 12) or the nonlinear dynamics model (experiment 15) —
+  experiment 13 only tested the single-step, linear case. A follow-up
+  found that refitting the dynamics model more often trades false
+  positives for missed true detections (4/15 → 2/15 false positives, but
+  15/15 → 13/15 true-detection rate) — a genuine precision/recall
+  tradeoff, not a single "correct" refit interval; recalibrating CUSUM's
+  own `h_sigma`/`burn_in` parameters specifically for this context,
+  rather than only varying refit frequency, remains untested.
+- Experiment 15's nonlinear dynamics fitting is an experiment-local
+  class, not yet a kernel primitive the way `LinearDynamicsModel` is;
+  only one nonlinear functional form was tested (a quadratic restoring
+  force, with the correct feature handed to the agent rather than
+  discovered); whether it composes with the multi-step planner
+  (experiment 12) or beam search (experiment 14) is untested; the exact
+  crossover point between "nonlinearity too weak to matter" and "matters
+  a lot" wasn't mapped, the same limitation experiment 13's severity
+  sweep had.
 - The master context's remaining later phases (agency; meta-intelligence;
   strange loops; cross-domain transfer) — all still pre-formalization,
   per `research-agenda.md`'s own sequencing. World models (Phase 6) has
-  now started (experiments 11-14).
+  now started (experiments 11-15).

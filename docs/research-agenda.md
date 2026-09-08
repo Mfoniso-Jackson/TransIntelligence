@@ -9,9 +9,9 @@ project vision (see `docs/architecture.md`, `docs/intelligence-model.md`):
 vision motivates the program, this document constrains near-term work to
 what can actually be measured.
 
-All fourteen experiments below have now run. For a standalone summary of
+All fifteen experiments below have now run. For a standalone summary of
 what they actually established — without reading this document's
-incremental updates or fourteen separate `RESULTS.md` files — see
+incremental updates or fifteen separate `RESULTS.md` files — see
 [docs/findings.md](findings.md).
 
 Distinguish four categories throughout:
@@ -1236,6 +1236,68 @@ than reporting it.
   oscillation pathology is specific to this dynamics structure) in
   [experiments/exp14_beam_search_planning/RESULTS.md](../experiments/exp14_beam_search_planning/RESULTS.md).
 
+## 7l. Experiment 15 — Nonlinear world-model dynamics (Phase 6, continued)
+
+**Status: run.** Every world model built in this program
+(`LinearDynamicsModel`, experiments 11-14) assumes the true transition is
+linear in state. This tests whether that assumption's cost — already
+established for causal effect estimation (experiment 10) and single-step
+value estimation (experiment 11's model-free baseline) — recurs a third
+time, for world-model dynamics prediction itself, and whether a
+correctly-specified nonlinear dynamics model recovers it.
+
+- **Hypothesis:** a nonlinear dynamics model (fitting
+  `next_state ~ intercept(a) + b1(a)*state + b2(a)*state*|state|` per
+  action, matching the true functional form) recovers near-oracle
+  performance under genuinely nonlinear dynamics, while
+  `LinearDynamicsModel`, reused completely unchanged, shows a real,
+  measurable regret gap.
+- **The confound this needed to control for:** showing a nonlinear
+  world model beat a linear one would only prove nonlinear features can
+  help *somewhere*, not that they capture the actual functional form —
+  `nonlinear_world_model` uses `state*abs(state)` (an odd, sign-aware
+  function), matching `NonlinearControlEnv`'s actual restoring-force
+  construction exactly, not a generic `state**2` that would still be
+  blind to the force's sign.
+- **A boundary condition this experiment's first run found, checked
+  rather than reported as a null result:** the initial `GAMMA=0.05`
+  (chosen so the nonlinear term's magnitude at the state range's edge is
+  comparable to a single nudge) showed almost no gap between the linear
+  and nonlinear models — the same pattern experiment 13 found for a mild
+  regime shift: a nonlinearity too small to change which discrete action
+  ranks best doesn't produce a measurable gap. Swept `GAMMA` up rather
+  than stopping there; `GAMMA=0.30` produces a clean, dramatic gap and
+  is the value used for the main result.
+- **Design:** `NonlinearControlEnv`
+  (`environments/transworld/nonlinear_control_env.py`) adds
+  `-GAMMA*state*abs(state)` to `ResourceControlEnv`'s (experiment 11)
+  dynamics — the same structural role experiment 10's `gamma2*X**2` term
+  played for a causal effect, now for a state's own evolution.
+  **Verified by hand before being trusted for anything**: the
+  environment's dynamics were checked against a hand computation
+  (`state=4.0`, `action=large_up` → `next_state=5.2` exactly), and
+  `NonlinearWorldModelAgent`'s fitted coefficients were checked against a
+  noiseless synthetic case, recovered to floating-point precision, in
+  `tests/test_exp15_nonlinear_world_model.py`.
+- **Result (GAMMA=0.30): `nonlinear_world_model` matched the oracle
+  ceiling almost exactly (regret 0.0036 vs. the oracle's 0.0014), while
+  `linear_world_model`'s regret (0.6933) was roughly 193x larger** —
+  despite identical state access and the identical `ordinary_least_squares`
+  tool, differing only in feature set. `linear_world_model` still
+  meaningfully beat the `state_blind` floor (0.6933 vs. 0.8769) — wrong
+  but not worthless, the same pattern experiment 11's model-free linear
+  baseline showed.
+- **Falsification:** would have been `nonlinear_world_model` failing to
+  reach the oracle ceiling despite ample data (a bug in the fitting
+  mechanism), or the linear/nonlinear gap remaining negligible even at
+  `GAMMA=0.30` (meaning the claimed misspecification doesn't actually
+  matter for decision quality) — neither happened. Full numbers and what
+  isn't tested (a single nonlinear functional form; the correct feature
+  handed to the agent, not discovered; single-step decisions only, not
+  composed with the multi-step planner or beam search; the exact
+  boundary-severity crossover point unmapped) in
+  [experiments/exp15_nonlinear_world_model/RESULTS.md](../experiments/exp15_nonlinear_world_model/RESULTS.md).
+
 ## 8. Sequencing
 
 1. ~~Experiment 2 first~~ — **done**, see §6. Result: `sensitivity()` failed
@@ -1400,6 +1462,14 @@ than reporting it.
     degeneracy in a fine action grid) were caught and fixed before this
     finding could be trusted. Full results in
     [experiments/exp14_beam_search_planning/](../experiments/exp14_beam_search_planning/RESULTS.md).
+16. ~~Experiment 15~~ — **done**, see §7l. A weak nonlinear perturbation
+    to `ResourceControlEnv`'s dynamics (`GAMMA=0.05`) showed no gap
+    between linear and nonlinear world models — the same
+    doesn't-change-the-optimal-action pattern experiment 13 found for a
+    mild regime shift — but a stronger one (`GAMMA=0.30`) produced a
+    clean, ~193x regret gap, with the correctly-specified nonlinear
+    model matching the oracle ceiling almost exactly. Full results in
+    [experiments/exp15_nonlinear_world_model/](../experiments/exp15_nonlinear_world_model/RESULTS.md).
 
 ## 9. What would make this publishable, and what would make a reviewer skeptical
 
@@ -1435,7 +1505,7 @@ than reporting it.
   borrows from (§8a of `related-work.md`) solves a much harder version of
   this problem than what was actually tested here, and both follow-ups
   show exactly where that gap matters.
-- **All fourteen experiments are now done** (§5-7k). If this program is
+- **All fifteen experiments are now done** (§5-7l). If this program is
   written up externally, the honest headline is: reference-frame
   conditioning helps within a bounded noise/coverage regime (experiment 1),
   a naive frame-dependence detector can fail in exactly the common case and
@@ -1490,12 +1560,19 @@ than reporting it.
   investigating a result that looked wrong rather than reporting it,
   that beam search isn't just cheaper — it's measurably more robust to a
   genuine receding-horizon oscillation pathology exhaustive search's
-  terminal-only scoring is vulnerable to (experiment 14). That's a
-  coherent, modest, defensible set of claims — resist the temptation to
-  round any of them up, experiments 4 through 14 included.
-- **Experiments 5, 6, 7, 8, 9, 10, 11, 12, 13, and 14 are also the first
-  results from this program that are reusable kernel capabilities, not
-  RL research scripts** — worth leading with in any framing aimed at the "is any of
+  terminal-only scoring is vulnerable to (experiment 14), and a
+  fifteenth found the linear-cannot-represent-a-nonlinearity lesson
+  recurring for a third distinct object — world-model dynamics
+  prediction itself, after causal effect estimation and single-step
+  value estimation — with a directly-checked boundary condition
+  mirroring experiment 13's: a weak nonlinearity that doesn't change
+  which discrete action ranks best shows no gap, a strong one produces a
+  clean ~193x regret gap (experiment 15). That's a coherent, modest,
+  defensible set of claims — resist the temptation to round any of them
+  up, experiments 4 through 15 included.
+- **Experiments 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, and 15 are also the
+  first results from this program that are reusable kernel capabilities,
+  not RL research scripts** — worth leading with in any framing aimed at the "is any of
   this actually usable" question, separate from the reference-frame-
   conditioning experiments' own framing. Experiments 6 and 7 together
   remain the cleanest, most textbook-dramatic results: a spurious effect
@@ -1533,4 +1610,11 @@ than reporting it.
   "beating" exhaustive search), and what survived after fixing both was
   more interesting than the originally-planned "cheaper at a small
   quality cost" story — a genuine, quantified robustness advantage the
-  experiment wasn't designed to find.
+  experiment wasn't designed to find. Experiment 15 closes out the
+  three-object arc this program's linearity theme has now traced end to
+  end: causal effect estimation (experiment 10), single-step value
+  estimation (experiment 11), and now world-model dynamics prediction
+  itself, each independently confirming a linear fit cannot represent a
+  relationship it wasn't built to represent, and each independently
+  needing the misspecification to be severe enough to change an actual
+  decision before the effect became visible at all.
