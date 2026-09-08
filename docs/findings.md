@@ -940,6 +940,19 @@ empties its training data sidesteps the cold-start cliff entirely and
 ends up more practically robust than
 change detection here, reversing experiment 13's own preference.
 
+A second follow-up tried to fix the cold-start cost rather than just
+report it, with an honest account of what didn't work before what did.
+Shrinking how often the model refits, the seemingly obvious fix, made
+things *worse*, not better — investigated rather than shrugged off, and
+traced to a real, previously-unseen problem: the purely-greedy action
+policy locks onto the very first action that becomes technically
+"known," even when its coefficient estimate comes from just a couple of
+noisy points, and then never explores again. Requiring every action to
+be known before acting greedily, instead of just one, fixed the
+mild-shift reversal outright and improved the severe-shift case too —
+though a purely-greedy adaptive agent, even with that fix, still doesn't
+beat the simpler sliding-window heuristic under a severe shift.
+
 → [experiments/exp19_nonlinear_regime_shift/RESULTS.md](../experiments/exp19_nonlinear_regime_shift/RESULTS.md)
 
 ## Experiment 20 — Does experiment 16's central hypothesis hold up when the environment's own noise is directly manipulated?

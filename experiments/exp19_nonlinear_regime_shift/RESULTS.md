@@ -143,6 +143,58 @@ is a real, verified narrowing (from "unexplained" to "post-shift
 action-driven interaction, not steady-state model noise"), not a
 complete account.
 
+## Follow-up: mitigating the cold-start cost (Finding 1)
+
+Ran: `PYTHONPATH=. python experiments/exp19_nonlinear_regime_shift/cold_start_mitigation.py`.
+10 seeds, both severities. Rather than only reporting Finding 1's
+cold-start cost, this attempts to engineer around it — with an honest
+account of what failed before what worked.
+
+**Attempt 1 (FAILED): shrink `refit_interval`.** `_training_transitions()`'s
+post-reset pool grows continuously regardless of `refit_interval` —
+shrinking it should only help or be neutral, never hurt, by catching
+sufficient new data sooner. **Directly tested and refuted**: shrinking
+`refit_interval` from 20 to 2 made the mild-shift reversal substantially
+*worse* (`oracle - never` went from -0.14 to -0.71), and even flipped
+the *severe*-shift case from a clear adaptation benefit (+1.25) to a net
+cost (-0.43). **Investigated rather than left as a puzzling negative
+result**: instrumentation shows the first action to reach 3 observations
+(from the initial random-fallback phase) triggers immediate, permanent
+greedy exploitation of that one action's noisy, barely-identified
+coefficient — `choose_action` has no exploration bonus once *any* action
+is known. Measured directly: at `refit_interval=20`, no single action
+exceeds ~38% of post-reset choices in the first 60 trials; at
+`refit_interval=2`, one action dominates 88-97% of choices almost
+immediately — premature lock-in onto an unreliable estimate, worse than
+continued random exploration. A genuine, deeper finding this experiment's
+main run didn't surface: the cold-start cost isn't only about
+insufficient data to fit anything — it's compounded by a purely-greedy
+policy's total lack of exploration once *any* action becomes "known."
+
+**Attempt 2 (partially succeeded): require full action coverage before
+going greedy.** `FullCoverageOracleAgent`/`FullCoverageCUSUMAgent` keep
+exploring uniformly at random until *every* action has a fitted
+coefficient, not just one, avoiding lock-in onto a single early estimate.
+
+| condition | mild_attenuation oracle−never | sign_flip oracle−never | sign_flip cusum−never |
+|---|---|---|---|
+| original (greedy on first known action) | -0.1441 | +1.2460 | +0.3130 |
+| full-coverage-before-greedy | **+0.0521** | **+1.4023** | **+0.6238** |
+
+**This closes Finding 1 outright**: `oracle_adapts` no longer
+underperforms `never_adapts` under a mild shift (-0.14 → +0.05) — and
+also *improves* the severe-shift case, both for the oracle (+1.25 →
++1.40) and for `cusum_detects_and_adapts` (+0.31 → +0.62, roughly
+doubling the adaptation benefit over `never_adapts`).
+
+**It does not fully close Finding 2**: `full_coverage_cusum`'s post-shift
+reward (-1.0376) still trails `sliding_window_baseline`'s (-0.4375) under
+`sign_flip` — the confound-controlled comparison experiment 19's design
+needed still fails, though the gap narrows substantially from the
+original (-1.3484 vs. the same -0.4375 baseline). A purely-greedy
+CUSUM-adaptive agent, even with the lock-in problem fixed, is still not
+earning its complexity over the simpler recency heuristic here.
+
 ## What this establishes
 
 - **Regime-adaptation does not generalize for free from a linear to a
@@ -176,11 +228,13 @@ complete account.
   and one GAMMA value (0.3) were tested** — whether the cold-start cost
   scales with nonlinearity strength, or is specific to this functional
   form's higher parameter count, is untested.
-- **The cold-start cost itself was not mitigated or engineered around**
-  (e.g. a softer transition that retains some pre-shift data temporarily,
-  or an immediate forced refit at detection rather than waiting for the
-  next scheduled boundary) — this experiment reports the cost as found,
-  it does not attempt to fix it.
+- **The cold-start cost's mitigation is partial, not complete** (see the
+  follow-up above): full-coverage-before-greedy closes Finding 1 (the
+  mild-shift reversal) and improves the severe-shift oracle and CUSUM
+  cases, but `cusum_detects_and_adapts` still doesn't beat
+  `sliding_window_baseline` under `sign_flip` — Finding 2's confound-
+  controlled comparison still fails, just by a smaller margin. A softer
+  data-retention transition (rather than a hard reset) was not tried.
 - **Not combined with multi-step planning or beam search** (experiments
   12/14/16) — whether this cold-start cost compounds further with
   multi-step lookahead is untested.
