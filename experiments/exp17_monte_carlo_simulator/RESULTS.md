@@ -77,15 +77,52 @@ usual multi-step cost, not a contradiction of the general finding.
   `transintelligence/reasoning/interfaces.py` from before Phase 4 now has
   a real implementation except `Verifier`.
 
+## Follow-up: locating the rollout-count reliability threshold
+
+Ran: `PYTHONPATH=. python experiments/exp17_monte_carlo_simulator/rollout_count_sweep.py`.
+Same 12 seeds and 5 starting states as above (60 comparisons per
+`n_rollouts` value), agents trained once and reused across the sweep.
+Fills the gap flagged above: is there a point at which the verdict
+becomes unreliable, and where?
+
+| n_rollouts | wins for greedy | win rate |
+|---|---|---|
+| 1 | 49/60 | 81.7% |
+| 2 | 51/60 | 85.0% |
+| 3 | 54/60 | 90.0% |
+| 5 | 53/60 | 88.3% |
+| 10 | 57/60 | 95.0% |
+| 20 | 56/60 | 93.3% |
+| 50 | 54/60 | 90.0% |
+| 100 | 56/60 | 93.3% |
+| 200 | 58/60 | 96.7% |
+
+**No sharp reliability cliff exists within this range, for this effect
+size.** Individual values wobble (expected: each `n_rollouts` value uses
+its own independent random stream, not a nested sequence, so
+sample-to-sample variation is normal, not evidence of non-monotonicity)
+but bucketing smooths it into a clean, monotonic trend: low
+(`n_rollouts` 1-5) 86.3% → mid (10-50) 92.8% → high (100-200) 95.0%.
+Even a single stochastic rollout per policy (`n_rollouts=1`, about as
+unreliable as this tool can be configured) still gets the ranking right
+81.7% of the time — well above chance, reflecting how large the
+underlying effect (experiment 16's -4.52 vs. -33.06 gap) actually is.
+The answer to "where does it become unreliable" is: not within [1, 200]
+for an effect this size — the verdict degrades gracefully toward
+lower-but-still-informative reliability as `n_rollouts` shrinks, rather
+than falling off a cliff at some specific threshold.
+
 ## What this does not establish
 
 - **Only one pair of policies, one environment, and one severity were
   tested** — this validates `MonteCarloSimulator` on the specific case
   experiment 16 already characterized in detail, not on a broad range of
   policy comparisons.
-- **`n_rollouts` sensitivity was checked at only two values (5 and
-  200)** — the point at which the verdict becomes unreliable, if it
-  exists at all for this effect size, was not located.
+- **The rollout-count sweep used a single, large effect size** — a
+  smaller or more marginal effect (e.g. two policies that are actually
+  close in quality) would likely show a real reliability cliff within a
+  practical `n_rollouts` range; this experiment's environment doesn't
+  test that case.
 - **The post-shift regime only** — pre-shift, where experiment 16 found
   both agents perform near-identically (-0.02 to -0.03), was not
   separately validated here; the interesting, decisive ranking is
