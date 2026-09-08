@@ -38,12 +38,17 @@ Causal reasoning's stated gaps are now all closed: backdoor adjustment, causal d
 
 Event reasoning has now started too: `Event` was named in the master context's own original Phase 1 primitive list (`docs/master-context.md` §19) alongside `State`, but never built -- only `State`/`StateHistory` (pure snapshots) were, leaving this a genuine, long-standing gap rather than new scope. `transintelligence/core/events/` implements `Event` (a discrete happening, as distinct from a state snapshot) plus `EventStore`/`EventQuery` (mirroring `ObservationStore`/`ObservationQuery`'s richer filtering, plus `sequence_for()` for chronological per-subject event ordering). `events_from_change_points()` (`transintelligence/reasoning/temporal/`) bridges this into already-verified infrastructure rather than an orphaned abstraction: it promotes `CUSUMTemporalReasoner.change_points()`'s bare `datetime`s into first-class, queryable `Event` records. Deliberately excluded from this pass: a new `EventReasoner` protocol (event causation rules, sequencing logic beyond chronological ordering) -- no pre-scoped stub for one exists, so that's left as a separate, later decision once the `Event` primitive itself proves useful.
 
+Persistent storage has also started: `transintelligence/storage/` implements `PersistentStore` (a `Protocol`, mirroring `reasoning/interfaces.py`'s pattern -- the only other place in this repo expresses "here is the shape a real implementation must have") and its first real backend, `SQLiteMemoryStore` -- a stdlib-only (`sqlite3`, no new dependency) drop-in replacement for `InMemoryStore` (`transintelligence/memory/base.py`), same `store()`/`retrieve()` signatures, but records survive process restarts (verified directly: written, closed, reopened from a fresh connection to the same file, and read back unchanged). Deliberately the stdlib option first, not PostgreSQL/pgvector -- a real database driver would be this repo's first-ever third-party runtime dependency, a bigger commitment left for later behind the same `PersistentStore` interface.
+
 ## Later milestones
 
 - ~~Temporal trajectories and event reasoning.~~ Started — see above;
   `Event`/`EventStore` and the change-point bridge are the first content,
   not yet a full `EventReasoner` protocol (event causation, richer
   sequencing logic).
+- ~~Persistent storage adapters.~~ Started — see above; `SQLiteMemoryStore`
+  fills the stdlib-first step, `PersistentStore` is the interface a
+  future PostgreSQL/pgvector backend would implement -- not yet built.
 - ~~Causal and counterfactual engines.~~ Both started — see above. Every
   reasoning protocol stub that existed before Phase 4 now has a real
   implementation — `Predictor`, `Planner`, `Simulator`, and `Verifier`
@@ -65,5 +70,4 @@ Event reasoning has now started too: `Event` was named in the master context's o
   detection reliability has been narrowed to a post-shift, pre-detection
   effect (`detection_diagnosis.py`), though not fully explained. A
   continuous severity sweep and a longer post-shift window remain.
-- Persistent storage adapters, eventually PostgreSQL/pgvector.
 - External model provider adapters behind interfaces.

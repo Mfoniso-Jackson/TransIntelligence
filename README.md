@@ -20,7 +20,7 @@ This repository currently implements the first milestone: typed primitives for e
 - Simulation: `MonteCarloSimulator` (`transintelligence/simulation/`) -- comparing the full multi-step outcome distribution of two given candidate policies via stochastic rollouts, rather than predicting one state or searching for one best action.
 - Verification: `CalibrationVerifier` (`transintelligence/verification/`) -- checks whether a predictive model's claimed uncertainty matches how often its predictions are actually right (Kupiec's 1995 unconditional-coverage test), alongside the earlier `EvidenceVerifier` for claim/evidence support.
 - Epistemic models: `Claim`, `Evidence`, `CounterEvidence`, `Hypothesis`, `Confidence`, `Source`.
-- In-memory episodic/semantic/strategic storage namespaces.
+- In-memory episodic/semantic/strategic storage namespaces, now with an optional persistent backend: `SQLiteMemoryStore` (`transintelligence/storage/`) -- a stdlib-only (`sqlite3`, no new dependency), drop-in replacement for `InMemoryStore` conforming to the same `PersistentStore` interface, so records survive process restarts. PostgreSQL/pgvector remains a documented future option behind the same interface, not yet built.
 - Minimal `KernelAgent` loop that stores simulated steps.
 - Finance, knowledge, growth, and property examples showing the same primitives across domains (`transintelligence/domains/`, `examples/`).
 
