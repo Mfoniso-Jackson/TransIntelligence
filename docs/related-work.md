@@ -77,7 +77,7 @@ quality relative to the learned-embedding versions already in the
 literature above, and does it gain anything in calibration/auditability
 that a black-box embedding can't offer even if reward is tied.**
 
-**Follow-up (Experiment 1, `docs/experiments/exp01_frame_conditioning/RESULTS.md`)**:
+**Follow-up (Experiment 1, `experiments/exp01_frame_conditioning/RESULTS.md`)**:
 building the more literal version of this literature's mechanism — a
 trained recurrent context encoder, not a discrete mixture — hit a second,
 independent layer of established theory. Bengio, Simard, Frasconi,

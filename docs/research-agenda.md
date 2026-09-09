@@ -9,9 +9,9 @@ project vision (see `docs/architecture.md`, `docs/intelligence-model.md`):
 vision motivates the program, this document constrains near-term work to
 what can actually be measured.
 
-All sixteen experiments below have now run. For a standalone summary of
+All twenty experiments below have now run. For a standalone summary of
 what they actually established — without reading this document's
-incremental updates or sixteen separate `RESULTS.md` files — see
+incremental updates or twenty separate `RESULTS.md` files — see
 [docs/findings.md](findings.md).
 
 Distinguish four categories throughout:
@@ -1731,6 +1731,56 @@ shrink toward zero as that noise shrinks toward zero?
     exploration" explanation checked directly and refuted. Full results
     in
     [experiments/exp16_regime_shift_multistep_planning/](../experiments/exp16_regime_shift_multistep_planning/RESULTS.md).
+18. ~~Experiment 17~~ — **done**, see §7n. Closed Phase 6's last
+    remaining gap, `Simulator`, with `MonteCarloSimulator`
+    (`transintelligence/simulation/`). Not a fresh claim — a validation
+    against experiment 16's already-established finding, using a
+    completely different methodology (short stochastic rollouts from
+    arbitrary starting states, not full 400-episode environment
+    averages): independently recovered the same ranking
+    (`greedy_cusum_adapts` beats `mpc_beam_cusum_adapts` post-shift) in
+    58/60 comparisons, with a built-in sensitivity control confirming
+    the number of rollouts genuinely affects verdict reliability. Full
+    results in
+    [experiments/exp17_monte_carlo_simulator/](../experiments/exp17_monte_carlo_simulator/RESULTS.md).
+19. ~~Experiment 18~~ — **done**, see §7o. Filled `Verifier`, the last
+    reasoning-protocol stub from before Phase 4, with
+    `CalibrationVerifier` (Kupiec 1995's unconditional-coverage test).
+    Unlike experiment 17, a genuine new hypothesis test: does
+    experiment 16's own best-supported but unconfirmed explanation
+    (chained multi-step predictions compound a learned model's
+    estimation error) hold up when checked directly against each
+    agent's actual one-step residuals? It does not show `mpc_beam`'s
+    model as measurably worse-calibrated than `greedy`'s post-shift —
+    ruling out one plausible alternative explanation and, by
+    elimination, leaving the original chaining hypothesis more
+    plausible, still not directly confirmed. Full results in
+    [experiments/exp18_calibration_verifier/](../experiments/exp18_calibration_verifier/RESULTS.md).
+20. ~~Experiment 19~~ — **done**, see §7p. Extended regime-adaptation to
+    a nonlinear dynamics model (`NonlinearDynamicsModel`, generalized
+    from experiment 15's follow-up) — a third synthesis experiment,
+    structurally identical to experiment 13. The composition does NOT
+    transfer for free: a mild shift, an honest null result for the
+    linear model, actively HURTS here (a cold-start cost traced
+    directly via instrumentation); a severe shift still favors
+    adaptation, but CUSUM detection reliability itself measurably
+    degrades for a reason checked and refuted but not otherwise
+    identified. Full results, plus two follow-ups (narrowing the
+    detection-degradation cause, and a partial fix for the cold-start
+    cost), in
+    [experiments/exp19_nonlinear_regime_shift/](../experiments/exp19_nonlinear_regime_shift/RESULTS.md).
+21. ~~Experiment 20~~ — **done**, see §7q. Directly confirmed experiment
+    16's central compounding-estimation-error hypothesis — where
+    experiment 18 only ruled out one alternative explanation, this
+    swept the environment's own observation noise from zero to 4x its
+    original value and found the persistent multi-step-planning gap
+    scales strongly with it (1.44 at zero noise vs. 24.72-30.92 at or
+    above the original level), with detection reliability tracked and
+    shown not to differ between agents. The first direct, positive
+    confirmation of the mechanism in this program's Phase 6 arc. Full
+    results, plus a follow-up characterizing (partially) the noise→gap
+    functional form, in
+    [experiments/exp20_noise_sweep_compounding_error/](../experiments/exp20_noise_sweep_compounding_error/RESULTS.md).
 
 ## 9. What would make this publishable, and what would make a reviewer skeptical
 
