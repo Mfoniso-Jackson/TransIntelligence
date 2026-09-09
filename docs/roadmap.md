@@ -40,6 +40,8 @@ Event reasoning has now started too: `Event` was named in the master context's o
 
 Persistent storage has also started: `transintelligence/storage/` implements `PersistentStore` (a `Protocol`, mirroring `reasoning/interfaces.py`'s pattern -- the only other place in this repo expresses "here is the shape a real implementation must have") and its first real backend, `SQLiteMemoryStore` -- a stdlib-only (`sqlite3`, no new dependency) drop-in replacement for `InMemoryStore` (`transintelligence/memory/base.py`), same `store()`/`retrieve()` signatures, but records survive process restarts (verified directly: written, closed, reopened from a fresh connection to the same file, and read back unchanged). Deliberately the stdlib option first, not PostgreSQL/pgvector -- a real database driver would be this repo's first-ever third-party runtime dependency, a bigger commitment left for later behind the same `PersistentStore` interface.
 
+External model provider interfaces have also started: `transintelligence/providers/` implements `EmbeddingProvider`/`TextGenerationProvider` (two `Protocol`s, the same pattern) operationalizing the master context's own explicit principle (§30: "keep model providers behind interfaces... do not hardcode OpenAI, Anthropic, Gemini, a particular embedding provider... into the conceptual core"). Unlike `Event` or `PersistentStore`, nothing in this repo consumed either interface beforehand -- `Entity.embedding_ref` is the one placeholder field gesturing at the need, never read or written anywhere before now. `DeterministicHashEmbeddingProvider`/`TemplateTextProvider` are stdlib-only, offline, deterministic reference implementations (no network call, no API key) -- not stand-ins for real semantic capability, but enough to make each interface concretely testable. A real OpenAI/Anthropic-calling implementation is deliberately not built: this repo has never made a real network call anywhere, and every experiment depends on deterministic, offline, seeded reproducibility a real provider would break without a mocking convention this repo doesn't have yet.
+
 ## Later milestones
 
 - ~~Temporal trajectories and event reasoning.~~ Started — see above;
@@ -70,4 +72,8 @@ Persistent storage has also started: `transintelligence/storage/` implements `Pe
   detection reliability has been narrowed to a post-shift, pre-detection
   effect (`detection_diagnosis.py`), though not fully explained. A
   continuous severity sweep and a longer post-shift window remain.
-- External model provider adapters behind interfaces.
+- ~~External model provider adapters behind interfaces.~~ Started — see
+  above; `EmbeddingProvider`/`TextGenerationProvider` are the interfaces,
+  `DeterministicHashEmbeddingProvider`/`TemplateTextProvider` the
+  stdlib-only reference implementations -- a real network-calling
+  provider is not yet built.
